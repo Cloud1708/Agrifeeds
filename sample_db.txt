@@ -1,0 +1,267 @@
+CREATE TABLE CATEGORIES (
+    CategoryID INT PRIMARY KEY AUTO_INCREMENT,
+    CategoryName VARCHAR(100) NOT NULL
+);
+
+INSERT INTO CATEGORIES (CategoryName) VALUES
+('Poultry'), ('Swine'), ('Cattle'), ('Supplements'), ('Equipment');
+
+CREATE TABLE UNITS (
+    UnitID INT PRIMARY KEY AUTO_INCREMENT,
+    UnitName VARCHAR(50) NOT NULL
+);
+
+INSERT INTO UNITS (UnitName) VALUES
+('kg'), ('pcs'), ('liters'), ('bags');
+
+CREATE TABLE USER_ACCOUNTS (
+    UserID INT PRIMARY KEY AUTO_INCREMENT,
+    User_Name VARCHAR(255) NOT NULL,
+    User_Password VARCHAR(255) NOT NULL,
+    User_Role INT,
+    User_CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    User_Photo VARCHAR(255)
+);
+
+INSERT INTO USER_ACCOUNTS (User_Name, User_Password, User_Role, User_Photo) VALUES
+('admin', 'adminpass', 1, 'admin.jpg'),
+('john', 'johnpass', 2, 'john.jpg'),
+('jane', 'janepass', 3, 'jane.jpg');
+
+CREATE TABLE PRODUCTS (
+    ProductID INT PRIMARY KEY AUTO_INCREMENT,
+    Prod_Name VARCHAR(255) NOT NULL,
+    Prod_Cat VARCHAR(100),
+    Prod_Desc TEXT,
+    Prod_Price DECIMAL(10, 2),
+    Prod_Stock INT,
+    UserID INT,
+    Prod_Created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    Prod_Updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (UserID) REFERENCES USER_ACCOUNTS(UserID)
+);
+
+INSERT INTO PRODUCTS (Prod_Name, Prod_Cat, Prod_Desc, Prod_Price, Prod_Stock, UserID) VALUES
+('B-MEG Chicken Feed', 'Poultry', 'High quality chicken feed', 50.00, 100, 1),
+('Purina Pig Feed', 'Swine', 'Premium pig feed', 45.00, 80, 2),
+('Nutri-Mix Cattle Feed', 'Cattle', 'Balanced cattle feed', 65.00, 120, 1);
+
+CREATE TABLE PRICING_HISTORY (
+    HistoryID INT PRIMARY KEY AUTO_INCREMENT,
+    ProductID INT,
+    PH_OldPrice DECIMAL(10, 2),
+    PH_NewPrice DECIMAL(10, 2),
+    PH_ChangeDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PH_Effective_from DATE NOT NULL,
+    PH_Effective_to DATE NULL DEFAULT NULL,
+    PH_Created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (ProductID) REFERENCES PRODUCTS(ProductID)
+);
+
+INSERT INTO PRICING_HISTORY (ProductID, PH_OldPrice, PH_NewPrice, PH_Effective_from) VALUES
+(1, 45.00, 50.00, '2024-06-01'),
+(2, 40.00, 45.00, '2024-06-01');
+
+CREATE TABLE CUSTOMERS (
+    CustomerID INT PRIMARY KEY AUTO_INCREMENT,
+    Cust_Name VARCHAR(255) NOT NULL,
+    Cust_CoInfo VARCHAR(255),
+    Cust_LoStat VARCHAR(100),
+    Cust_DiscRate DECIMAL(5, 2)
+);
+
+INSERT INTO CUSTOMERS (Cust_Name, Cust_CoInfo, Cust_LoStat, Cust_DiscRate) VALUES
+('Juan Dela Cruz', 'Farm Owner', 'Active', 5.00),
+('Maria Santos', 'Retailer', 'Active', 3.00);
+
+CREATE TABLE SALES (
+    SaleID INT PRIMARY KEY AUTO_INCREMENT,
+    Sale_Date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    Sale_Method VARCHAR(100),
+    Sale_Per VARCHAR(100),
+    CustomerID INT,
+    FOREIGN KEY (CustomerID) REFERENCES CUSTOMERS(CustomerID)
+);
+
+INSERT INTO SALES (Sale_Method, Sale_Per, CustomerID) VALUES
+('Cash', 'John', 1),
+('Card', 'Jane', 2);
+
+CREATE TABLE SALE_ITEM (
+    SaleItemID INT PRIMARY KEY AUTO_INCREMENT,
+    SaleID INT,
+    ProductID INT,
+    SI_Quantity INT,
+    SI_Price DECIMAL(10, 2),
+    FOREIGN KEY (SaleID) REFERENCES SALES(SaleID),
+    FOREIGN KEY (ProductID) REFERENCES PRODUCTS(ProductID)
+);
+
+INSERT INTO SALE_ITEM (SaleID, ProductID, SI_Quantity, SI_Price) VALUES
+(1, 1, 2, 50.00),
+(1, 2, 1, 45.00),
+(2, 3, 3, 65.00);
+
+CREATE TABLE SUPPLIERS (
+    SupplierID INT PRIMARY KEY AUTO_INCREMENT,
+    Sup_Name VARCHAR(255) NOT NULL,
+    Sup_CoInfo VARCHAR(255),
+    Sup_PayTerm VARCHAR(100),
+    Sup_DeSched VARCHAR(100)
+);
+
+INSERT INTO SUPPLIERS (Sup_Name, Sup_CoInfo, Sup_PayTerm, Sup_DeSched) VALUES
+('AgriSupplier Inc.', 'Bulk Supplier', 'Net 30', 'Weekly'),
+('FarmGoods Co.', 'Local Supplier', 'Immediate', 'Monthly');
+
+CREATE TABLE PURCHASE_ORDERS (
+    Pur_OrderID INT PRIMARY KEY AUTO_INCREMENT,
+    PO_Order_Date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    SupplierID INT,
+    PO_Order_Stat VARCHAR(100),
+    PO_Total_Amount DECIMAL(10, 2),
+    FOREIGN KEY (SupplierID) REFERENCES SUPPLIERS(SupplierID)
+);
+
+INSERT INTO PURCHASE_ORDERS (SupplierID, PO_Order_Stat, PO_Total_Amount) VALUES
+(1, 'Pending', 1200.00),
+(2, 'Completed', 800.00);
+
+CREATE TABLE PURCHASE_ORDER_ITEM (
+    Pur_OrderItemID INT PRIMARY KEY AUTO_INCREMENT,
+    Pur_OrderID INT,
+    ProductID INT,
+    Pur_OIQuantity INT,
+    Pur_OIPrice DECIMAL(10, 2),
+    FOREIGN KEY (Pur_OrderID) REFERENCES PURCHASE_ORDERS(Pur_OrderID),
+    FOREIGN KEY (ProductID) REFERENCES PRODUCTS(ProductID)
+);
+
+INSERT INTO PURCHASE_ORDER_ITEM (Pur_OrderID, ProductID, Pur_OIQuantity, Pur_OIPrice) VALUES
+(1, 1, 10, 50.00),
+(1, 2, 5, 45.00),
+(2, 3, 8, 65.00);
+
+CREATE TABLE PAYMENT_HISTORY (
+    PaytoryID INT PRIMARY KEY AUTO_INCREMENT,
+    SaleID INT,
+    PT_PayAmount DECIMAL(10, 2),
+    PT_PayDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PT_PayMethod VARCHAR(100),
+    FOREIGN KEY (SaleID) REFERENCES SALES(SaleID)
+);
+
+INSERT INTO PAYMENT_HISTORY (SaleID, PT_PayAmount, PT_PayMethod) VALUES
+(1, 100.00, 'Cash'),
+(2, 320.00, 'Card');
+
+CREATE TABLE CUSTOMER_DISCOUNT_RATE (
+    CusDiscountID INT PRIMARY KEY AUTO_INCREMENT,
+    CustomerID INT,
+    CDR_DiscountRate DECIMAL(5, 2),
+    CDR_EffectiveDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CDR_ExpirationDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (CustomerID) REFERENCES CUSTOMERS(CustomerID)
+);
+
+INSERT INTO CUSTOMER_DISCOUNT_RATE (CustomerID, CDR_DiscountRate) VALUES
+(1, 5.00),
+(2, 3.00);
+
+CREATE TABLE INVENTORY_ALERTS (
+    AlertID INT PRIMARY KEY AUTO_INCREMENT,
+    ProductID INT,
+    IA_AlertType VARCHAR(100),
+    IA_Threshold INT,
+    IA_AlertDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (ProductID) REFERENCES PRODUCTS(ProductID)
+);
+
+INSERT INTO INVENTORY_ALERTS (ProductID, IA_AlertType, IA_Threshold) VALUES
+(1, 'Low Stock', 10),
+(2, 'Out of Stock', 0);
+
+CREATE TABLE INVENTORY_HISTORY (
+    IHID INT PRIMARY KEY AUTO_INCREMENT,
+    ProductID INT,
+    IH_QtyChange INT,
+    IH_NewStckLvl INT,
+    IH_ChangeDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (ProductID) REFERENCES PRODUCTS(ProductID)
+);
+
+INSERT INTO INVENTORY_HISTORY (ProductID, IH_QtyChange, IH_NewStckLvl) VALUES
+(1, -10, 90),
+(2, 20, 100);
+
+CREATE TABLE LOYALTY_PROGRAM (
+    LoyaltyID INT PRIMARY KEY AUTO_INCREMENT,
+    CustomerID INT,
+    LP_PtsBalance INT,
+    LP_MbspTier VARCHAR(100),
+    LP_LastUpdt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (CustomerID) REFERENCES CUSTOMERS(CustomerID)
+);
+
+INSERT INTO LOYALTY_PROGRAM (CustomerID, LP_PtsBalance, LP_MbspTier) VALUES
+(1, 3200, 'Gold'),
+(2, 1100, 'Silver');
+
+CREATE TABLE LOYALTY_TRANSACTION_HISTORY (
+    LoTranHID INT PRIMARY KEY AUTO_INCREMENT,
+    LoyaltyID INT,
+    LoTranH_PtsEarned INT,
+    LoTranH_PtsRedeemed INT,
+    LoTranH_TransDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    LoTranH_TransDesc TEXT,
+    FOREIGN KEY (LoyaltyID) REFERENCES LOYALTY_PROGRAM(LoyaltyID)
+);
+
+INSERT INTO LOYALTY_TRANSACTION_HISTORY (LoyaltyID, LoTranH_PtsEarned, LoTranH_PtsRedeemed, LoTranH_TransDesc) VALUES
+(1, 200, 0, 'Initial points'),
+(2, 0, 100, 'Redeemed for discount');
+
+CREATE TABLE PROMOTIONS (
+    PromotionID INT PRIMARY KEY AUTO_INCREMENT,
+    Prom_Code VARCHAR(100) NOT NULL,
+    Promo_Description TEXT,
+    Promo_DiscAmnt DECIMAL(10, 2),
+    Promo_DiscountType VARCHAR(50),
+    Promo_StartDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    Promo_EndDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UsageLimit INT,
+    Promo_MaxDiscAmnt DECIMAL(10, 2),
+    Promo_IsActive BOOLEAN DEFAULT TRUE
+);
+
+INSERT INTO PROMOTIONS (Prom_Code, Promo_Description, Promo_DiscAmnt, Promo_DiscountType, UsageLimit, Promo_MaxDiscAmnt) VALUES
+('SUMMER10', '10% off summer promo', 10.00, 'percentage', 100, 50.00),
+('BUNDLE20', 'Bundle deal for pig and cattle feed', 20.00, 'fixed', 50, 20.00);
+
+CREATE TABLE ORDER_PROMOTIONS (
+    OrderPromotionID INT PRIMARY KEY AUTO_INCREMENT,
+    SaleID INT,
+    PromotionID INT,
+    OrderP_DiscntApplied DECIMAL(10, 2),
+    OrderP_AppliedDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (SaleID) REFERENCES SALES(SaleID),
+    FOREIGN KEY (PromotionID) REFERENCES PROMOTIONS(PromotionID)
+);
+
+INSERT INTO ORDER_PROMOTIONS (SaleID, PromotionID, OrderP_DiscntApplied) VALUES
+(1, 1, 10.00),
+(2, 2, 20.00);
+
+CREATE TABLE PRODUCT_ACCESS_LOG (
+    LogID INT PRIMARY KEY AUTO_INCREMENT,
+    ProductID INT,
+    UserID INT,
+    Pal_Action VARCHAR(100),
+    Pal_TimeStamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (ProductID) REFERENCES PRODUCTS(ProductID),
+    FOREIGN KEY (UserID) REFERENCES USER_ACCOUNTS(UserID)
+);
+
+INSERT INTO PRODUCT_ACCESS_LOG (ProductID, UserID, Pal_Action) VALUES
+(1, 1, 'view'),
+(2, 2, 'edit');
