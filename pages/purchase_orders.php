@@ -199,66 +199,7 @@
     <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <!-- Custom JS -->
-    <script>
-    // Mock purchase orders data array
-    const purchaseOrders = [
-        {
-            number: 'PO-1001',
-            supplier: 'AgriSupplier Inc.',
-            date: '2024-06-01',
-            items: 5,
-            total: 1200.00,
-            status: 'pending'
-        },
-        {
-            number: 'PO-1002',
-            supplier: 'FarmGoods Co.',
-            date: '2024-05-28',
-            items: 3,
-            total: 800.00,
-            status: 'completed'
-        },
-        {
-            number: 'PO-1003',
-            supplier: 'FeedMasters',
-            date: '2024-05-20',
-            items: 7,
-            total: 2100.00,
-            status: 'cancelled'
-        }
-    ];
-
-    function getPOStatusBadge(status) {
-        if (status === 'pending') return '<span class="badge bg-warning text-dark">Pending</span>';
-        if (status === 'completed') return '<span class="badge bg-success">Completed</span>';
-        if (status === 'cancelled') return '<span class="badge bg-danger">Cancelled</span>';
-        return '';
-    }
-
-    function renderPurchaseOrdersTable() {
-        const tbody = document.getElementById('purchaseOrdersTableBody');
-        tbody.innerHTML = '';
-        purchaseOrders.forEach(po => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${po.number}</td>
-                <td>${po.supplier}</td>
-                <td>${po.date}</td>
-                <td>${po.items}</td>
-                <td>$${po.total.toFixed(2)}</td>
-                <td>${getPOStatusBadge(po.status)}</td>
-                <td>
-                    <button class="btn btn-sm btn-primary"><i class="bi bi-pencil"></i> Edit</button>
-                    <button class="btn btn-sm btn-danger"><i class="bi bi-trash"></i> Delete</button>
-                </td>
-            `;
-            tbody.appendChild(row);
-        });
-    }
-
-    // Initial render
-    renderPurchaseOrdersTable();
-    </script>
+    
     <script src="../js/scripts.js"></script>
 </body>
 </html> 

@@ -165,66 +165,6 @@
     <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <!-- Custom JS -->
-    <script>
-    // Mock promotions data array
-    const promotions = [
-        {
-            name: 'Summer Sale',
-            type: 'Discount',
-            start: '2024-06-01',
-            end: '2024-06-30',
-            discount: '10%',
-            status: 'active'
-        },
-        {
-            name: 'BOGO Chicken Feed',
-            type: 'Buy One Get One',
-            start: '2024-05-15',
-            end: '2024-05-31',
-            discount: '100% (2nd item)',
-            status: 'expired'
-        },
-        {
-            name: 'Bundle Deal: Pig & Cattle',
-            type: 'Bundle Deal',
-            start: '2024-06-10',
-            end: '2024-07-10',
-            discount: 'Save $20',
-            status: 'scheduled'
-        }
-    ];
-
-    function getPromotionStatusBadge(status) {
-        if (status === 'active') return '<span class="badge bg-success">Active</span>';
-        if (status === 'scheduled') return '<span class="badge bg-info text-dark">Scheduled</span>';
-        if (status === 'expired') return '<span class="badge bg-secondary">Expired</span>';
-        return '';
-    }
-
-    function renderPromotionsTable() {
-        const tbody = document.getElementById('promotionsTableBody');
-        tbody.innerHTML = '';
-        promotions.forEach(promo => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${promo.name}</td>
-                <td>${promo.type}</td>
-                <td>${promo.start}</td>
-                <td>${promo.end}</td>
-                <td>${promo.discount}</td>
-                <td>${getPromotionStatusBadge(promo.status)}</td>
-                <td>
-                    <button class="btn btn-sm btn-primary"><i class="bi bi-pencil"></i> Edit</button>
-                    <button class="btn btn-sm btn-danger"><i class="bi bi-trash"></i> Delete</button>
-                </td>
-            `;
-            tbody.appendChild(row);
-        });
-    }
-
-    // Initial render
-    renderPromotionsTable();
-    </script>
     <script src="../js/scripts.js"></script>
 </body>
 </html> 

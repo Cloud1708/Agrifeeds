@@ -226,66 +226,7 @@
     <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <!-- Custom JS -->
-    <script>
-    // Mock sales data array
-    const sales = [
-        {
-            orderId: 'S-1001',
-            customer: 'Juan Dela Cruz',
-            date: '2024-06-10',
-            items: 3,
-            total: 150.00,
-            status: 'completed'
-        },
-        {
-            orderId: 'S-1002',
-            customer: 'Maria Santos',
-            date: '2024-06-09',
-            items: 2,
-            total: 90.00,
-            status: 'pending'
-        },
-        {
-            orderId: 'S-1003',
-            customer: 'Pedro Reyes',
-            date: '2024-06-08',
-            items: 5,
-            total: 320.00,
-            status: 'cancelled'
-        }
-    ];
 
-    function getSaleStatusBadge(status) {
-        if (status === 'completed') return '<span class="badge bg-success">Completed</span>';
-        if (status === 'pending') return '<span class="badge bg-warning text-dark">Pending</span>';
-        if (status === 'cancelled') return '<span class="badge bg-danger">Cancelled</span>';
-        return '';
-    }
-
-    function renderSalesTable() {
-        const tbody = document.getElementById('salesTableBody');
-        tbody.innerHTML = '';
-        sales.forEach(sale => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${sale.orderId}</td>
-                <td>${sale.customer}</td>
-                <td>${sale.date}</td>
-                <td>${sale.items}</td>
-                <td>$${sale.total.toFixed(2)}</td>
-                <td>${getSaleStatusBadge(sale.status)}</td>
-                <td>
-                    <button class="btn btn-sm btn-primary"><i class="bi bi-pencil"></i> Edit</button>
-                    <button class="btn btn-sm btn-danger"><i class="bi bi-trash"></i> Delete</button>
-                </td>
-            `;
-            tbody.appendChild(row);
-        });
-    }
-
-    // Initial render
-    renderSalesTable();
-    </script>
     <script src="../js/scripts.js"></script>
 </body>
 </html> 

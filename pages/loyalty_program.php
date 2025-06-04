@@ -228,65 +228,7 @@
     <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <!-- Custom JS -->
-    <script>
-    // Mock members data array
-    const members = [
-        {
-            id: 'M001',
-            name: 'Anna Cruz',
-            tier: 'Gold',
-            points: 3200,
-            joinDate: '2023-01-15',
-            status: 'active'
-        },
-        {
-            id: 'M002',
-            name: 'Ben Santos',
-            tier: 'Silver',
-            points: 1100,
-            joinDate: '2022-11-10',
-            status: 'inactive'
-        },
-        {
-            id: 'M003',
-            name: 'Carla Reyes',
-            tier: 'Platinum',
-            points: 10500,
-            joinDate: '2021-08-22',
-            status: 'active'
-        }
-    ];
-
-    function getMemberStatusBadge(status) {
-        if (status === 'active') return '<span class="badge bg-success">Active</span>';
-        if (status === 'inactive') return '<span class="badge bg-danger">Inactive</span>';
-        return '';
-    }
-
-    function renderMembersTable() {
-        const tbody = document.getElementById('membersTableBody');
-        tbody.innerHTML = '';
-        members.forEach(member => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${member.id}</td>
-                <td>${member.name}</td>
-                <td>${member.tier}</td>
-                <td>${member.points}</td>
-                <td>${member.joinDate}</td>
-                <td>${getMemberStatusBadge(member.status)}</td>
-                <td>
-                    <button class="btn btn-sm btn-primary"><i class="bi bi-pencil"></i> Edit</button>
-                    <button class="btn btn-sm btn-danger"><i class="bi bi-trash"></i> Delete</button>
-                </td>
-            `;
-            tbody.appendChild(row);
-        });
-    }
-
-    // Initial render
-    renderMembersTable();
-    </script>
+    
     <script src="../js/scripts.js"></script>
 </body>
 </html> 
