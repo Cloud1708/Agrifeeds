@@ -1,25 +1,25 @@
-<?php 
+<?php
 session_start();
-
+ 
 require_once('../includes/db.php');
 $con = new database();
 $sweetAlertConfig = "";
-
+ 
 // Get SweetAlert config from session after redirect
 if (isset($_SESSION['sweetAlertConfig'])) {
     $sweetAlertConfig = $_SESSION['sweetAlertConfig'];
     unset($_SESSION['sweetAlertConfig']);
 }
-
+ 
 if (isset($_POST['add_product'])) {
-
+ 
   $productName = $_POST['productName'];
   $category = $_POST['category'];
   $description = $_POST['description'];
   $price = $_POST['price'];
   $stock = $_POST['stock'];
   $productID = $con->addProduct($productName, $category, $description, $price, $stock);
-
+ 
   if ($productID) {
     $_SESSION['sweetAlertConfig'] = "
     <script>
@@ -43,7 +43,7 @@ if (isset($_POST['add_product'])) {
   header("Location: " . $_SERVER['PHP_SELF']);
   exit();
 }
-
+ 
 // Handle Edit Product
 if (isset($_POST['edit_product'])) {
     $id = $_POST['productID'];
@@ -51,9 +51,13 @@ if (isset($_POST['edit_product'])) {
     $category = $_POST['category'];
     $description = $_POST['description'];
     $price = $_POST['price'];
-    $stock = $_POST['stock'];
-    $result = $con->updateProduct($name, $category, $description, $price, $stock, $id);
-
+    $addStock = $_POST['stock'];
+    // Fetch current stock
+    $product = $con->getProductById($id);
+    $currentStock = isset($product['Prod_Stock']) ? (int)$product['Prod_Stock'] : 0;
+    $newStock = $currentStock + (int)$addStock;
+    $result = $con->updateProduct($name, $category, $description, $price, $newStock, $id);
+ 
     if ($result) {
         $_SESSION['sweetAlertConfig'] = "
         <script>
@@ -78,11 +82,11 @@ if (isset($_POST['edit_product'])) {
     header("Location: " . $_SERVER['PHP_SELF']);
     exit();
 }
-
+ 
 if (isset($_POST['delete']) && isset($_POST['id'])) {
     $id = $_POST['id'];
     $result = $con->deleteProduct($id);
-
+ 
     if ($result) {
         $_SESSION['sweetAlertConfig'] = "
         <script>
@@ -107,14 +111,14 @@ if (isset($_POST['delete']) && isset($_POST['id'])) {
     header("Location: " . $_SERVER['PHP_SELF']);
     exit();
 }
-
+ 
 $allProducts = $con->viewProducts();
 $totalProducts = count($allProducts);
-
+ 
 $lowStockItems = 0;
 $outOfStock = 0;
 $activeProducts = 0;
-
+ 
 foreach ($allProducts as $prod) {
     if ($prod['Prod_Stock'] == 0) {
         $outOfStock++;
@@ -125,8 +129,8 @@ foreach ($allProducts as $prod) {
         $activeProducts++;
     }
 }
-
-
+ 
+ 
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -148,17 +152,17 @@ foreach ($allProducts as $prod) {
 </head>
 <body>
     <?php include '../includes/sidebar.php';  ?>
-
+ 
     <!-- Main Content -->
     <div class="main-content">
-        
+       
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1>Products</h1>
             <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addProductModal">
                 <i class="bi bi-plus-lg"></i> Add Product
             </button>
         </div>
-
+ 
         <!-- Product Summary Cards -->
         <div class="row mb-4">
             <div class="col-md-3">
@@ -194,7 +198,7 @@ foreach ($allProducts as $prod) {
                 </div>
             </div>
         </div>
-
+ 
         <!-- Search and Filter -->
         <div class="row mb-4">
             <div class="col-md-4">
@@ -202,7 +206,7 @@ foreach ($allProducts as $prod) {
                     <span class="input-group-text">
                         <i class="bi bi-search"></i>
                     </span>
-                    <input type="text" class="form-control" id="productSearch" 
+                    <input type="text" class="form-control" id="productSearch"
                            placeholder="Search products..." aria-label="Search products">
                 </div>
             </div>
@@ -224,7 +228,7 @@ foreach ($allProducts as $prod) {
                 </select>
             </div>
         </div>
-
+ 
         <!-- Products Table -->
         <div class="table-responsive">
             <table class="table table-striped table-hover">
@@ -241,11 +245,11 @@ foreach ($allProducts as $prod) {
                     </tr>
                 </thead>
                 <tbody>
-                    <?php 
-            
+                    <?php
+           
             $data = $con->viewProducts();
             foreach ($data as $rows) {
-
+ 
                 if ($rows['Prod_Stock'] == 0) {
                             $statusClass = 'bg-danger';
                             $status = 'Out of Stock';
@@ -256,9 +260,9 @@ foreach ($allProducts as $prod) {
                             $statusClass = 'bg-success';
                             $status = 'In Stock';
                         }
-
+ 
             ?>
-
+ 
               <tr>
                 <td><?php echo $rows['ProductID']?></td>
                 <td><?php echo $rows['Prod_Name']?></td>
@@ -270,8 +274,8 @@ foreach ($allProducts as $prod) {
                 <td>
   <div class="btn-group" role="group">
     <!-- EDIT BUTTON -->
-    <button 
-        type="button" 
+    <button
+        type="button"
         class="btn btn-warning btn-sm editProductBtn"
         data-id="<?php echo $rows['ProductID']; ?>"
         data-name="<?php echo htmlspecialchars($rows['Prod_Name']); ?>"
@@ -279,22 +283,24 @@ foreach ($allProducts as $prod) {
         data-description="<?php echo htmlspecialchars($rows['Prod_Desc']); ?>"
         data-price="<?php echo $rows['Prod_Price']; ?>"
         data-stock="<?php echo $rows['Prod_Stock']; ?>"
-        data-bs-toggle="modal" 
+        data-bs-toggle="modal"
         data-bs-target="#editProductModal"
     >
       <i class="bi bi-pencil-square"></i>
     </button>
-    <!-- DELETE BUTTON -->
-    <form method="POST" class="mx-1" style="display:inline;">
-      <input type="hidden" name="id" value="<?php echo $rows['ProductID']; ?>">
-      <button type="submit" name="delete" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this user?')">
-        <i class="bi bi-x-square"></i>
-      </button>
-    </form>
+   
+<!-- DELETE BUTTON -->
+<form method="POST" class="mx-1 deleteProductForm" style="display:inline;">
+  <input type="hidden" name="id" value="<?php echo $rows['ProductID']; ?>">
+  <input type="hidden" name="delete" value="1"> <!-- ADD THIS LINE -->
+  <button type="button" name="deleteBtn" class="btn btn-danger btn-sm deleteProductBtn">
+    <i class="bi bi-x-square"></i>
+  </button>
+</form>
   </div>
 </td>
               </tr>
-
+ 
               <?php
             }
             ?>
@@ -302,7 +308,7 @@ foreach ($allProducts as $prod) {
             </table>
         </div>
     </div>
-
+ 
     <!-- Add Product Modal -->
     <div class="modal fade" id="addProductModal" tabindex="-1" aria-labelledby="addProductModalLabel" aria-hidden="true">
         <div class="modal-dialog">
@@ -352,8 +358,8 @@ foreach ($allProducts as $prod) {
             </div>
         </div>
     </div>
-
-
+ 
+ 
     <!-- Edit Product Modal -->
     <div class="modal fade" id="editProductModal" tabindex="-1" aria-labelledby="editProductModalLabel" aria-hidden="true">
       <div class="modal-dialog">
@@ -391,8 +397,12 @@ foreach ($allProducts as $prod) {
                 </div>
               </div>
               <div class="mb-3">
-                <label for="editStock" class="form-label">Stock</label>
-                <input type="number" class="form-control" id="editStock" name="stock" min="0" required>
+                <label for="editStock" class="form-label">Add Stock</label>
+                <input type="number" class="form-control" id="editStock" name="stock" min="0" value="0" required>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Current Stock</label>
+                <input type="number" class="form-control" id="currentStockDisplay" value="" readonly>
               </div>
             </div>
             <div class="modal-footer">
@@ -404,13 +414,13 @@ foreach ($allProducts as $prod) {
         </div>
       </div>
     </div>
-    
+   
     <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <!-- SweetAlert2 JS -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <!-- Custom JS -->
-
+ 
     <script>
     // Fill Edit Modal with product data
     document.querySelectorAll('.editProductBtn').forEach(function(btn) {
@@ -420,11 +430,12 @@ foreach ($allProducts as $prod) {
             document.getElementById('editCategory').value = this.dataset.category;
             document.getElementById('editDescription').value = this.dataset.description;
             document.getElementById('editPrice').value = this.dataset.price;
-            document.getElementById('editStock').value = this.dataset.stock;
+            document.getElementById('editStock').value = 0; // Always start with 0 for add stock
+            document.getElementById('currentStockDisplay').value = this.dataset.stock;
         });
     });
     </script>
-
+ 
     <script>
        // Custom search and sort for products table
     document.addEventListener('DOMContentLoaded', function() {
@@ -435,7 +446,7 @@ foreach ($allProducts as $prod) {
         const categoryFilter = document.getElementById('categoryFilter');
         const stockFilter = document.getElementById('stockFilter');
         let currentSort = { col: null, dir: 1 };
-
+ 
         // SEARCH & FILTER
         function filterRows() {
             const search = searchInput.value.toLowerCase();
@@ -465,7 +476,7 @@ foreach ($allProducts as $prod) {
         searchInput.addEventListener('input', filterRows);
         categoryFilter.addEventListener('change', filterRows);
         stockFilter.addEventListener('change', filterRows);
-
+ 
         // SORTING
         table.querySelectorAll('th').forEach((th, idx) => {
             if (idx === 7) return; // Skip Actions column
@@ -493,6 +504,28 @@ foreach ($allProducts as $prod) {
             });
         });
     });
+ 
+document.querySelectorAll('.deleteProductBtn').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        const form = btn.closest('form');
+        Swal.fire({
+            title: 'Are you sure?',
+            text: "This product will be deleted!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Yes, delete it!',
+            reverseButtons: true
+        }).then((result) => {
+            if (result.isConfirmed) {
+                form.submit();
+            }
+        });
+    });
+});
+ 
 </script>
 <?php echo $sweetAlertConfig; ?>
 </body>

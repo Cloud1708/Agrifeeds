@@ -195,5 +195,13 @@ function deleteSupplier($id) {
     }
 }
 
+function getProductById($id) {
+    $con = $this->opencon();
+    $stmt = $con->prepare("SELECT * FROM products WHERE ProductID = ?");
+    $stmt->execute([$id]);
+    return $stmt->fetch(PDO::FETCH_ASSOC);
 }
+ 
+}
+
 ?>

@@ -172,11 +172,8 @@ $customers = $con->viewCustomers();
             <button class="btn btn-sm btn-info" onclick="viewCustomer(<?php echo $customer['CustomerID']; ?>)">
                 <i class="bi bi-eye"></i>
             </button>
-            <button class="btn btn-sm btn-primary" onclick="editCustomer(<?php echo $customer['CustomerID']; ?>)">
+            <button class="btn btn-sm btn-warning" onclick="editCustomer(<?php echo $customer['CustomerID']; ?>)">
                 <i class="bi bi-pencil"></i>
-            </button>
-            <button class="btn btn-sm btn-success" onclick="viewLoyaltyHistory(<?php echo $customer['CustomerID']; ?>)">
-                <i class="bi bi-star"></i>
             </button>
         </td>
     </tr>

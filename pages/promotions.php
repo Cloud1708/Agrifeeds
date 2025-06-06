@@ -152,7 +152,6 @@ $allPromotions = $con->viewPromotions();
                     <tr>
                         <th>Promotion ID</th>
                         <th>Promotion Code</th>
-                        <th>Description</th>
                         <th>Discount</th>
                         <th>Discount Type</th>
                         <th>Start Date</th>
@@ -196,7 +195,6 @@ if ($now < $start && $isActive == 1) {
                     <tr>
                         <td><?php echo htmlspecialchars($promo['PromotionID']); ?></td>
                         <td><?php echo htmlspecialchars($promo['Prom_Code']); ?></td>
-                        <td><?php echo htmlspecialchars($promo['Promo_Description']); ?></td>
                         <td><?php echo htmlspecialchars($promo['Promo_DiscAmnt']); ?></td>
                         <td><?php echo htmlspecialchars($promo['Promo_DiscountType']); ?></td>
                         <td><?php echo htmlspecialchars($promo['Promo_StartDate']); ?></td>
@@ -212,7 +210,7 @@ if ($now < $start && $isActive == 1) {
     </button>
  
      <!-- Edit Promotion Modal Trigger -->
-                    <button class="btn btn-sm btn-primary editPromotionBtn"
+                    <button class="btn btn-sm btn-warning editPromotionBtn"
                         data-id="<?php echo $promo['PromotionID']; ?>"
                         data-code="<?php echo htmlspecialchars($promo['Prom_Code']); ?>"
                         data-desc="<?php echo htmlspecialchars($promo['Promo_Description']); ?>"
@@ -227,21 +225,32 @@ if ($now < $start && $isActive == 1) {
  
                             <!-- View Description Modal -->
                            <div class="modal fade" id="viewDescModal<?php echo $promo['PromotionID']; ?>" tabindex="-1" aria-labelledby="viewDescLabel<?php echo $promo['PromotionID']; ?>" aria-hidden="true">
-                                <div class="modal-dialog">
-                                    <div class="modal-content">
-                                        <div class="modal-header">
-                                            <h5 class="modal-title" id="viewDescLabel<?php echo $promo['PromotionID']; ?>">Promotion Description</h5>
-                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                        </div>
-                                        <div class="modal-body">
-                                            <?php echo nl2br(htmlspecialchars($promo['Promo_Description'])); ?>
-                                        </div>
-                                        <div class="modal-footer">
-                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+    <h5 class="modal-title border-start border-4 border-success ps-3 text-success" id="viewDescLabel<?php echo $promo['PromotionID']; ?>">
+        Promotion Details
+    </h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+</div>
+            <div class="modal-body">
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item"><strong>Promotion Code:</strong> <?php echo htmlspecialchars($promo['Prom_Code']); ?></li>
+                    <li class="list-group-item"><strong>Discount:</strong> <?php echo htmlspecialchars($promo['Promo_DiscAmnt']); ?></li>
+                    <li class="list-group-item"><strong>Description:</strong> <?php echo nl2br(htmlspecialchars($promo['Promo_Description'])); ?></li>
+                    <li class="list-group-item"><strong>Discount Type:</strong> <?php echo htmlspecialchars($promo['Promo_DiscountType']); ?></li>
+                    <li class="list-group-item"><strong>Start Date:</strong> <?php echo htmlspecialchars($promo['Promo_StartDate']); ?></li>
+                    <li class="list-group-item"><strong>End Date:</strong> <?php echo htmlspecialchars($promo['Promo_EndDate']); ?></li>
+                    <li class="list-group-item"><strong>Usage Limit:</strong> <?php echo htmlspecialchars($promo['UsageLimit']); ?></li>
+                    <li class="list-group-item"><strong>Status:</strong> <span class="badge <?php echo $badge; ?>"><?php echo $status; ?></span></li>
+                </ul>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
                            
                         </td>
                     </tr>
@@ -382,4 +391,3 @@ document.querySelectorAll('.editPromotionBtn').forEach(function(btn) {
 </script>
 </body>
 </html>
- 
