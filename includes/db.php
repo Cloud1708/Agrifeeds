@@ -1,109 +1,133 @@
 <?php
-$host = 'localhost';
-$db   = 'agri_db';
-$user = 'root'; // default XAMPP user
-$pass = '';
-$charset = 'utf8mb4';
+class database{
 
-$dsn = "mysql:host=$host;dbname=$db;charset=$charset";
-$options = [
-    PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-    PDO::ATTR_EMULATE_PREPARES   => false,
-];
+    function opencon(): PDO{
+        return new PDO(
+            dsn: 'mysql:host=localhost;
+            dbname=agri_db',
+            username: 'root',
+            password: '');
+    }
 
-try {
-    $pdo = new PDO($dsn, $user, $pass, $options);
-} catch (PDOException $e) {
-    die('Database connection failed: ' . $e->getMessage());
-}
+    function addProduct($productName, $category, $description, $price, $stock) {
 
-function viewProducts() {
-    global $pdo;
-    $sql = "SELECT p.*, 
-            ua.User_Name as created_by
-            FROM products p 
-            LEFT JOIN user_accounts ua ON p.UserID = ua.UserID";
-    $result = $pdo->query($sql);
-    $products = [];
-    if ($result->rowCount() > 0) {
-        while($row = $result->fetch(PDO::FETCH_ASSOC)) {
-            $products[] = $row;
+        $con = $this->opencon();
+        
+        try {
+            $con->beginTransaction();
+
+            $stmt = $con->prepare("INSERT INTO products (Prod_Name, Prod_Cat, Prod_Desc, Prod_Price, Prod_Stock) VALUES (?, ?, ?, ?, ?)");
+            $stmt->execute([$productName, $category, $description, $price, $stock]);
+            
+            $productID = $con->lastInsertId();
+
+            $con->commit();
+
+            return $productID;
+
+        } catch (PDOException $e) {
+
+            $con->rollback();
+            return false;
+
         }
+
     }
-    return $products;
-}
 
-function getProductHistory($productId) {
-    global $pdo;
-    $sql = "SELECT p.*, 
-            ua.User_Name as created_by
-            FROM products p 
-            LEFT JOIN user_accounts ua ON p.UserID = ua.UserID 
-            WHERE p.ProductID = ?";
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute([$productId]);
-    return $stmt->fetch(PDO::FETCH_ASSOC);
-}
+    function viewProducts() {
 
-function updateProduct($id, $name, $category, $description, $price, $stock) {
-    global $pdo;
-    try {
-        $sql = "UPDATE products SET 
-                Prod_Name = :name,
-                Prod_Cat = :category,
-                Prod_Desc = :description,
-                Prod_Price = :price,
-                Prod_Stock = :stock,
-                Prod_Updated_at = CURRENT_TIMESTAMP
-                WHERE ProductID = :id";
-        
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute([
-            ':id' => $id,
-            ':name' => $name,
-            ':category' => $category,
-            ':description' => $description,
-            ':price' => $price,
-            ':stock' => $stock
-        ]);
-        
+        $con = $this->opencon();
+        return $con->query("SELECT * FROM products")->fetchAll();
+
+    }
+
+
+    
+       function updateProduct($name, $category, $description, $price, $stock, $id){
+    try    {
+        $con = $this->opencon();
+        $con->beginTransaction();
+        $query = $con->prepare("UPDATE products SET Prod_Name = ?, Prod_Cat = ?, Prod_Desc = ?, Prod_Price = ? , Prod_Stock = ? WHERE ProductID = ? ");
+        $query->execute([$name, $category, $description, $price, $stock, $id]);
+        $con->commit();
         return true;
+
     } catch (PDOException $e) {
-        error_log("Error updating product: " . $e->getMessage());
-        return false;
+       
+         $con->rollBack();
+        return false; 
     }
-}
+    }
 
-function addProduct($name, $category, $description, $price, $stock) {
-    global $pdo;
+    function deleteProduct($id) {
     try {
-        $sql = "INSERT INTO products (Prod_Name, Prod_Cat, Prod_Desc, Prod_Price, Prod_Stock, UserID) 
-                VALUES (:name, :category, :description, :price, :stock, :userid)";
-        
-        $stmt = $pdo->prepare($sql);
-        $stmt->bindParam(':name', $name);
-        $stmt->bindParam(':category', $category);
-        $stmt->bindParam(':description', $description);
-        $stmt->bindParam(':price', $price);
-        $stmt->bindParam(':stock', $stock);
-        $stmt->bindParam(':userid', $_SESSION['UserID']);
-        
-        return $stmt->execute();
-    } catch(PDOException $e) {
-        error_log("Error adding product: " . $e->getMessage());
+        $con = $this->opencon();
+        $con->beginTransaction();
+        $stmt = $con->prepare("DELETE FROM products WHERE ProductID = ?");
+        $result = $stmt->execute([$id]);
+        $con->commit();
+        return $result;
+    } catch (PDOException $e) {
+        if (isset($con)) $con->rollBack();
         return false;
     }
 }
 
-function loginUser($username, $password) {
-    global $pdo;
-    $stmt = $pdo->prepare('SELECT * FROM user_accounts WHERE User_Name = :username LIMIT 1');
-    $stmt->execute([':username' => $username]);
-    $user = $stmt->fetch(PDO::FETCH_ASSOC);
-    if ($user && $password === $user['User_Password']) {
-        return $user;
+function addCustomer($customerName, $contactInfo, $discountRate) {
+ 
+        $con = $this->opencon();
+       
+        try {
+            $con->beginTransaction();
+ 
+            $stmt = $con->prepare("INSERT INTO customers (Cust_Name, Cust_CoInfo, Cust_DiscRate) VALUES (?, ?, ?)");
+            $stmt->execute([$customerName, $contactInfo, $discountRate]);
+           
+            $custID = $con->lastInsertId();
+ 
+            $con->commit();
+ 
+            return $custID;
+ 
+        } catch (PDOException $e) {
+ 
+            $con->rollback();
+            return false;
+ 
+        }
+ 
     }
-    return false;
+ 
+    function viewCustomers() {
+ 
+        $con = $this->opencon();
+        return $con->query("SELECT * FROM customers")->fetchAll();
+ 
+    }
+
+    function viewPromotions() {
+    $con = $this->opencon();
+    $stmt = $con->prepare("SELECT * FROM promotions ORDER BY PromotionID");
+    $stmt->execute();
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
-?> 
+
+    function addPromotion($code, $desc, $amount, $type, $start, $end, $limit, $isActive) {
+    $con = $this->opencon();
+    try {
+        $con->beginTransaction();
+        $stmt = $con->prepare("INSERT INTO promotions 
+            (Prom_Code, Promo_Description, Promo_DiscAmnt, Promo_DiscountType, Promo_StartDate, Promo_EndDate, UsageLimit, Promo_IsActive) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->execute([$code, $desc, $amount, $type, $start, $end, $limit, $isActive]);
+        $promotionID = $con->lastInsertId();
+        $con->commit();
+        return $promotionID;
+    } catch (PDOException $e) {
+        if (isset($con)) $con->rollBack();
+        return false;
+    }
+}
+
+}
+?>

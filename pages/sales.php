@@ -21,9 +21,14 @@
     <div class="main-content">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1>Sales</h1>
-            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newSaleModal">
-                <i class="bi bi-plus-lg"></i> New Sale
-            </button>
+            <div>
+                <button class="btn btn-info me-2" data-bs-toggle="modal" data-bs-target="#paymentHistoryModal">
+                    <i class="bi bi-credit-card"></i> Payment History
+                </button>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newSaleModal">
+                    <i class="bi bi-plus-lg"></i> New Sale
+                </button>
+            </div>
         </div>
 
         <!-- Sales Summary Cards -->
@@ -98,12 +103,13 @@
             <table class="table table-striped table-hover">
                 <thead>
                     <tr>
-                        <th>Order ID</th>
+                        <th>Sale ID</th>
+                        <th>Sale Date</th>
+                        <th>Sale Method</th>
+                        <th>Sale Person</th>
                         <th>Customer</th>
-                        <th>Date</th>
-                        <th>Items</th>
-                        <th>Total</th>
-                        <th>Status</th>
+                        <th>Promotion</th>
+                        <th>Payment</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -213,6 +219,14 @@
                                 </div>
                             </div>
                         </div>
+
+                        <div class="mb-3">
+                            <label for="promotionSelect" class="form-label">Promotion</label>
+                            <select class="form-select" id="promotionSelect">
+                                <option value="">No Promotion</option>
+                                <!-- Promotion options will be populated by JavaScript -->
+                            </select>
+                        </div>
                     </form>
                 </div>
                 <div class="modal-footer">
@@ -223,10 +237,110 @@
         </div>
     </div>
 
+    <!-- Sale Items Modal -->
+    <div class="modal fade" id="saleItemsModal" tabindex="-1" aria-labelledby="saleItemsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="saleItemsModalLabel">Sale Items</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Sale Item ID</th>
+                                    <th>Product ID</th>
+                                    <th>Quantity</th>
+                                    <th>Price</th>
+                                    <th>Subtotal</th>
+                                </tr>
+                            </thead>
+                            <tbody id="saleItemsTableBody">
+                                <!-- Sale items will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment History Modal -->
+    <div class="modal fade" id="paymentHistoryModal" tabindex="-1" aria-labelledby="paymentHistoryModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="paymentHistoryModalLabel">Payment History</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Payment History Filters -->
+                    <div class="row mb-3">
+                        <div class="col-md-3">
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="bi bi-search"></i>
+                                </span>
+                                <input type="text" class="form-control" id="paymentSearch" 
+                                       placeholder="Search payments..." aria-label="Search payments">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <select class="form-select" id="paymentMethodFilter">
+                                <option value="">All Payment Methods</option>
+                                <option value="credit_card">Credit Card</option>
+                                <option value="cash">Cash</option>
+                                <option value="bank_transfer">Bank Transfer</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <input type="date" class="form-control" id="paymentStartDate" placeholder="Start Date">
+                                </div>
+                                <div class="col-md-6">
+                                    <input type="date" class="form-control" id="paymentEndDate" placeholder="End Date">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Payment History Table -->
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Payment ID</th>
+                                    <th>Sale ID</th>
+                                    <th>Amount</th>
+                                    <th>Date</th>
+                                    <th>Method</th>
+                                    <th>Customer</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="paymentHistoryTableBody">
+                                <!-- Payment history will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <!-- Custom JS -->
-
+    
     <script src="../js/scripts.js"></script>
 </body>
 </html> 

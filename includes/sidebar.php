@@ -18,6 +18,11 @@ $current_page = basename($_SERVER['PHP_SELF']);
                 </a>
             </li>
             <li class="nav-item">
+                <a class="nav-link <?php echo $current_page === 'pricing_history.php' ? 'active' : ''; ?>" href="pricing_history.php">
+                    <i class="bi bi-clock-history me-2"></i> Pricing History
+                </a>
+            </li>
+            <li class="nav-item">
                 <a class="nav-link <?php echo $current_page === 'customers.php' ? 'active' : ''; ?>" href="customers.php">
                     <i class="bi bi-people me-2"></i> Customers
                 </a>
@@ -37,6 +42,28 @@ $current_page = basename($_SERVER['PHP_SELF']);
                     <i class="bi bi-file-text me-2"></i> Purchase Orders
                 </a>
             </li>
+            <!-- Inventory Dropdown -->
+            <li class="nav-item">
+                <a class="nav-link dropdown-toggle" data-bs-toggle="collapse" href="#inventorySubmenu" role="button" 
+                   aria-expanded="<?php echo in_array($current_page, ['inventory_history.php', 'inventory_alerts.php']) ? 'true' : 'false'; ?>" 
+                   aria-controls="inventorySubmenu">
+                    <i class="bi bi-boxes me-2"></i> Inventory
+                </a>
+                <div class="collapse <?php echo in_array($current_page, ['inventory_history.php', 'inventory_alerts.php']) ? 'show' : ''; ?>" id="inventorySubmenu">
+                    <ul class="nav flex-column ms-3">
+                        <li class="nav-item">
+                            <a class="nav-link <?php echo $current_page === 'inventory_history.php' ? 'active' : ''; ?>" href="inventory_history.php">
+                                <i class="bi bi-clock-history me-2"></i> History
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link <?php echo $current_page === 'inventory_alerts.php' ? 'active' : ''; ?>" href="inventory_alerts.php">
+                                <i class="bi bi-bell me-2"></i> Alerts
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </li>
             <li class="nav-item">
                 <a class="nav-link <?php echo $current_page === 'promotions.php' ? 'active' : ''; ?>" href="promotions.php">
                     <i class="bi bi-gift me-2"></i> Promotions
@@ -45,11 +72,6 @@ $current_page = basename($_SERVER['PHP_SELF']);
             <li class="nav-item">
                 <a class="nav-link <?php echo $current_page === 'loyalty_program.php' ? 'active' : ''; ?>" href="loyalty_program.php">
                     <i class="bi bi-star me-2"></i> Loyalty Program
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link <?php echo $current_page === 'inventory_alerts.php' ? 'active' : ''; ?>" href="inventory_alerts.php">
-                    <i class="bi bi-bell me-2"></i> Inventory Alerts
                 </a>
             </li>
             <li class="nav-item">
@@ -73,4 +95,31 @@ $current_page = basename($_SERVER['PHP_SELF']);
             </li>
         </ul>
     </div>
-</div> 
+</div>
+
+<style>
+/* Add these styles to handle the dropdown menu */
+.nav-link.dropdown-toggle::after {
+    float: right;
+    margin-top: 8px;
+}
+
+#inventorySubmenu {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 0.25rem;
+    margin: 0.2rem 0;
+}
+
+#inventorySubmenu .nav-link {
+    padding-left: 2.5rem;
+    font-size: 0.9rem;
+}
+
+#inventorySubmenu .nav-link:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+#inventorySubmenu .nav-link.active {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+</style> 

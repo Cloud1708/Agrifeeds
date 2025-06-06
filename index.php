@@ -1,35 +1,3 @@
-<?php
-session_start();
-require_once 'includes/db.php';
-
-// Handle AJAX login
-if (
-    isset($_SERVER['HTTP_X_REQUESTED_WITH']) &&
-    strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest' &&
-    $_SERVER['REQUEST_METHOD'] === 'POST'
-) {
-    $username = $_POST['username'] ?? '';
-    $password = $_POST['password'] ?? '';
-    $user = loginUser($username, $password);
-    if ($user) {
-        $_SESSION['UserID'] = $user['UserID'];
-        $_SESSION['User_Name'] = $user['User_Name'];
-        $_SESSION['User_Role'] = $user['User_Role'];
-        $redirect = '';
-        if ($user['User_Role'] == 1) {
-            $redirect = 'pages/dashboard.php';
-        } elseif ($user['User_Role'] == 2) {
-            $redirect = 'pages/customer_home.php';
-        } elseif ($user['User_Role'] == 3) {
-            $redirect = 'pages/superadmin_home.php';
-        }
-        echo json_encode(['success' => true, 'redirect' => $redirect]);
-    } else {
-        echo json_encode(['success' => false, 'error' => 'Invalid username or password.']);
-    }
-    exit;
-}
-?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -77,33 +45,7 @@ if (
 
     <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-    document.getElementById('loginForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-        const form = e.target;
-        const formData = new FormData(form);
-        fetch('', {
-            method: 'POST',
-            headers: { 'X-Requested-With': 'XMLHttpRequest' },
-            body: formData
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                window.location = data.redirect;
-            } else {
-                const errorDiv = document.getElementById('errorMessage');
-                errorDiv.textContent = data.error || 'Login failed.';
-                errorDiv.classList.remove('d-none');
-            }
-        })
-        .catch(() => {
-            const errorDiv = document.getElementById('errorMessage');
-            errorDiv.textContent = 'An error occurred. Please try again.';
-            errorDiv.classList.remove('d-none');
-        });
-    });
-    </script>
+    
     <script src="js/scripts.js"></script>
 </body>
 </html> 

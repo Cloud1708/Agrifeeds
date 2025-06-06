@@ -1,3 +1,133 @@
+<?php 
+session_start();
+
+require_once('../includes/db.php');
+$con = new database();
+$sweetAlertConfig = "";
+
+// Get SweetAlert config from session after redirect
+if (isset($_SESSION['sweetAlertConfig'])) {
+    $sweetAlertConfig = $_SESSION['sweetAlertConfig'];
+    unset($_SESSION['sweetAlertConfig']);
+}
+
+if (isset($_POST['add_product'])) {
+
+  $productName = $_POST['productName'];
+  $category = $_POST['category'];
+  $description = $_POST['description'];
+  $price = $_POST['price'];
+  $stock = $_POST['stock'];
+  $productID = $con->addProduct($productName, $category, $description, $price, $stock);
+
+  if ($productID) {
+    $_SESSION['sweetAlertConfig'] = "
+    <script>
+    Swal.fire({
+        icon: 'success',
+        title: 'Product Added Successfully',
+        text: 'A new product has been added!',
+        confirmButtonText: 'Continue'
+     });
+    </script>";
+  } else {
+    $_SESSION['sweetAlertConfig'] = "<script>
+            Swal.fire({
+                icon: 'error',
+                title: 'Something went wrong',
+                text: 'Please try again.'
+            });
+        </script>";
+  }
+  // Redirect to avoid resubmission
+  header("Location: " . $_SERVER['PHP_SELF']);
+  exit();
+}
+
+// Handle Edit Product
+if (isset($_POST['edit_product'])) {
+    $id = $_POST['productID'];
+    $name = $_POST['productName'];
+    $category = $_POST['category'];
+    $description = $_POST['description'];
+    $price = $_POST['price'];
+    $stock = $_POST['stock'];
+    $result = $con->updateProduct($name, $category, $description, $price, $stock, $id);
+
+    if ($result) {
+        $_SESSION['sweetAlertConfig'] = "
+        <script>
+        Swal.fire({
+            icon: 'success',
+            title: 'Product Updated',
+            text: 'Product updated successfully!',
+            confirmButtonText: 'OK'
+        });
+        </script>";
+    } else {
+        $_SESSION['sweetAlertConfig'] = "
+        <script>
+        Swal.fire({
+            icon: 'error',
+            title: 'Update Failed',
+            text: 'Failed to update product.',
+            confirmButtonText: 'OK'
+        });
+        </script>";
+    }
+    header("Location: " . $_SERVER['PHP_SELF']);
+    exit();
+}
+
+if (isset($_POST['delete']) && isset($_POST['id'])) {
+    $id = $_POST['id'];
+    $result = $con->deleteProduct($id);
+
+    if ($result) {
+        $_SESSION['sweetAlertConfig'] = "
+        <script>
+        Swal.fire({
+            icon: 'success',
+            title: 'Product Deleted',
+            text: 'Product deleted successfully!',
+            confirmButtonText: 'OK'
+        });
+        </script>";
+    } else {
+        $_SESSION['sweetAlertConfig'] = "
+        <script>
+        Swal.fire({
+            icon: 'error',
+            title: 'Delete Failed',
+            text: 'Failed to delete product.',
+            confirmButtonText: 'OK'
+        });
+        </script>";
+    }
+    header("Location: " . $_SERVER['PHP_SELF']);
+    exit();
+}
+
+$allProducts = $con->viewProducts();
+$totalProducts = count($allProducts);
+
+$lowStockItems = 0;
+$outOfStock = 0;
+$activeProducts = 0;
+
+foreach ($allProducts as $prod) {
+    if ($prod['Prod_Stock'] == 0) {
+        $outOfStock++;
+    } elseif ($prod['Prod_Stock'] > 0 && $prod['Prod_Stock'] <= 10) {
+        $lowStockItems++;
+        $activeProducts++;
+    } else {
+        $activeProducts++;
+    }
+}
+
+
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -17,115 +147,11 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <?php
-    include '../includes/db.php';
-    
-    // Handle product update
-    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_product'])) {
-        $id = $_POST['id'];
-        $name = $_POST['name'];
-        $category = $_POST['category'];
-        $description = $_POST['description'];
-        $price = $_POST['price'];
-        $stock = $_POST['stock'];
-
-        if (updateProduct($id, $name, $category, $description, $price, $stock)) {
-            echo "<script>
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Success!',
-                    text: 'Product updated successfully!',
-                    showConfirmButton: false,
-                    timer: 1500
-                }).then(function() {
-                    window.location = 'products.php';
-                });
-            </script>";
-        } else {
-            echo "<script>
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error!',
-                    text: 'Failed to update product. Please try again.',
-                    showConfirmButton: false,
-                    timer: 1500
-                }).then(function() {
-                    window.location = 'products.php';
-                });
-            </script>";
-        }
-    }
-
-    // Handle adding new product
-    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_product'])) {
-        $name = $_POST['name'];
-        $category = $_POST['category'];
-        $description = $_POST['description'];
-        $price = $_POST['price'];
-        $stock = $_POST['stock'];
-
-        if (addProduct($name, $category, $description, $price, $stock)) {
-            echo "<script>
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Success!',
-                    text: 'Product added successfully!',
-                    showConfirmButton: false,
-                    timer: 1500
-                }).then(function() {
-                    window.location = 'products.php';
-                });
-            </script>";
-        } else {
-            echo "<script>
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error!',
-                    text: 'Failed to add product. Please try again.',
-                    showConfirmButton: false,
-                    timer: 1500
-                }).then(function() {
-                    window.location = 'products.php';
-                });
-            </script>";
-        }
-    }
-
-    $products = viewProducts();
-    // Calculate summary counts at the top so they are available for the cards
-    $totalProducts = count($products);
-    $lowStockItems = 0;
-    $outOfStock = 0;
-    $activeProducts = 0;
-    foreach ($products as $product) {
-        if ($product['Prod_Stock'] == 0) {
-            $outOfStock++;
-        }
-        if ($product['Prod_Stock'] <= 10) {
-            $lowStockItems++;
-        }
-        if ($product['Prod_Stock'] > 0) {
-            $activeProducts++;
-        }
-    }
-    ?>
-
-    <?php include '../includes/sidebar.php'; ?>
+    <?php include '../includes/sidebar.php';  ?>
 
     <!-- Main Content -->
     <div class="main-content">
-        <?php if (isset($_GET['success'])) { ?>
-            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                Product updated successfully!
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        <?php } ?>
-        <?php if (isset($_GET['error'])) { ?>
-            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                Error updating product. Please try again.
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        <?php } ?>
+        
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1>Products</h1>
             <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addProductModal">
@@ -215,124 +241,63 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <?php
-                    foreach ($products as $product) {
-                        // Status logic
-                        if ($product['Prod_Stock'] == 0) {
+                    <?php 
+            
+            $data = $con->viewProducts();
+            foreach ($data as $rows) {
+
+                if ($rows['Prod_Stock'] == 0) {
                             $statusClass = 'bg-danger';
                             $status = 'Out of Stock';
-                        } elseif ($product['Prod_Stock'] > 0 && $product['Prod_Stock'] <= 10) {
+                        } elseif ($rows['Prod_Stock'] > 0 && $rows['Prod_Stock'] <= 10) {
                             $statusClass = 'bg-warning text-dark';
                             $status = 'Low Stock';
                         } else {
                             $statusClass = 'bg-success';
                             $status = 'In Stock';
                         }
-                    ?>
-                        <tr>
-                            <td><?php echo $product['ProductID']; ?></td>
-                            <td><?php echo $product['Prod_Name']; ?></td>
-                            <td><?php echo $product['Prod_Cat']; ?></td>
-                            <td><?php echo $product['Prod_Desc']; ?></td>
-                            <td>₱<?php echo number_format($product['Prod_Price'], 2); ?></td>
-                            <td><?php echo $product['Prod_Stock']; ?></td>
-                            <td><span class="badge <?php echo $statusClass; ?>"><?php echo $status; ?></span></td>
-                            <td>
-                                <div class="btn-group" role="group">
-                                    <button type="button" class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#historyModal<?php echo $product['ProductID']; ?>">
-                                        <i class="bi bi-clock-history"></i>
-                                    </button>
-                                    <button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#editProductModal<?php echo $product['ProductID']; ?>">
-                                        <i class="bi bi-pencil-square"></i>
-                                    </button>
-                                    <form method="POST" class="mx-1">
-                                        <input type="hidden" name="id" value="<?php echo $product['ProductID']; ?>">
-                                        <button type="submit" name="delete" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this product?')">
-                                            <i class="bi bi-x-square"></i>
-                                        </button>
-                                    </form>
-                                </div>
 
-                                <!-- History Modal -->
-                                <div class="modal fade" id="historyModal<?php echo $product['ProductID']; ?>" tabindex="-1" aria-hidden="true">
-                                    <div class="modal-dialog">
-                                        <div class="modal-content">
-                                            <div class="modal-header">
-                                                <h5 class="modal-title">Product History</h5>
-                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                            </div>
-                                            <div class="modal-body">
-                                                <div class="mb-3">
-                                                    <h6>Created</h6>
-                                                    <p>Date: <?php echo date('F j, Y g:i a', strtotime($product['UserID'])); ?></p>
-                                                </div>
-                                                <?php if ($product['Prod_Updated_at']) { ?>
-                                                <div class="mb-3">
-                                                    <h6>Last Updated</h6>
-                                                    <p>Date: <?php echo date('F j, Y g:i a', strtotime($product['Prod_Updated_at'])); ?></p>
-                                                </div>
-                                                <?php } ?>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+            ?>
 
-                                <!-- Edit Product Modal -->
-                                <div class="modal fade" id="editProductModal<?php echo $product['ProductID']; ?>" tabindex="-1" aria-hidden="true">
-                                    <div class="modal-dialog">
-                                        <div class="modal-content">
-                                            <div class="modal-header">
-                                                <h5 class="modal-title">Edit Product</h5>
-                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                            </div>
-                                            <div class="modal-body">
-                                                <form id="editProductForm<?php echo $product['ProductID']; ?>" method="POST" onsubmit="return handleUpdate(event, <?php echo $product['ProductID']; ?>)">
-                                                    <input type="hidden" name="update_product" value="1">
-                                                    <input type="hidden" name="id" value="<?php echo $product['ProductID']; ?>">
-                                                    <div class="mb-3">
-                                                        <label for="editName<?php echo $product['ProductID']; ?>" class="form-label">Product Name</label>
-                                                        <input type="text" class="form-control" id="editName<?php echo $product['ProductID']; ?>" 
-                                                               name="name" value="<?php echo $product['Prod_Name']; ?>" required>
-                                                    </div>
-                                                    <div class="mb-3">
-                                                        <label for="editCategory<?php echo $product['ProductID']; ?>" class="form-label">Category</label>
-                                                        <select class="form-select" id="editCategory<?php echo $product['ProductID']; ?>" name="category" required>
-                                                            <option value="feed" <?php echo $product['Prod_Cat'] === 'feed' ? 'selected' : ''; ?>>Animal Feed</option>
-                                                            <option value="supplements" <?php echo $product['Prod_Cat'] === 'supplements' ? 'selected' : ''; ?>>Supplements</option>
-                                                            <option value="equipment" <?php echo $product['Prod_Cat'] === 'equipment' ? 'selected' : ''; ?>>Equipment</option>
-                                                            <option value="accessories" <?php echo $product['Prod_Cat'] === 'accessories' ? 'selected' : ''; ?>>Accessories</option>
-                                                        </select>
-                                                    </div>
-                                                    <div class="mb-3">
-                                                        <label for="editDescription<?php echo $product['ProductID']; ?>" class="form-label">Description</label>
-                                                        <textarea class="form-control" id="editDescription<?php echo $product['ProductID']; ?>" 
-                                                                  name="description" rows="3"><?php echo $product['Prod_Desc']; ?></textarea>
-                                                    </div>
-                                                    <div class="mb-3">
-                                                        <label for="editPrice<?php echo $product['ProductID']; ?>" class="form-label">Price</label>
-                                                        <div class="input-group">
-                                                            <span class="input-group-text">₱</span>
-                                                            <input type="number" class="form-control" id="editPrice<?php echo $product['ProductID']; ?>" 
-                                                                   name="price" value="<?php echo $product['Prod_Price']; ?>" min="0" step="0.01" required>
-                                                        </div>
-                                                    </div>
-                                                    <div class="mb-3">
-                                                        <label for="editStock<?php echo $product['ProductID']; ?>" class="form-label">Stock</label>
-                                                        <input type="number" class="form-control" id="editStock<?php echo $product['ProductID']; ?>" 
-                                                               name="stock" value="<?php echo $product['Prod_Stock']; ?>" min="0" required>
-                                                    </div>
-                                                    <div class="modal-footer">
-                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                                        <button type="submit" class="btn btn-primary">Save Changes</button>
-                                                    </div>
-                                                </form>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </td>
-                        </tr>
-                    <?php } ?>
+              <tr>
+                <td><?php echo $rows['ProductID']?></td>
+                <td><?php echo $rows['Prod_Name']?></td>
+                <td><?php echo $rows['Prod_Cat']?></td>
+                <td><?php echo $rows['Prod_Desc']?></td>
+                <td>₱<?php echo number_format($rows['Prod_Price'], 2); ?></td>
+                <td><?php echo $rows['Prod_Stock']?></td>
+                <td><span class="badge <?php echo $statusClass; ?>"><?php echo $status; ?></span></td>
+                <td>
+  <div class="btn-group" role="group">
+    <!-- EDIT BUTTON -->
+    <button 
+        type="button" 
+        class="btn btn-warning btn-sm editProductBtn"
+        data-id="<?php echo $rows['ProductID']; ?>"
+        data-name="<?php echo htmlspecialchars($rows['Prod_Name']); ?>"
+        data-category="<?php echo htmlspecialchars($rows['Prod_Cat']); ?>"
+        data-description="<?php echo htmlspecialchars($rows['Prod_Desc']); ?>"
+        data-price="<?php echo $rows['Prod_Price']; ?>"
+        data-stock="<?php echo $rows['Prod_Stock']; ?>"
+        data-bs-toggle="modal" 
+        data-bs-target="#editProductModal"
+    >
+      <i class="bi bi-pencil-square"></i>
+    </button>
+    <!-- DELETE BUTTON -->
+    <form method="POST" class="mx-1" style="display:inline;">
+      <input type="hidden" name="id" value="<?php echo $rows['ProductID']; ?>">
+      <button type="submit" name="delete" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this user?')">
+        <i class="bi bi-x-square"></i>
+      </button>
+    </form>
+  </div>
+</td>
+              </tr>
+
+              <?php
+            }
+            ?>
                 </tbody>
             </table>
         </div>
@@ -347,11 +312,11 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <form id="addProductForm" method="POST" onsubmit="return handleAdd(event)">
+                    <form id="addProductForm" method="POST">
                         <input type="hidden" name="add_product" value="1">
                         <div class="mb-3">
                             <label for="productName" class="form-label">Product Name</label>
-                            <input type="text" class="form-control" id="productName" name="name" required>
+                            <input type="text" class="form-control" id="productName" name="productName" required>
                         </div>
                         <div class="mb-3">
                             <label for="category" class="form-label">Category</label>
@@ -380,7 +345,7 @@
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                            <button type="submit" class="btn btn-primary">Save Product</button>
+                            <button type="submit" name="add_products" class="btn btn-primary">Save Product</button>
                         </div>
                     </form>
                 </div>
@@ -388,93 +353,80 @@
         </div>
     </div>
 
+
+    <!-- Edit Product Modal -->
+    <div class="modal fade" id="editProductModal" tabindex="-1" aria-labelledby="editProductModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <form id="editProductForm" method="POST">
+            <input type="hidden" name="edit_product" value="1">
+            <div class="modal-header">
+              <h5 class="modal-title" id="editProductModalLabel">Edit Product</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <div class="mb-3">
+                <label for="editProductName" class="form-label">Product Name</label>
+                <input type="text" class="form-control" id="editProductName" name="productName" required>
+              </div>
+              <div class="mb-3">
+                <label for="editCategory" class="form-label">Category</label>
+                <select class="form-select" id="editCategory" name="category" required>
+                  <option value="">Select Category</option>
+                  <option value="feed">Animal Feed</option>
+                  <option value="supplements">Supplements</option>
+                  <option value="equipment">Equipment</option>
+                  <option value="accessories">Accessories</option>
+                </select>
+              </div>
+              <div class="mb-3">
+                <label for="editDescription" class="form-label">Description</label>
+                <textarea class="form-control" id="editDescription" name="description" rows="3"></textarea>
+              </div>
+              <div class="mb-3">
+                <label for="editPrice" class="form-label">Price</label>
+                <div class="input-group">
+                  <span class="input-group-text">₱</span>
+                  <input type="number" class="form-control" id="editPrice" name="price" min="0" step="0.01" required>
+                </div>
+              </div>
+              <div class="mb-3">
+                <label for="editStock" class="form-label">Stock</label>
+                <input type="number" class="form-control" id="editStock" name="stock" min="0" required>
+              </div>
+            </div>
+            <div class="modal-footer">
+                <input type="hidden" name="productID" id="editProductID">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+              <button type="submit" class="btn btn-primary">Update Product</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+    
     <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <!-- SweetAlert2 JS -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <!-- Custom JS -->
+
     <script>
-    function handleUpdate(event, productId) {
-        event.preventDefault();
-        const form = document.getElementById('editProductForm' + productId);
-        const formData = new FormData(form);
-
-        fetch('products.php', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.text())
-        .then(html => {
-            // Close the modal
-            const modal = bootstrap.Modal.getInstance(document.getElementById('editProductModal' + productId));
-            modal.hide();
-
-            // Show success message
-            Swal.fire({
-                icon: 'success',
-                title: 'Success!',
-                text: 'Product updated successfully!',
-                showConfirmButton: false,
-                timer: 1500
-            }).then(() => {
-                // Reload the page to show updated data
-                window.location.reload();
-            });
-        })
-        .catch(error => {
-            Swal.fire({
-                icon: 'error',
-                title: 'Error!',
-                text: 'Failed to update product. Please try again.',
-                showConfirmButton: false,
-                timer: 1500
-            });
+    // Fill Edit Modal with product data
+    document.querySelectorAll('.editProductBtn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            document.getElementById('editProductID').value = this.dataset.id;
+            document.getElementById('editProductName').value = this.dataset.name;
+            document.getElementById('editCategory').value = this.dataset.category;
+            document.getElementById('editDescription').value = this.dataset.description;
+            document.getElementById('editPrice').value = this.dataset.price;
+            document.getElementById('editStock').value = this.dataset.stock;
         });
+    });
+    </script>
 
-        return false;
-    }
-
-    function handleAdd(event) {
-        event.preventDefault();
-        const form = document.getElementById('addProductForm');
-        const formData = new FormData(form);
-
-        fetch('products.php', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.text())
-        .then(html => {
-            // Close the modal
-            const modal = bootstrap.Modal.getInstance(document.getElementById('addProductModal'));
-            modal.hide();
-
-            // Show success message
-            Swal.fire({
-                icon: 'success',
-                title: 'Success!',
-                text: 'Product added successfully!',
-                showConfirmButton: false,
-                timer: 1500
-            }).then(() => {
-                // Reload the page to show updated data
-                window.location.reload();
-            });
-        })
-        .catch(error => {
-            Swal.fire({
-                icon: 'error',
-                title: 'Error!',
-                text: 'Failed to add product. Please try again.',
-                showConfirmButton: false,
-                timer: 1500
-            });
-        });
-
-        return false;
-    }
-
-    // Custom search and sort for products table
+    <script>
+       // Custom search and sort for products table
     document.addEventListener('DOMContentLoaded', function() {
         const table = document.querySelector('table.table');
         const tbody = table.querySelector('tbody');
@@ -541,6 +493,7 @@
             });
         });
     });
-    </script>
+</script>
+<?php echo $sweetAlertConfig; ?>
 </body>
-</html> 
+</html>

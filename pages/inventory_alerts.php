@@ -32,7 +32,7 @@
                 <div class="card dashboard-card">
                     <div class="card-body">
                         <h5 class="card-title">Low Stock Items</h5>
-                        <p class="card-text" id="lowStockCount">0</p>
+                        <p class="card-text" id="lowStockCount">5</p>
                     </div>
                 </div>
             </div>
@@ -40,7 +40,7 @@
                 <div class="card dashboard-card">
                     <div class="card-body">
                         <h5 class="card-title">Out of Stock</h5>
-                        <p class="card-text" id="outOfStockCount">0</p>
+                        <p class="card-text" id="outOfStockCount">2</p>
                     </div>
                 </div>
             </div>
@@ -48,7 +48,7 @@
                 <div class="card dashboard-card">
                     <div class="card-body">
                         <h5 class="card-title">Expiring Soon</h5>
-                        <p class="card-text" id="expiringCount">0</p>
+                        <p class="card-text" id="expiringCount">3</p>
                     </div>
                 </div>
             </div>
@@ -56,7 +56,7 @@
                 <div class="card dashboard-card">
                     <div class="card-body">
                         <h5 class="card-title">Total Alerts</h5>
-                        <p class="card-text" id="totalAlerts">0</p>
+                        <p class="card-text" id="totalAlerts">10</p>
                     </div>
                 </div>
             </div>
@@ -192,6 +192,153 @@
     <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <!-- Custom JS -->
-    <script src="../js/scripts.js"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Mock alerts data
+        const alerts = [
+            {
+                product: 'Layer Feed',
+                type: 'low_stock',
+                currentStock: 8,
+                threshold: 10,
+                priority: 'high',
+                lastUpdated: '2024-03-15 10:30:00'
+            },
+            {
+                product: 'Broiler Feed',
+                type: 'out_of_stock',
+                currentStock: 0,
+                threshold: 0,
+                priority: 'high',
+                lastUpdated: '2024-03-15 09:15:00'
+            },
+            {
+                product: 'Pig Feed',
+                type: 'expiring',
+                currentStock: 25,
+                threshold: 30,
+                priority: 'medium',
+                lastUpdated: '2024-03-14 16:45:00'
+            },
+            {
+                product: 'Cattle Feed',
+                type: 'low_stock',
+                currentStock: 12,
+                threshold: 15,
+                priority: 'medium',
+                lastUpdated: '2024-03-14 14:20:00'
+            },
+            {
+                product: 'Fish Feed',
+                type: 'out_of_stock',
+                currentStock: 0,
+                threshold: 0,
+                priority: 'high',
+                lastUpdated: '2024-03-14 11:30:00'
+            }
+        ];
+
+        // Render alerts table
+        function renderAlertsTable() {
+            const tbody = document.getElementById('alertsTableBody');
+            tbody.innerHTML = '';
+            
+            alerts.forEach(alert => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${alert.product}</td>
+                    <td>
+                        <span class="badge bg-${getAlertTypeBadgeClass(alert.type)}">
+                            ${formatAlertType(alert.type)}
+                        </span>
+                    </td>
+                    <td>${alert.currentStock}</td>
+                    <td>${alert.threshold}</td>
+                    <td>
+                        <span class="badge bg-${getPriorityBadgeClass(alert.priority)}">
+                            ${alert.priority.charAt(0).toUpperCase() + alert.priority.slice(1)}
+                        </span>
+                    </td>
+                    <td>${formatDateTime(alert.lastUpdated)}</td>
+                    <td>
+                        <button class="btn btn-sm btn-info">
+                            <i class="bi bi-eye"></i> View
+                        </button>
+                        <button class="btn btn-sm btn-warning">
+                            <i class="bi bi-pencil"></i> Edit
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function getAlertTypeBadgeClass(type) {
+            switch(type) {
+                case 'low_stock': return 'warning';
+                case 'out_of_stock': return 'danger';
+                case 'expiring': return 'info';
+                default: return 'secondary';
+            }
+        }
+
+        function getPriorityBadgeClass(priority) {
+            switch(priority) {
+                case 'high': return 'danger';
+                case 'medium': return 'warning';
+                case 'low': return 'info';
+                default: return 'secondary';
+            }
+        }
+
+        function formatAlertType(type) {
+            return type.split('_').map(word => 
+                word.charAt(0).toUpperCase() + word.slice(1)
+            ).join(' ');
+        }
+
+        function formatDateTime(dateTimeStr) {
+            const date = new Date(dateTimeStr);
+            return date.toLocaleString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        // Filter functionality
+        const alertSearch = document.getElementById('alertSearch');
+        const alertTypeFilter = document.getElementById('alertTypeFilter');
+        const priorityFilter = document.getElementById('priorityFilter');
+        const tableRows = document.querySelectorAll('tbody tr');
+
+        function filterTable() {
+            const searchTerm = alertSearch.value.toLowerCase();
+            const selectedType = alertTypeFilter.value;
+            const selectedPriority = priorityFilter.value;
+
+            tableRows.forEach(row => {
+                const product = row.cells[0].textContent.toLowerCase();
+                const type = row.cells[1].textContent.trim().toLowerCase();
+                const priority = row.cells[4].textContent.trim().toLowerCase();
+
+                const matchesSearch = product.includes(searchTerm);
+                const matchesType = selectedType === 'all' || type.includes(selectedType);
+                const matchesPriority = selectedPriority === 'all' || priority === selectedPriority;
+
+                row.style.display = matchesSearch && matchesType && matchesPriority ? '' : 'none';
+            });
+        }
+
+        alertSearch.addEventListener('input', filterTable);
+        alertTypeFilter.addEventListener('change', filterTable);
+        priorityFilter.addEventListener('change', filterTable);
+
+        // Initial render
+        renderAlertsTable();
+    });
+    </script>
 </body>
 </html> 

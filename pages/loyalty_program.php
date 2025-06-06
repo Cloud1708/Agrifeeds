@@ -26,13 +26,13 @@
             </button>
         </div>
 
-        <!-- Program Summary Cards -->
+        <!-- Program Statistics -->
         <div class="row mb-4">
             <div class="col-md-3">
                 <div class="card dashboard-card">
                     <div class="card-body">
                         <h5 class="card-title">Total Members</h5>
-                        <p class="card-text" id="totalMembers">0</p>
+                        <p class="card-text" id="totalMembers">150</p>
                     </div>
                 </div>
             </div>
@@ -40,7 +40,7 @@
                 <div class="card dashboard-card">
                     <div class="card-body">
                         <h5 class="card-title">Active Members</h5>
-                        <p class="card-text" id="activeMembers">0</p>
+                        <p class="card-text" id="activeMembers">120</p>
                     </div>
                 </div>
             </div>
@@ -48,7 +48,7 @@
                 <div class="card dashboard-card">
                     <div class="card-body">
                         <h5 class="card-title">Points Issued</h5>
-                        <p class="card-text" id="pointsIssued">0</p>
+                        <p class="card-text" id="pointsIssued">25,000</p>
                     </div>
                 </div>
             </div>
@@ -56,7 +56,7 @@
                 <div class="card dashboard-card">
                     <div class="card-body">
                         <h5 class="card-title">Points Redeemed</h5>
-                        <p class="card-text" id="pointsRedeemed">0</p>
+                        <p class="card-text" id="pointsRedeemed">8,500</p>
                     </div>
                 </div>
             </div>
@@ -76,17 +76,17 @@
             <div class="col-md-3">
                 <select class="form-select" id="tierFilter">
                     <option value="all">All Tiers</option>
-                    <option value="bronze">Bronze</option>
-                    <option value="silver">Silver</option>
-                    <option value="gold">Gold</option>
-                    <option value="platinum">Platinum</option>
+                    <option value="Bronze">Bronze</option>
+                    <option value="Silver">Silver</option>
+                    <option value="Gold">Gold</option>
+                    <option value="Platinum">Platinum</option>
                 </select>
             </div>
             <div class="col-md-3">
                 <select class="form-select" id="statusFilter">
                     <option value="all">All Status</option>
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
                 </select>
             </div>
         </div>
@@ -126,16 +126,16 @@
                             <h6>Points Earning Rules</h6>
                             <div class="row">
                                 <div class="col-md-6">
-                                    <label for="pointsPerDollar" class="form-label">Points per Dollar</label>
-                                    <input type="number" class="form-control" id="pointsPerDollar" 
-                                           min="0" step="0.1" value="1" required>
+                                    <label for="pointsPerPeso" class="form-label">Points per ₱1 Spent</label>
+                                    <input type="number" class="form-control" id="pointsPerPeso" 
+                                           min="0" step="0.01" value="1" required>
                                 </div>
                                 <div class="col-md-6">
-                                    <label for="minimumPurchase" class="form-label">Minimum Purchase for Points</label>
+                                    <label for="minPointsEarn" class="form-label">Minimum Purchase for Points</label>
                                     <div class="input-group">
-                                        <span class="input-group-text">$</span>
-                                        <input type="number" class="form-control" id="minimumPurchase" 
-                                               min="0" step="0.01" value="1" required>
+                                        <span class="input-group-text">₱</span>
+                                        <input type="number" class="form-control" id="minPointsEarn" 
+                                               min="0" step="0.01" value="100" required>
                                     </div>
                                 </div>
                             </div>
@@ -168,16 +168,16 @@
                             <h6>Points Redemption</h6>
                             <div class="row">
                                 <div class="col-md-6">
-                                    <label for="pointsValue" class="form-label">Points Value (in dollars)</label>
+                                    <label for="pointsValue" class="form-label">Points Value (₱)</label>
                                     <div class="input-group">
-                                        <span class="input-group-text">$</span>
+                                        <span class="input-group-text">₱</span>
                                         <input type="number" class="form-control" id="pointsValue" 
-                                               min="0" step="0.01" value="0.01" required>
+                                               min="0" step="0.01" value="0.10" required>
                                     </div>
                                 </div>
                                 <div class="col-md-6">
-                                    <label for="minimumRedemption" class="form-label">Minimum Points for Redemption</label>
-                                    <input type="number" class="form-control" id="minimumRedemption" 
+                                    <label for="minPointsRedeem" class="form-label">Minimum Points to Redeem</label>
+                                    <input type="number" class="form-control" id="minPointsRedeem" 
                                            min="0" value="100" required>
                                 </div>
                             </div>
@@ -188,19 +188,19 @@
                             <div class="form-check mb-2">
                                 <input class="form-check-input" type="checkbox" id="silverDiscount" checked>
                                 <label class="form-check-label" for="silverDiscount">
-                                    Silver Tier: 5% Discount on All Purchases
+                                    Silver Tier: 5% Discount
                                 </label>
                             </div>
                             <div class="form-check mb-2">
                                 <input class="form-check-input" type="checkbox" id="goldDiscount" checked>
                                 <label class="form-check-label" for="goldDiscount">
-                                    Gold Tier: 10% Discount on All Purchases
+                                    Gold Tier: 10% Discount
                                 </label>
                             </div>
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" id="platinumDiscount" checked>
                                 <label class="form-check-label" for="platinumDiscount">
-                                    Platinum Tier: 15% Discount on All Purchases
+                                    Platinum Tier: 15% Discount
                                 </label>
                             </div>
                         </div>
@@ -209,7 +209,7 @@
                             <h6>Points Expiration</h6>
                             <div class="row">
                                 <div class="col-md-6">
-                                    <label for="pointsExpiry" class="form-label">Points Expire After (months)</label>
+                                    <label for="pointsExpiry" class="form-label">Points Expire After (Months)</label>
                                     <input type="number" class="form-control" id="pointsExpiry" 
                                            min="0" value="12" required>
                                 </div>
@@ -228,7 +228,6 @@
     <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <!-- Custom JS -->
-    
-    <script src="../js/scripts.js"></script>
+
 </body>
 </html> 
