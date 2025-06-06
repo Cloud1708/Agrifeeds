@@ -1,9 +1,11 @@
 <?php
-include '../includes/db.php';
-$db = new database();
-$members = $db->viewLoyaltyProgram();
+session_start();
+ 
+require_once('../includes/db.php');
+$con = new database();
+$members = $con->viewLoyaltyProgram();
 ?>
-
+ 
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -22,7 +24,7 @@ $members = $db->viewLoyaltyProgram();
 </head>
 <body>
     <?php include '../includes/sidebar.php'; ?>
-
+ 
     <!-- Main Content -->
     <div class="main-content">
         <div class="d-flex justify-content-between align-items-center mb-4">
@@ -31,7 +33,7 @@ $members = $db->viewLoyaltyProgram();
                 <i class="bi bi-gear"></i> Program Settings
             </button>
         </div>
-
+ 
         <!-- Program Statistics -->
         <div class="row mb-4">
             <div class="col-md-3">
@@ -67,7 +69,7 @@ $members = $db->viewLoyaltyProgram();
                 </div>
             </div>
         </div>
-
+ 
         <!-- Search and Filter -->
         <div class="row mb-4">
             <div class="col-md-4">
@@ -75,7 +77,7 @@ $members = $db->viewLoyaltyProgram();
                     <span class="input-group-text">
                         <i class="bi bi-search"></i>
                     </span>
-                    <input type="text" class="form-control" id="memberSearch" 
+                    <input type="text" class="form-control" id="memberSearch"
                            placeholder="Search members..." aria-label="Search members">
                 </div>
             </div>
@@ -96,14 +98,14 @@ $members = $db->viewLoyaltyProgram();
                 </select>
             </div>
         </div>
-
+ 
         <!-- Members Table -->
         <div class="table-responsive">
             <table class="table table-striped table-hover">
                 <thead>
                     <tr>
                         <th>LoyaltyID</th>
-                        <th>CustomerID</th>
+                        <th>Customer</th>
                         <th>Points Balance</th>
                         <th>Tier</th>
                         <th>Last Update</th>
@@ -117,24 +119,22 @@ $members = $db->viewLoyaltyProgram();
             ?>
             <tr>
                 <td><?php echo $member['LoyaltyID']; ?></td>
-                <td><?php echo $member['CustomerID']; ?></td>
+                <td><?php echo htmlspecialchars($member['Cust_Name']); ?></td>
                 <td><?php echo number_format($member['LP_PtsBalance']); ?></td>
                 <td>
-                    <?php
-                    $tier = $member['LP_MbspTier'];
-                    if ($tier === 'Platinum') {
-                        echo '<span class="badge bg-gradient text-light" style="background:linear-gradient(90deg,#a8edea,#fed6e3);color:#333;">Platinum</span>';
-                    } elseif ($tier === 'Gold') {
-                        echo '<span class="badge bg-warning text-dark">Gold</span>';
-                    } elseif ($tier === 'Silver') {
-                        echo '<span class="badge bg-secondary">Silver</span>';
-                    } elseif ($tier === 'Bronze') {
-                        echo '<span class="badge bg-light text-dark">Bronze</span>';
-                    } else {
-                        echo '<span class="badge bg-light text-dark">None</span>';
-                    }
-                    ?>
-                </td>
+    <?php
+    $points = (int)$member['LP_PtsBalance'];
+    if ($points >= 15000) {
+        echo '<span class="badge bg-warning text-dark">Gold</span>';
+    } elseif ($points >= 10000) {
+        echo '<span class="badge bg-secondary">Silver</span>';
+    } elseif ($points >= 5000) {
+        echo '<span class="badge bg-light text-dark">Bronze</span>';
+    } else {
+        echo '<span class="badge bg-light text-dark">None</span>';
+    }
+    ?>
+</td>
                 <td><?php echo date('Y-m-d', strtotime($member['LP_LastUpdt'])); ?></td>
                 <td>
                     <button class="btn btn-sm btn-info" onclick="viewMember(<?php echo $member['LoyaltyID']; ?>)">
@@ -152,7 +152,7 @@ $members = $db->viewLoyaltyProgram();
             </table>
         </div>
     </div>
-
+ 
     <!-- Program Settings Modal -->
     <div class="modal fade" id="programSettingsModal" tabindex="-1" aria-labelledby="programSettingsModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg">
@@ -168,43 +168,43 @@ $members = $db->viewLoyaltyProgram();
                             <div class="row">
                                 <div class="col-md-6">
                                     <label for="pointsPerPeso" class="form-label">Points per ₱1 Spent</label>
-                                    <input type="number" class="form-control" id="pointsPerPeso" 
+                                    <input type="number" class="form-control" id="pointsPerPeso"
                                            min="0" step="0.01" value="1" required>
                                 </div>
                                 <div class="col-md-6">
                                     <label for="minPointsEarn" class="form-label">Minimum Purchase for Points</label>
                                     <div class="input-group">
                                         <span class="input-group-text">₱</span>
-                                        <input type="number" class="form-control" id="minPointsEarn" 
+                                        <input type="number" class="form-control" id="minPointsEarn"
                                                min="0" step="0.01" value="100" required>
                                     </div>
                                 </div>
                             </div>
                         </div>
-
+ 
                         <div class="mb-4">
                             <h6>Tier Requirements</h6>
                             <div class="row">
                                 <div class="col-md-6">
                                     <label for="silverTier" class="form-label">Silver Tier (Points)</label>
-                                    <input type="number" class="form-control" id="silverTier" 
+                                    <input type="number" class="form-control" id="silverTier"
                                            min="0" value="1000" required>
                                 </div>
                                 <div class="col-md-6">
                                     <label for="goldTier" class="form-label">Gold Tier (Points)</label>
-                                    <input type="number" class="form-control" id="goldTier" 
+                                    <input type="number" class="form-control" id="goldTier"
                                            min="0" value="5000" required>
                                 </div>
                             </div>
                             <div class="row mt-2">
                                 <div class="col-md-6">
                                     <label for="platinumTier" class="form-label">Platinum Tier (Points)</label>
-                                    <input type="number" class="form-control" id="platinumTier" 
+                                    <input type="number" class="form-control" id="platinumTier"
                                            min="0" value="10000" required>
                                 </div>
                             </div>
                         </div>
-
+ 
                         <div class="mb-4">
                             <h6>Points Redemption</h6>
                             <div class="row">
@@ -212,18 +212,18 @@ $members = $db->viewLoyaltyProgram();
                                     <label for="pointsValue" class="form-label">Points Value (₱)</label>
                                     <div class="input-group">
                                         <span class="input-group-text">₱</span>
-                                        <input type="number" class="form-control" id="pointsValue" 
+                                        <input type="number" class="form-control" id="pointsValue"
                                                min="0" step="0.01" value="0.10" required>
                                     </div>
                                 </div>
                                 <div class="col-md-6">
                                     <label for="minPointsRedeem" class="form-label">Minimum Points to Redeem</label>
-                                    <input type="number" class="form-control" id="minPointsRedeem" 
+                                    <input type="number" class="form-control" id="minPointsRedeem"
                                            min="0" value="100" required>
                                 </div>
                             </div>
                         </div>
-
+ 
                         <div class="mb-4">
                             <h6>Tier Benefits</h6>
                             <div class="form-check mb-2">
@@ -245,13 +245,13 @@ $members = $db->viewLoyaltyProgram();
                                 </label>
                             </div>
                         </div>
-
+ 
                         <div class="mb-4">
                             <h6>Points Expiration</h6>
                             <div class="row">
                                 <div class="col-md-6">
                                     <label for="pointsExpiry" class="form-label">Points Expire After (Months)</label>
-                                    <input type="number" class="form-control" id="pointsExpiry" 
+                                    <input type="number" class="form-control" id="pointsExpiry"
                                            min="0" value="12" required>
                                 </div>
                             </div>
@@ -265,10 +265,10 @@ $members = $db->viewLoyaltyProgram();
             </div>
         </div>
     </div>
-
+ 
     <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <!-- Custom JS -->
-
+ 
 </body>
-</html> 
+</html>

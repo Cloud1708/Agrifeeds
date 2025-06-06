@@ -1,4 +1,72 @@
 <!DOCTYPE html>
+<?php
+require_once '../includes/db.php';
+$db = new database();
+
+// Get pricing history data
+$history = $db->viewPricingHistory();
+$stats = $db->getPricingHistoryStats();
+
+// Handle AJAX requests
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $response = ['success' => false, 'message' => ''];
+    
+    if (isset($_POST['action'])) {
+        switch ($_POST['action']) {
+            case 'add':
+                if (isset($_POST['productId'], $_POST['oldPrice'], $_POST['newPrice'], $_POST['changeDate'], $_POST['effectiveFrom'])) {
+                    $result = $db->addPricingHistory(
+                        $_POST['productId'],
+                        $_POST['oldPrice'],
+                        $_POST['newPrice'],
+                        $_POST['changeDate'],
+                        $_POST['effectiveFrom'],
+                        $_POST['effectiveTo'] ?? null
+                    );
+                    $response['success'] = $result !== false;
+                    $response['message'] = $result ? 'History added successfully' : 'Failed to add history';
+                }
+                break;
+                
+            case 'edit':
+                if (isset($_POST['historyId'], $_POST['oldPrice'], $_POST['newPrice'], $_POST['changeDate'], $_POST['effectiveFrom'])) {
+                    $result = $db->updatePricingHistory(
+                        $_POST['historyId'],
+                        $_POST['oldPrice'],
+                        $_POST['newPrice'],
+                        $_POST['changeDate'],
+                        $_POST['effectiveFrom'],
+                        $_POST['effectiveTo'] ?? null
+                    );
+                    $response['success'] = $result;
+                    $response['message'] = $result ? 'History updated successfully' : 'Failed to update history';
+                }
+                break;
+                
+            case 'delete':
+                if (isset($_POST['historyId'])) {
+                    $result = $db->deletePricingHistory($_POST['historyId']);
+                    $response['success'] = $result;
+                    $response['message'] = $result ? 'History deleted successfully' : 'Failed to delete history';
+                }
+                break;
+        }
+    }
+    
+    header('Content-Type: application/json');
+    echo json_encode($response);
+    exit;
+}
+
+// Debug information
+$debug = false;
+if ($debug) {
+    echo "<pre>";
+    print_r($_POST);
+    print_r($history);
+    echo "</pre>";
+}
+?>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -23,11 +91,10 @@
     </style>
 </head>
 <body>
-    <!-- Sidebar include (replace with your own sidebar code if needed) -->
-    <!-- <?php include '../includes/sidebar.php'; ?> -->
+    <!-- Sidebar include -->
+    <?php include '../includes/sidebar.php'; ?>
 
     <div class="main-content">
-
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1>Pricing History</h1>
             <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addHistoryModal">
@@ -41,7 +108,7 @@
                 <div class="card dashboard-card">
                     <div class="card-body">
                         <h5 class="card-title">Total Records</h5>
-                        <p class="card-text" id="totalRecords">12</p>
+                        <p class="card-text" id="totalRecords"><?php echo $stats['totalRecords'] ?? 0; ?></p>
                     </div>
                 </div>
             </div>
@@ -49,7 +116,7 @@
                 <div class="card dashboard-card">
                     <div class="card-body">
                         <h5 class="card-title">Current Prices</h5>
-                        <p class="card-text" id="currentPrices">8</p>
+                        <p class="card-text" id="currentPrices"><?php echo $stats['currentPrices'] ?? 0; ?></p>
                     </div>
                 </div>
             </div>
@@ -57,7 +124,7 @@
                 <div class="card dashboard-card">
                     <div class="card-body">
                         <h5 class="card-title">Upcoming Changes</h5>
-                        <p class="card-text" id="upcomingChanges">2</p>
+                        <p class="card-text" id="upcomingChanges"><?php echo $stats['upcomingChanges'] ?? 0; ?></p>
                     </div>
                 </div>
             </div>
@@ -65,7 +132,7 @@
                 <div class="card dashboard-card">
                     <div class="card-body">
                         <h5 class="card-title">Expired Prices</h5>
-                        <p class="card-text" id="expiredPrices">2</p>
+                        <p class="card-text" id="expiredPrices"><?php echo $stats['expiredPrices'] ?? 0; ?></p>
                     </div>
                 </div>
             </div>
@@ -84,9 +151,12 @@
             <div class="col-md-3">
                 <select class="form-select" id="productFilter">
                     <option value="all">All Products</option>
-                    <option value="2001">Product 2001</option>
-                    <option value="2002">Product 2002</option>
-                    <option value="2003">Product 2003</option>
+                    <?php
+                    $products = $db->viewProducts();
+                    foreach ($products as $product) {
+                        echo "<option value='{$product['ProductID']}'>{$product['Prod_Name']}</option>";
+                    }
+                    ?>
                 </select>
             </div>
             <div class="col-md-3">
@@ -105,7 +175,7 @@
                 <thead>
                     <tr>
                         <th>HistoryID</th>
-                        <th>ProductID</th>
+                        <th>Product</th>
                         <th>Old Price</th>
                         <th>New Price</th>
                         <th>Change Date</th>
@@ -117,75 +187,61 @@
                     </tr>
                 </thead>
                 <tbody>
+                    <?php foreach ($history as $record): ?>
                     <tr>
-                        <td>101</td>
-                        <td>2001</td>
-                        <td>₱150.00</td>
-                        <td>₱180.00</td>
-                        <td>2025-05-01</td>
-                        <td>2025-05-05</td>
-                        <td>2025-06-01</td>
-                        <td>2025-05-01 10:30:00</td>
-                        <td><span class="badge bg-success">Current</span></td>
+                        <td><?php echo htmlspecialchars($record['HistoryID']); ?></td>
+                        <td><?php echo htmlspecialchars($record['Prod_Name']); ?></td>
+                        <td>₱<?php echo number_format($record['PH_OldPrice'], 2); ?></td>
+                        <td>₱<?php echo number_format($record['PH_NewPrice'], 2); ?></td>
+                        <td><?php echo htmlspecialchars($record['PH_ChangeDate']); ?></td>
+                        <td><?php echo htmlspecialchars($record['PH_Effective_from']); ?></td>
+                        <td><?php echo htmlspecialchars($record['PH_Effective_to'] ?? 'N/A'); ?></td>
+                        <td><?php echo htmlspecialchars($record['PH_Created_at']); ?></td>
+                        <td>
+                            <?php
+                            $today = new DateTime();
+                            $effectiveFrom = new DateTime($record['PH_Effective_from']);
+                            $effectiveTo = $record['PH_Effective_to'] ? new DateTime($record['PH_Effective_to']) : null;
+                            
+                            $status = 'current';
+                            $badgeClass = 'success';
+                            
+                            if ($effectiveFrom > $today) {
+                                $status = 'upcoming';
+                                $badgeClass = 'warning';
+                            } elseif ($effectiveTo && $effectiveTo < $today) {
+                                $status = 'expired';
+                                $badgeClass = 'secondary';
+                            }
+                            ?>
+                            <span class="badge bg-<?php echo $badgeClass; ?>">
+                                <?php echo ucfirst($status); ?>
+                            </span>
+                        </td>
                         <td>
                             <div class="btn-group" role="group">
                                 <button 
                                     type="button" 
                                     class="btn btn-warning btn-sm editHistoryBtn"
-                                    data-id="101"
-                                    data-product="2001"
-                                    data-oldprice="150.00"
-                                    data-newprice="180.00"
-                                    data-changedate="2025-05-01"
-                                    data-effectivefrom="2025-05-05"
-                                    data-effectiveto="2025-06-01"
-                                    data-createdat="2025-05-01 10:30:00"
+                                    data-id="<?php echo $record['HistoryID']; ?>"
+                                    data-product="<?php echo $record['ProductID']; ?>"
+                                    data-oldprice="<?php echo $record['PH_OldPrice']; ?>"
+                                    data-newprice="<?php echo $record['PH_NewPrice']; ?>"
+                                    data-changedate="<?php echo $record['PH_ChangeDate']; ?>"
+                                    data-effectivefrom="<?php echo $record['PH_Effective_from']; ?>"
+                                    data-effectiveto="<?php echo $record['PH_Effective_to']; ?>"
                                     data-bs-toggle="modal"
                                     data-bs-target="#editHistoryModal"
                                 >
                                     <i class="bi bi-pencil-square"></i>
                                 </button>
-                                <button type="button" class="btn btn-danger btn-sm deleteHistoryBtn" data-id="101">
+                                <button type="button" class="btn btn-danger btn-sm deleteHistoryBtn" data-id="<?php echo $record['HistoryID']; ?>">
                                     <i class="bi bi-x-square"></i>
                                 </button>
                             </div>
                         </td>
                     </tr>
-                    <tr>
-                        <td>102</td>
-                        <td>2002</td>
-                        <td>₱90.00</td>
-                        <td>₱100.00</td>
-                        <td>2025-04-20</td>
-                        <td>2025-04-25</td>
-                        <td>2025-05-25</td>
-                        <td>2025-04-20 09:15:00</td>
-                        <td><span class="badge bg-secondary">Expired</span></td>
-                        <td>
-                            <div class="btn-group" role="group">
-                                <button 
-                                    type="button" 
-                                    class="btn btn-warning btn-sm editHistoryBtn"
-                                    data-id="102"
-                                    data-product="2002"
-                                    data-oldprice="90.00"
-                                    data-newprice="100.00"
-                                    data-changedate="2025-04-20"
-                                    data-effectivefrom="2025-04-25"
-                                    data-effectiveto="2025-05-25"
-                                    data-createdat="2025-04-20 09:15:00"
-                                    data-bs-toggle="modal"
-                                    data-bs-target="#editHistoryModal"
-                                >
-                                    <i class="bi bi-pencil-square"></i>
-                                </button>
-                                <button type="button" class="btn btn-danger btn-sm deleteHistoryBtn" data-id="102">
-                                    <i class="bi bi-x-square"></i>
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
-                    <!-- More rows as needed -->
+                    <?php endforeach; ?>
                 </tbody>
             </table>
         </div>
@@ -202,8 +258,14 @@
                     </div>
                     <div class="modal-body">
                         <div class="mb-3">
-                            <label for="addProductID" class="form-label">Product ID</label>
-                            <input type="text" class="form-control" id="addProductID" required>
+                            <label for="addProductID" class="form-label">Product</label>
+                            <select class="form-select" id="addProductID" required>
+                                <?php foreach ($products as $product): ?>
+                                <option value="<?php echo $product['ProductID']; ?>">
+                                    <?php echo htmlspecialchars($product['Prod_Name']); ?>
+                                </option>
+                                <?php endforeach; ?>
+                            </select>
                         </div>
                         <div class="mb-3">
                             <label for="addOldPrice" class="form-label">Old Price</label>
@@ -247,8 +309,14 @@
                     <div class="modal-body">
                         <input type="hidden" id="editHistoryID">
                         <div class="mb-3">
-                            <label for="editProductID" class="form-label">Product ID</label>
-                            <input type="text" class="form-control" id="editProductID" required>
+                            <label for="editProductID" class="form-label">Product</label>
+                            <select class="form-select" id="editProductID" required>
+                                <?php foreach ($products as $product): ?>
+                                <option value="<?php echo $product['ProductID']; ?>">
+                                    <?php echo htmlspecialchars($product['Prod_Name']); ?>
+                                </option>
+                                <?php endforeach; ?>
+                            </select>
                         </div>
                         <div class="mb-3">
                             <label for="editOldPrice" class="form-label">Old Price</label>
@@ -269,10 +337,6 @@
                         <div class="mb-3">
                             <label for="editEffectiveTo" class="form-label">Effective To</label>
                             <input type="date" class="form-control" id="editEffectiveTo">
-                        </div>
-                        <div class="mb-3">
-                            <label for="editCreatedAt" class="form-label">Created At</label>
-                            <input type="text" class="form-control" id="editCreatedAt" readonly>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -298,12 +362,116 @@
                 document.getElementById('editNewPrice').value = this.dataset.newprice;
                 document.getElementById('editChangeDate').value = this.dataset.changedate;
                 document.getElementById('editEffectiveFrom').value = this.dataset.effectivefrom;
-                document.getElementById('editEffectiveTo').value = this.dataset.effectiveto;
-                document.getElementById('editCreatedAt').value = this.dataset.createdat;
+                document.getElementById('editEffectiveTo').value = this.dataset.effectiveto || '';
             });
         });
 
-        // Example for search and filter (static, for demo)
+        // Handle form submissions
+        document.getElementById('addHistoryForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData();
+            formData.append('action', 'add');
+            formData.append('productId', document.getElementById('addProductID').value);
+            formData.append('oldPrice', document.getElementById('addOldPrice').value);
+            formData.append('newPrice', document.getElementById('addNewPrice').value);
+            formData.append('changeDate', document.getElementById('addChangeDate').value);
+            formData.append('effectiveFrom', document.getElementById('addEffectiveFrom').value);
+            formData.append('effectiveTo', document.getElementById('addEffectiveTo').value);
+
+            fetch(window.location.href, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire('Success', data.message, 'success').then(() => {
+                        window.location.reload();
+                    });
+                } else {
+                    Swal.fire('Error', data.message, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                Swal.fire('Error', 'An error occurred while processing your request', 'error');
+            });
+        });
+
+        document.getElementById('editHistoryForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData();
+            formData.append('action', 'edit');
+            formData.append('historyId', document.getElementById('editHistoryID').value);
+            formData.append('productId', document.getElementById('editProductID').value);
+            formData.append('oldPrice', document.getElementById('editOldPrice').value);
+            formData.append('newPrice', document.getElementById('editNewPrice').value);
+            formData.append('changeDate', document.getElementById('editChangeDate').value);
+            formData.append('effectiveFrom', document.getElementById('editEffectiveFrom').value);
+            formData.append('effectiveTo', document.getElementById('editEffectiveTo').value);
+
+            fetch(window.location.href, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire('Success', data.message, 'success').then(() => {
+                        window.location.reload();
+                    });
+                } else {
+                    Swal.fire('Error', data.message, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                Swal.fire('Error', 'An error occurred while processing your request', 'error');
+            });
+        });
+
+        // Handle delete buttons
+        document.querySelectorAll('.deleteHistoryBtn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                const historyId = this.dataset.id;
+                Swal.fire({
+                    title: 'Are you sure?',
+                    text: "You won't be able to revert this!",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#3085d6',
+                    cancelButtonColor: '#d33',
+                    confirmButtonText: 'Yes, delete it!'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        const formData = new FormData();
+                        formData.append('action', 'delete');
+                        formData.append('historyId', historyId);
+
+                        fetch(window.location.href, {
+                            method: 'POST',
+                            body: formData
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                Swal.fire('Deleted!', data.message, 'success').then(() => {
+                                    window.location.reload();
+                                });
+                            } else {
+                                Swal.fire('Error', data.message, 'error');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            Swal.fire('Error', 'An error occurred while processing your request', 'error');
+                        });
+                    }
+                });
+            });
+        });
+
+        // Search and filter functionality
         document.addEventListener('DOMContentLoaded', function() {
             const table = document.querySelector('table.table');
             const tbody = table.querySelector('tbody');
@@ -311,21 +479,22 @@
             const searchInput = document.getElementById('historySearch');
             const productFilter = document.getElementById('productFilter');
             const statusFilter = document.getElementById('statusFilter');
-            let currentSort = { col: null, dir: 1 };
 
             function filterRows() {
                 const search = searchInput.value.toLowerCase();
                 const product = productFilter.value;
                 const status = statusFilter.value;
+
                 rows.forEach(row => {
                     const cells = row.querySelectorAll('td');
-                    const prodID = cells[1].textContent.toLowerCase();
+                    const prodName = cells[1].textContent.toLowerCase();
                     const statusText = cells[8].textContent.toLowerCase();
                     let show = true;
+
                     if (search && !row.textContent.toLowerCase().includes(search)) {
                         show = false;
                     }
-                    if (product !== 'all' && prodID !== product) {
+                    if (product !== 'all' && !prodName.includes(product)) {
                         show = false;
                     }
                     if (status !== 'all' && statusText !== status) {
@@ -334,35 +503,10 @@
                     row.style.display = show ? '' : 'none';
                 });
             }
+
             searchInput.addEventListener('input', filterRows);
             productFilter.addEventListener('change', filterRows);
             statusFilter.addEventListener('change', filterRows);
-
-            // Sort columns
-            table.querySelectorAll('th').forEach((th, idx) => {
-                if (idx === 9) return; // Skip Actions column
-                th.style.cursor = 'pointer';
-                th.addEventListener('click', function() {
-                    let dir = 1;
-                    if (currentSort.col === idx) dir = -currentSort.dir;
-                    currentSort = { col: idx, dir };
-                    rows.sort((a, b) => {
-                        let aText = a.children[idx].textContent.trim();
-                        let bText = b.children[idx].textContent.trim();
-                        // Numeric sort for id and price columns
-                        if ([0,1,2,3].includes(idx)) {
-                            aText = parseFloat(aText.replace(/[^\d.\-]/g, ''));
-                            bText = parseFloat(bText.replace(/[^\d.\-]/g, ''));
-                            if (isNaN(aText)) aText = 0;
-                            if (isNaN(bText)) bText = 0;
-                            return dir * (aText - bText);
-                        }
-                        return dir * aText.localeCompare(bText);
-                    });
-                    // Re-append sorted rows
-                    rows.forEach(row => tbody.appendChild(row));
-                });
-            });
         });
     </script>
 </body>

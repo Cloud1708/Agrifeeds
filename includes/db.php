@@ -44,19 +44,38 @@ class database{
 
     
        function updateProduct($name, $category, $description, $price, $stock, $id){
-    try    {
-        $con = $this->opencon();
-        $con->beginTransaction();
-        $query = $con->prepare("UPDATE products SET Prod_Name = ?, Prod_Cat = ?, Prod_Desc = ?, Prod_Price = ? , Prod_Stock = ? WHERE ProductID = ? ");
-        $query->execute([$name, $category, $description, $price, $stock, $id]);
-        $con->commit();
-        return true;
+        try {
+            $con = $this->opencon();
+            $con->beginTransaction();
 
-    } catch (PDOException $e) {
-       
-         $con->rollBack();
-        return false; 
-    }
+            // Fetch the old price before updating
+            $stmt = $con->prepare("SELECT Prod_Price FROM products WHERE ProductID = ?");
+            $stmt->execute([$id]);
+            $oldProduct = $stmt->fetch(PDO::FETCH_ASSOC);
+            $oldPrice = $oldProduct ? $oldProduct['Prod_Price'] : null;
+
+            // Update the product
+            $query = $con->prepare("UPDATE products SET Prod_Name = ?, Prod_Cat = ?, Prod_Desc = ?, Prod_Price = ? , Prod_Stock = ? WHERE ProductID = ? ");
+            $query->execute([$name, $category, $description, $price, $stock, $id]);
+
+            // If price changed, add to pricing history
+            if ($oldPrice !== null && $oldPrice != $price) {
+                $changeDate = date('Y-m-d');
+                $effectiveFrom = $changeDate;
+                
+                // Add to pricing history
+                $stmt = $con->prepare("INSERT INTO pricing_history 
+                    (ProductID, PH_OldPrice, PH_NewPrice, PH_ChangeDate, PH_Effective_from) 
+                    VALUES (?, ?, ?, ?, ?)");
+                $stmt->execute([$id, $oldPrice, $price, $changeDate, $effectiveFrom]);
+            }
+
+            $con->commit();
+            return true;
+        } catch (PDOException $e) {
+            $con->rollBack();
+            return false; 
+        }
     }
 
     function deleteProduct($id) {
@@ -300,10 +319,143 @@ function getProductById($id) {
     }
 
         
-    function viewLoyaltyProgram() {
-        $con = $this->opencon();
-        return $con->query("SELECT * FROM loyalty_program")->fetchAll();
+public function viewLoyaltyProgram() {
+    $con = $this->opencon();
+    $stmt = $con->prepare("
+        SELECT l.LoyaltyID, l.CustomerID, c.Cust_Name, l.LP_PtsBalance, l.LP_MbspTier, l.LP_LastUpdt
+        FROM loyalty_program l
+        JOIN customers c ON l.CustomerID = c.CustomerID
+        ORDER BY l.LoyaltyID
+    ");
+    $stmt->execute();
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+    // Pricing History Functions
+    function addPricingHistory($productId, $oldPrice, $newPrice, $changeDate, $effectiveFrom, $effectiveTo = null) {
+        try {
+            $con = $this->opencon();
+            $con->beginTransaction();
+            
+            $stmt = $con->prepare("INSERT INTO pricing_history 
+                (ProductID, PH_OldPrice, PH_NewPrice, PH_ChangeDate, PH_Effective_from, PH_Effective_to) 
+                VALUES (?, ?, ?, ?, ?, ?)");
+            
+            $stmt->execute([
+                $productId, 
+                $oldPrice, 
+                $newPrice, 
+                $changeDate, 
+                $effectiveFrom, 
+                $effectiveTo
+            ]);
+            
+            $historyId = $con->lastInsertId();
+            $con->commit();
+            return $historyId;
+        } catch (PDOException $e) {
+            if (isset($con)) $con->rollBack();
+            return false;
+        }
     }
 
+    function viewPricingHistory($productId = null) {
+        try {
+            $con = $this->opencon();
+            $sql = "SELECT ph.*, p.Prod_Name 
+                    FROM pricing_history ph 
+                    JOIN products p ON ph.ProductID = p.ProductID";
+            
+            if ($productId) {
+                $sql .= " WHERE ph.ProductID = ?";
+                $stmt = $con->prepare($sql);
+                $stmt->execute([$productId]);
+            } else {
+                $stmt = $con->prepare($sql);
+                $stmt->execute();
+            }
+            
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            return false;
+        }
+    }
+
+    function getPricingHistoryStats() {
+        try {
+            $con = $this->opencon();
+            $stats = [];
+            
+            // Total Records
+            $stmt = $con->query("SELECT COUNT(*) FROM pricing_history");
+            $stats['totalRecords'] = $stmt->fetchColumn();
+            
+            // Current Prices (where effective_from <= current date and (effective_to is null or effective_to >= current date))
+            $stmt = $con->query("SELECT COUNT(*) FROM pricing_history 
+                WHERE PH_Effective_from <= CURDATE() 
+                AND (PH_Effective_to IS NULL OR PH_Effective_to >= CURDATE())");
+            $stats['currentPrices'] = $stmt->fetchColumn();
+            
+            // Upcoming Changes (where effective_from > current date)
+            $stmt = $con->query("SELECT COUNT(*) FROM pricing_history 
+                WHERE PH_Effective_from > CURDATE()");
+            $stats['upcomingChanges'] = $stmt->fetchColumn();
+            
+            // Expired Prices (where effective_to < current date)
+            $stmt = $con->query("SELECT COUNT(*) FROM pricing_history 
+                WHERE PH_Effective_to < CURDATE()");
+            $stats['expiredPrices'] = $stmt->fetchColumn();
+            
+            return $stats;
+        } catch (PDOException $e) {
+            return false;
+        }
+    }
+
+    function updatePricingHistory($historyId, $oldPrice, $newPrice, $changeDate, $effectiveFrom, $effectiveTo) {
+        try {
+            $con = $this->opencon();
+            $con->beginTransaction();
+            
+            $stmt = $con->prepare("UPDATE pricing_history 
+                SET PH_OldPrice = ?, 
+                    PH_NewPrice = ?, 
+                    PH_ChangeDate = ?, 
+                    PH_Effective_from = ?, 
+                    PH_Effective_to = ?
+                WHERE HistoryID = ?");
+            
+            $stmt->execute([
+                $oldPrice, 
+                $newPrice, 
+                $changeDate, 
+                $effectiveFrom, 
+                $effectiveTo,
+                $historyId
+            ]);
+            
+            $con->commit();
+            return true;
+        } catch (PDOException $e) {
+            if (isset($con)) $con->rollBack();
+            return false;
+        }
+    }
+
+    function deletePricingHistory($historyId) {
+        try {
+            $con = $this->opencon();
+            $con->beginTransaction();
+            
+            $stmt = $con->prepare("DELETE FROM pricing_history WHERE HistoryID = ?");
+            $result = $stmt->execute([$historyId]);
+            
+            $con->commit();
+            return $result;
+        } catch (PDOException $e) {
+            if (isset($con)) $con->rollBack();
+            return false;
+        }
+    }
 }
 ?>
