@@ -92,30 +92,31 @@ class database{
     }
 }
 
-function addCustomer($customerName, $contactInfo, $discountRate) {
+function addCustomer($customerName, $contactInfo, $discountRate, $enrollLoyalty = false) {
+    $con = $this->opencon();
+    try {
+        $con->beginTransaction();
  
-        $con = $this->opencon();
-       
-        try {
-            $con->beginTransaction();
+        $stmt = $con->prepare("INSERT INTO customers (Cust_Name, Cust_CoInfo, Cust_DiscRate) VALUES (?, ?, ?)");
+        $stmt->execute([$customerName, $contactInfo, $discountRate]);
+        $custID = $con->lastInsertId();
  
-            $stmt = $con->prepare("INSERT INTO customers (Cust_Name, Cust_CoInfo, Cust_DiscRate) VALUES (?, ?, ?)");
-            $stmt->execute([$customerName, $contactInfo, $discountRate]);
-           
-            $custID = $con->lastInsertId();
- 
-            $con->commit();
- 
-            return $custID;
- 
-        } catch (PDOException $e) {
- 
-            $con->rollback();
-            return false;
- 
+        // If enroll loyalty is checked, add to loyalty_program
+        if ($enrollLoyalty) {
+            $tier = 'None'; // Default tier
+            $points = 0;      // Default points
+            $now = date('Y-m-d H:i:s');
+            $stmt2 = $con->prepare("INSERT INTO loyalty_program (CustomerID, LP_PtsBalance, LP_MbspTier, LP_LastUpdt) VALUES (?, ?, ?, ?)");
+            $stmt2->execute([$custID, $points, $tier, $now]);
         }
  
+        $con->commit();
+        return $custID;
+    } catch (PDOException $e) {
+        $con->rollBack();
+        return false;
     }
+}
  
     function viewCustomers() {
  
@@ -411,35 +412,17 @@ public function viewLoyaltyProgram() {
         }
     }
 
-    function updatePricingHistory($historyId, $oldPrice, $newPrice, $changeDate, $effectiveFrom, $effectiveTo) {
-        try {
-            $con = $this->opencon();
-            $con->beginTransaction();
-            
-            $stmt = $con->prepare("UPDATE pricing_history 
-                SET PH_OldPrice = ?, 
-                    PH_NewPrice = ?, 
-                    PH_ChangeDate = ?, 
-                    PH_Effective_from = ?, 
-                    PH_Effective_to = ?
-                WHERE HistoryID = ?");
-            
-            $stmt->execute([
-                $oldPrice, 
-                $newPrice, 
-                $changeDate, 
-                $effectiveFrom, 
-                $effectiveTo,
-                $historyId
-            ]);
-            
-            $con->commit();
-            return true;
-        } catch (PDOException $e) {
-            if (isset($con)) $con->rollBack();
-            return false;
-        }
-    }
+    public function updatePricingHistory($historyId, $oldPrice, $newPrice, $changeDate, $effectiveFrom, $effectiveTo = null) {
+    $con = $this->opencon();
+    $sql = "UPDATE pricing_history 
+            SET PH_Effective_from = :effectiveFrom, PH_Effective_to = :effectiveTo
+            WHERE HistoryID = :historyId";
+    $stmt = $con->prepare($sql);
+    $stmt->bindParam(':effectiveFrom', $effectiveFrom);
+    $stmt->bindParam(':effectiveTo', $effectiveTo);
+    $stmt->bindParam(':historyId', $historyId);
+    return $stmt->execute();
+}
 
     function deletePricingHistory($historyId) {
         try {

@@ -105,7 +105,7 @@ $members = $con->viewLoyaltyProgram();
                 <thead>
                     <tr>
                         <th>LoyaltyID</th>
-                        <th>Customer</th>
+                        <th>CustomerID</th>
                         <th>Points Balance</th>
                         <th>Tier</th>
                         <th>Last Update</th>
@@ -119,22 +119,22 @@ $members = $con->viewLoyaltyProgram();
             ?>
             <tr>
                 <td><?php echo $member['LoyaltyID']; ?></td>
-                <td><?php echo htmlspecialchars($member['Cust_Name']); ?></td>
+                <td><?php echo $member['CustomerID']; ?></td>
                 <td><?php echo number_format($member['LP_PtsBalance']); ?></td>
                 <td>
-    <?php
-    $points = (int)$member['LP_PtsBalance'];
-    if ($points >= 15000) {
-        echo '<span class="badge bg-warning text-dark">Gold</span>';
-    } elseif ($points >= 10000) {
-        echo '<span class="badge bg-secondary">Silver</span>';
-    } elseif ($points >= 5000) {
-        echo '<span class="badge bg-light text-dark">Bronze</span>';
-    } else {
-        echo '<span class="badge bg-light text-dark">None</span>';
-    }
-    ?>
-</td>
+                                        <?php
+                    $points = isset($member['LP_PtsBalance']) ? (int)$member['LP_PtsBalance'] : 0;
+                    if ($points >= 15000) {
+                        echo '<span class="badge bg-warning text-dark">Gold</span>';
+                    } elseif ($points >= 10000) {
+                        echo '<span class="badge bg-secondary">Silver</span>';
+                    } elseif ($points >= 5000) {
+                        echo '<span class="badge bg-light text-dark">Bronze</span>';
+                    } else {
+                        echo '<span class="badge bg-light text-dark">None</span>';
+                    }
+                    ?>
+                </td>
                 <td><?php echo date('Y-m-d', strtotime($member['LP_LastUpdt'])); ?></td>
                 <td>
                     <button class="btn btn-sm btn-info" onclick="viewMember(<?php echo $member['LoyaltyID']; ?>)">

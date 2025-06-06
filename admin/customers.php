@@ -10,13 +10,14 @@ if (isset($_SESSION['sweetAlertConfig'])) {
     $sweetAlertConfig = $_SESSION['sweetAlertConfig'];
     unset($_SESSION['sweetAlertConfig']);
 }
-
-if (isset($_POST['add'])) {
  
-  $customerName = $_POST['Cust_Name'];
-  $contactInfo = $_POST['Cust_CoInfo'];
-  $discountRate = $_POST['discountRate'];
-  $custID = $con->addCustomer($customerName, $contactInfo, $discountRate);
+if (isset($_POST['add'])) {
+    $customerName = $_POST['Cust_Name'];
+    $contactInfo = $_POST['Cust_CoInfo'];
+    $discountRate = $_POST['discountRate'];
+    $enrollLoyalty = isset($_POST['enroll_loyalty']) ? true : false;
+ 
+    $custID = $con->addCustomer($customerName, $contactInfo, $discountRate, $enrollLoyalty);
  
   if ($custID) {
     $_SESSION['sweetAlertConfig'] = "
@@ -41,7 +42,7 @@ if (isset($_POST['add'])) {
   header("Location: " . $_SERVER['PHP_SELF']);
   exit();
 }
-
+ 
  
 $customers = $con->viewCustomers();
  
@@ -91,7 +92,9 @@ $customers = $con->viewCustomers();
                 <div class="card dashboard-card">
                     <div class="card-body">
                         <h5 class="card-title">Loyalty Members</h5>
-                        <p class="card-text"><?php echo count(array_filter($customers, function($c) { return !empty($c['LP_MbspTier']); })); ?></p>
+                        <p class="card-text"><?php echo count(array_filter($customers, function($c) {
+    return isset($c['LP_PtsBalance']) && $c['LP_PtsBalance'] > 0;
+})); ?></p>
                     </div>
                 </div>
             </div>
@@ -99,7 +102,11 @@ $customers = $con->viewCustomers();
                 <div class="card dashboard-card">
                     <div class="card-body">
                         <h5 class="card-title">Gold Members</h5>
-                        <p class="card-text"><?php echo count(array_filter($customers, function($c) { return isset($c['LP_MbspTier']) && $c['LP_MbspTier'] === 'Gold'; })); ?></p>
+                        <p class="card-text"><?php
+echo count(array_filter($customers, function($c) {
+    $points = isset($c['LP_PtsBalance']) ? (int)$c['LP_PtsBalance'] : 0;
+    return $points >= 15000;
+})); ?></p>
                     </div>
                 </div>
             </div>
@@ -107,7 +114,24 @@ $customers = $con->viewCustomers();
                 <div class="card dashboard-card">
                     <div class="card-body">
                         <h5 class="card-title">Silver Members</h5>
-                        <p class="card-text"><?php echo count(array_filter($customers, function($c) { return isset($c['LP_MbspTier']) && $c['LP_MbspTier'] === 'Silver'; })); ?></p>
+                        <p class="card-text"><?php
+echo count(array_filter($customers, function($c) {
+    $points = isset($c['LP_PtsBalance']) ? (int)$c['LP_PtsBalance'] : 0;
+    return $points >= 10000 && $points < 15000;
+})); ?></p>
+ 
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card dashboard-card">
+                    <div class="card-body">
+                        <h5 class="card-title">Bronze Members</h5>
+                        <p class="card-text"><?php
+echo count(array_filter($customers, function($c) {
+    $points = isset($c['LP_PtsBalance']) ? (int)$c['LP_PtsBalance'] : 0;
+    return $points >= 5000 && $points < 10000;
+})); ?></p>
                     </div>
                 </div>
             </div>
@@ -156,17 +180,19 @@ $customers = $con->viewCustomers();
         <td><?php echo $customer['Cust_Name']?></td>
         <td><?php echo $customer['Cust_CoInfo']?></td>
         <td>
-        <?php
-        $points = isset($customer['Cust_Points']) ? (int)$customer['Cust_Points'] : 0;
-        if ($points >= 1000) {
-            echo '<span class="badge bg-warning text-dark">Gold</span>';
-        } elseif ($points >= 500) {
-            echo '<span class="badge bg-secondary">Silver</span>';
-        } else {
-            echo '<span class="badge bg-light text-dark">None</span>';
-        }
-        ?>
-        </td>
+<?php
+$points = isset($customer['LP_PtsBalance']) ? (int)$customer['LP_PtsBalance'] : 0;
+if ($points >= 15000) {
+    echo '<span class="badge bg-warning text-dark">Gold</span>';
+} elseif ($points >= 10000) {
+    echo '<span class="badge bg-secondary">Silver</span>';
+} elseif ($points >= 5000) {
+    echo '<span class="badge bg-light text-dark">Bronze</span>';
+} else {
+    echo '<span class="badge bg-light text-dark">None</span>';
+}
+?>
+</td>
         <td><?php echo number_format($customer['Cust_DiscRate'], 0) . '%'; ?></td>
         <td>
             <button class="btn btn-sm btn-info" onclick="viewCustomer(<?php echo $customer['CustomerID']; ?>)">
@@ -224,7 +250,7 @@ $customers = $con->viewCustomers();
             </div>
         </div>
     </div>
-
+ 
     <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>

@@ -1,7 +1,8 @@
-<!DOCTYPE html>
 <?php
+
 require_once '../includes/db.php';
 $db = new database();
+$sweetAlertConfig = "";
 
 // Get pricing history data
 $history = $db->viewPricingHistory();
@@ -182,7 +183,6 @@ if ($debug) {
                         <th>Effective From</th>
                         <th>Effective To</th>
                         <th>Created At</th>
-                        <th>Status</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -197,27 +197,6 @@ if ($debug) {
                         <td><?php echo htmlspecialchars($record['PH_Effective_from']); ?></td>
                         <td><?php echo htmlspecialchars($record['PH_Effective_to'] ?? 'N/A'); ?></td>
                         <td><?php echo htmlspecialchars($record['PH_Created_at']); ?></td>
-                        <td>
-                            <?php
-                            $today = new DateTime();
-                            $effectiveFrom = new DateTime($record['PH_Effective_from']);
-                            $effectiveTo = $record['PH_Effective_to'] ? new DateTime($record['PH_Effective_to']) : null;
-                            
-                            $status = 'current';
-                            $badgeClass = 'success';
-                            
-                            if ($effectiveFrom > $today) {
-                                $status = 'upcoming';
-                                $badgeClass = 'warning';
-                            } elseif ($effectiveTo && $effectiveTo < $today) {
-                                $status = 'expired';
-                                $badgeClass = 'secondary';
-                            }
-                            ?>
-                            <span class="badge bg-<?php echo $badgeClass; ?>">
-                                <?php echo ucfirst($status); ?>
-                            </span>
-                        </td>
                         <td>
                             <div class="btn-group" role="group">
                                 <button 
@@ -310,25 +289,20 @@ if ($debug) {
                         <input type="hidden" id="editHistoryID">
                         <div class="mb-3">
                             <label for="editProductID" class="form-label">Product</label>
-                            <select class="form-select" id="editProductID" required>
-                                <?php foreach ($products as $product): ?>
-                                <option value="<?php echo $product['ProductID']; ?>">
-                                    <?php echo htmlspecialchars($product['Prod_Name']); ?>
-                                </option>
-                                <?php endforeach; ?>
-                            </select>
+                            <input type="text" class="form-control" id="editProductName" disabled>
+                            <input type="hidden" id="editProductID">
                         </div>
                         <div class="mb-3">
                             <label for="editOldPrice" class="form-label">Old Price</label>
-                            <input type="number" class="form-control" id="editOldPrice" min="0" step="0.01" required>
+                            <input type="number" class="form-control" id="editOldPrice" min="0" step="0.01" disabled>
                         </div>
                         <div class="mb-3">
                             <label for="editNewPrice" class="form-label">New Price</label>
-                            <input type="number" class="form-control" id="editNewPrice" min="0" step="0.01" required>
+                            <input type="number" class="form-control" id="editNewPrice" min="0" step="0.01" disabled>
                         </div>
                         <div class="mb-3">
                             <label for="editChangeDate" class="form-label">Change Date</label>
-                            <input type="date" class="form-control" id="editChangeDate" required>
+                            <input type="date" class="form-control" id="editChangeDate" disabled>
                         </div>
                         <div class="mb-3">
                             <label for="editEffectiveFrom" class="form-label">Effective From</label>
@@ -358,6 +332,7 @@ if ($debug) {
             btn.addEventListener('click', function() {
                 document.getElementById('editHistoryID').value = this.dataset.id;
                 document.getElementById('editProductID').value = this.dataset.product;
+                document.getElementById('editProductName').value = this.closest('tr').querySelectorAll('td')[1].textContent;
                 document.getElementById('editOldPrice').value = this.dataset.oldprice;
                 document.getElementById('editNewPrice').value = this.dataset.newprice;
                 document.getElementById('editChangeDate').value = this.dataset.changedate;
@@ -488,7 +463,7 @@ if ($debug) {
                 rows.forEach(row => {
                     const cells = row.querySelectorAll('td');
                     const prodName = cells[1].textContent.toLowerCase();
-                    const statusText = cells[8].textContent.toLowerCase();
+                    // Remove statusText and status filter if you removed the status column
                     let show = true;
 
                     if (search && !row.textContent.toLowerCase().includes(search)) {
@@ -497,9 +472,7 @@ if ($debug) {
                     if (product !== 'all' && !prodName.includes(product)) {
                         show = false;
                     }
-                    if (status !== 'all' && statusText !== status) {
-                        show = false;
-                    }
+                    // Remove status filter if not needed
                     row.style.display = show ? '' : 'none';
                 });
             }
@@ -509,5 +482,6 @@ if ($debug) {
             statusFilter.addEventListener('change', filterRows);
         });
     </script>
+    <?php echo $sweetAlertConfig; ?>
 </body>
 </html>
