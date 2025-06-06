@@ -1,7 +1,9 @@
 <?php
-include '../includes/db.php';
-$db = new database();
-$members = $db->viewLoyaltyProgram();
+session_start();
+ 
+require_once('../includes/db.php');
+$con = new database();
+$members = $con->viewLoyaltyProgram();
 ?>
 
 <!DOCTYPE html>
