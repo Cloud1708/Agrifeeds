@@ -316,19 +316,7 @@ $suppliers = $con->viewSuppliers();
     <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script>
-    // Fill Edit Modal with supplier data
-    document.querySelectorAll('.editSupplierBtn').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            document.getElementById('edit_Sup_ID').value = this.dataset.id;
-            document.getElementById('edit_Sup_Name').value = this.dataset.name;
-            document.getElementById('edit_Sup_CoInfo').value = this.dataset.coinf;
-            document.getElementById('edit_Sup_PayTerm').value = this.dataset.payterm;
-            document.getElementById('edit_Sup_DeSched').value = this.dataset.desched;
-        });
-    });
-    </script>
-
+    
 <script>
     // Fill Edit Modal with supplier data
     document.querySelectorAll('.editSupplierBtn').forEach(function(btn) {
