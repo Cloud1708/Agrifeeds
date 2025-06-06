@@ -93,22 +93,22 @@
 
         <!-- Members Table -->
         <div class="table-responsive">
-    <table class="table table-striped table-hover">
-        <thead>
-            <tr>
-                <th>LoyaltyID</th>
-                <th>CustomerID</th>
-                <th>PtsBalance</th>
-                <th>MbspTier</th>
-                <th>LastUpdt</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody id="membersTableBody">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>LoyaltyID</th>
+                        <th>CustomerID</th>
+                        <th>LP_PtsBalance</th>
+                        <th>LP_MbspTier</th>
+                        <th>LP_LastUpdt</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="membersTableBody">
             <!-- Table content will be populated by JavaScript -->
-        </tbody>
-    </table>
-</div>
+                </tbody>
+            </table>
+        </div>
     </div>
 
     <!-- Program Settings Modal -->

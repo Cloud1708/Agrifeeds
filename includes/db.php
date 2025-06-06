@@ -202,6 +202,101 @@ function getProductById($id) {
     return $stmt->fetch(PDO::FETCH_ASSOC);
 }
  
-}
 
+    function registerUser($username, $password, $role, $photo = null) {
+        try {
+            $con = $this->opencon();
+            $con->beginTransaction();
+            
+            // Hash the password
+            $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+            
+            $stmt = $con->prepare("INSERT INTO USER_ACCOUNTS (User_Name, User_Password, User_Role, User_Photo) VALUES (?, ?, ?, ?)");
+            $stmt->execute([$username, $hashedPassword, $role, $photo]);
+            
+            $userID = $con->lastInsertId();
+            $con->commit();
+            return $userID;
+        } catch (PDOException $e) {
+            if (isset($con)) $con->rollBack();
+            return false;
+        }
+    }
+
+    function loginUser($username, $password) {
+        try {
+            $con = $this->opencon();
+            $stmt = $con->prepare("SELECT * FROM USER_ACCOUNTS WHERE User_Name = ?");
+            $stmt->execute([$username]);
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if ($user && password_verify($password, $user['User_Password'])) {
+                return $user;
+            }
+            return false;
+        } catch (PDOException $e) {
+            return false;
+        }
+    }
+
+    function getUserById($userID) {
+        try {
+            $con = $this->opencon();
+            $stmt = $con->prepare("SELECT * FROM USER_ACCOUNTS WHERE UserID = ?");
+            $stmt->execute([$userID]);
+            return $stmt->fetch(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            return false;
+        }
+    }
+
+    function updateUserProfile($userID, $username, $photo = null) {
+        try {
+            $con = $this->opencon();
+            $con->beginTransaction();
+            
+            if ($photo) {
+                $stmt = $con->prepare("UPDATE USER_ACCOUNTS SET User_Name = ?, User_Photo = ? WHERE UserID = ?");
+                $stmt->execute([$username, $photo, $userID]);
+            } else {
+                $stmt = $con->prepare("UPDATE USER_ACCOUNTS SET User_Name = ? WHERE UserID = ?");
+                $stmt->execute([$username, $userID]);
+            }
+            
+            $con->commit();
+            return true;
+        } catch (PDOException $e) {
+            if (isset($con)) $con->rollBack();
+            return false;
+        }
+    }
+
+    function updateUserPassword($userID, $newPassword) {
+        try {
+            $con = $this->opencon();
+            $con->beginTransaction();
+            
+            $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
+            $stmt = $con->prepare("UPDATE USER_ACCOUNTS SET User_Password = ? WHERE UserID = ?");
+            $stmt->execute([$hashedPassword, $userID]);
+            
+            $con->commit();
+            return true;
+        } catch (PDOException $e) {
+            if (isset($con)) $con->rollBack();
+            return false;
+        }
+    }
+
+    function checkUsernameExists($username) {
+        try {
+            $con = $this->opencon();
+            $stmt = $con->prepare("SELECT COUNT(*) FROM USER_ACCOUNTS WHERE User_Name = ?");
+            $stmt->execute([$username]);
+            return $stmt->fetchColumn() > 0;
+        } catch (PDOException $e) {
+            return false;
+        }
+    }
+}
 ?>

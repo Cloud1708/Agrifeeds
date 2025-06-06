@@ -1,51 +1,96 @@
+<?php
+session_start();
+require_once 'includes/db.php';
+
+// Redirect if already logged in
+if (isset($_SESSION['user_id'])) {
+    switch ($_SESSION['user_role']) {
+        case 1: // Admin
+        case 3: // SuperAdmin
+            header('Location: admin/dashboard.php');
+            break;
+        case 2: // Normal User
+            header('Location: user/dashboard.php');
+            break;
+    }
+    exit();
+}
+
+$db = new database();
+$error = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $username = trim($_POST['username']);
+    $password = $_POST['password'];
+
+    if (empty($username) || empty($password)) {
+        $error = "Please enter both username and password";
+    } else {
+        $user = $db->loginUser($username, $password);
+        
+        if ($user) {
+            $_SESSION['user_id'] = $user['UserID'];
+            $_SESSION['username'] = $user['User_Name'];
+            $_SESSION['user_role'] = $user['User_Role'];
+            
+            // Redirect based on role
+            switch ($user['User_Role']) {
+                case 1: // Admin
+                case 3: // SuperAdmin
+                    header('Location: admin/dashboard.php');
+                    break;
+                case 2: // Normal User
+                    header('Location: user/dashboard.php');
+                    break;
+            }
+            exit();
+        } else {
+            $error = "Invalid username or password";
+        }
+    }
+}
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AgriFeeds - Login</title>
-    <!-- Bootstrap 5 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Bootstrap Icons -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-    <!-- Custom CSS -->
-    <link href="css/custom.css" rel="stylesheet">
+    <title>Login - AgriFeeds</title>
+    <link href="bootstrap-5.3.3-dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="css/auth.css" rel="stylesheet">
 </head>
-<body class="bg-light">
+<body class="auth-bg">
     <div class="container">
-        <div class="row justify-content-center align-items-center min-vh-100">
-            <div class="col-md-6 col-lg-4">
-                <div class="card login-card">
-                    <div class="card-body">
-                        <h2 class="text-center mb-4">AgriFeeds</h2>
-                        <div id="errorMessage" class="alert alert-danger d-none" role="alert"></div>
-                        <form id="loginForm" action="" method="POST" autocomplete="off">
-                            <div class="mb-3">
-                                <label for="username" class="form-label">Username</label>
-                                <input type="text" class="form-control" id="username" name="username" 
-                                       aria-label="Username" required>
-                            </div>
-                            <div class="mb-3">
-                                <label for="password" class="form-label">Password</label>
-                                <input type="password" class="form-control" id="password" name="password" 
-                                       aria-label="Password" required>
-                            </div>
-                            <div class="d-grid gap-2">
-                                <button type="submit" class="btn btn-primary">Login</button>
-                            </div>
-                            <div class="text-center mt-3">
-                                <a href="#" class="text-decoration-none">Forgot Password?</a>
-                            </div>
-                        </form>
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="glass-container">
+                    <h3 class="text-center auth-title">Login</h3>
+                    
+                    <?php if ($error): ?>
+                        <div class="alert alert-danger"><?php echo $error; ?></div>
+                    <?php endif; ?>
+
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label for="username" class="form-label">Username</label>
+                            <input type="text" class="form-control glass-input" id="username" name="username" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Password</label>
+                            <input type="password" class="form-control glass-input" id="password" name="password" required>
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn glass-button">Login</button>
+                        </div>
+                    </form>
+                    <div class="text-center mt-3">
+                        <p>Don't have an account? <a href="register.php" class="auth-link">Register here</a></p>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-
-    <!-- Bootstrap 5 JS Bundle -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    
-    <script src="js/scripts.js"></script>
+    <script src="bootstrap-5.3.3-dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html> 

@@ -89,7 +89,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="../index.php">
+                <a class="nav-link" href="../logout.php">
                     <i class="bi bi-box-arrow-right me-2"></i> Logout
                 </a>
             </li>

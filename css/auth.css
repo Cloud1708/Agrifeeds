@@ -1,0 +1,77 @@
+.glass-container {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+    padding: 2rem;
+}
+
+.glass-input {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    color: #333;
+    padding: 12px;
+    transition: all 0.3s ease;
+}
+
+.glass-input:focus {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.3);
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
+}
+
+.glass-button {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    color: #333;
+    padding: 12px 30px;
+    transition: all 0.3s ease;
+    font-weight: 600;
+}
+
+.glass-button:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.auth-bg {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.auth-title {
+    color: #333;
+    font-weight: 700;
+    margin-bottom: 1.5rem;
+}
+
+.auth-link {
+    color: #4a5568;
+    text-decoration: none;
+    transition: all 0.3s ease;
+}
+
+.auth-link:hover {
+    color: #2d3748;
+    text-decoration: underline;
+}
+
+.username-feedback {
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+}
+
+.username-available {
+    color: #38a169;
+}
+
+.username-taken {
+    color: #e53e3e;
+} 
