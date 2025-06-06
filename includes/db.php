@@ -319,10 +319,10 @@ function getProductById($id) {
         }
     }
         
-public function viewLoyaltyProgram() {
+    function viewLoyaltyProgram() {
     $con = $this->opencon();
     $stmt = $con->prepare("
-        SELECT l.LoyaltyID, l.CustomerID, c.Cust_Name, l.LP_PtsBalance, l.LP_MbspTier, l.LP_LastUpdt
+        SELECT l.LoyaltyID, l.CustomerID, c.Cust_Name, l.LP_PtsBalance, l.LP_LastUpdt
         FROM loyalty_program l
         JOIN customers c ON l.CustomerID = c.CustomerID
         ORDER BY l.LoyaltyID
