@@ -76,6 +76,33 @@ if (isset($_POST['edit_supplier'])) {
     exit();
 }
 
+if (isset($_POST['delete_supplier'])) {
+    $SupplierID = $_POST['SupplierID'];
+    $deleted = $con->deleteSupplier($SupplierID);
+
+    if ($deleted) {
+        $_SESSION['sweetAlertConfig'] = "
+        <script>
+        Swal.fire({
+            icon: 'success',
+            title: 'Supplier Deleted',
+            text: 'Supplier has been deleted successfully!',
+            confirmButtonText: 'Continue'
+        });
+        </script>";
+    } else {
+        $_SESSION['sweetAlertConfig'] = "<script>
+            Swal.fire({
+                icon: 'error',
+                title: 'Delete Failed',
+                text: 'Please try again.'
+            });
+        </script>";
+    }
+    header("Location: " . $_SERVER['PHP_SELF']);
+    exit();
+}
+
 $suppliers = $con->viewSuppliers();
 
 ?>
@@ -151,31 +178,37 @@ $suppliers = $con->viewSuppliers();
                 </thead>
                 <tbody>
                     <?php if (!empty($suppliers)): ?>
-                        <?php foreach ($suppliers as $supplier): ?>
-                            <tr>
-                                <td><?php echo htmlspecialchars($supplier['SupplierID']); ?></td>
-                                <td><?php echo htmlspecialchars($supplier['Sup_Name']); ?></td>
-                                <td><?php echo htmlspecialchars($supplier['Sup_CoInfo']); ?></td>
-                                <td><?php echo htmlspecialchars($supplier['Sup_PayTerm']); ?></td>
-                                <td><?php echo htmlspecialchars(ucfirst($supplier['Sup_DeSched'])); ?></td>
-                                <td>
+    <?php foreach ($suppliers as $supplier): ?>
+        <tr>
+            <td><?php echo htmlspecialchars($supplier['SupplierID']); ?></td>
+            <td><?php echo htmlspecialchars($supplier['Sup_Name']); ?></td>
+            <td><?php echo htmlspecialchars($supplier['Sup_CoInfo']); ?></td>
+            <td><?php echo htmlspecialchars($supplier['Sup_PayTerm']); ?></td>
+            <td><?php echo htmlspecialchars(ucfirst($supplier['Sup_DeSched'])); ?></td>
+            <td>
                                     <button 
-                                        type="button"
-                                        class="btn btn-sm btn-warning editSupplierBtn"
-                                        data-id="<?php echo $supplier['SupplierID']; ?>"
-                                        data-name="<?php echo htmlspecialchars($supplier['Sup_Name']); ?>"
-                                        data-coinf="<?php echo htmlspecialchars($supplier['Sup_CoInfo']); ?>"
-                                        data-payterm="<?php echo htmlspecialchars($supplier['Sup_PayTerm']); ?>"
-                                        data-desched="<?php echo htmlspecialchars($supplier['Sup_DeSched']); ?>"
-                                        data-bs-toggle="modal"
-                                        data-bs-target="#editSupplierModal"
-                                        title="Edit">
-                                        <i class="bi bi-pencil"></i>
-                                    </button>
-                                    <button class="btn btn-sm btn-danger" title="Delete"><i class="bi bi-trash"></i></button>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
+                    type="button"
+                    class="btn btn-sm btn-warning editSupplierBtn"
+                    data-id="<?php echo $supplier['SupplierID']; ?>"
+                    data-name="<?php echo htmlspecialchars($supplier['Sup_Name']); ?>"
+                    data-coinf="<?php echo htmlspecialchars($supplier['Sup_CoInfo']); ?>"
+                    data-payterm="<?php echo htmlspecialchars($supplier['Sup_PayTerm']); ?>"
+                    data-desched="<?php echo htmlspecialchars($supplier['Sup_DeSched']); ?>"
+                    data-bs-toggle="modal"
+                    data-bs-target="#editSupplierModal"
+                    title="Edit">
+                    <i class="bi bi-pencil"></i>
+                </button>
+                <form method="POST" class="d-inline deleteSupplierForm">
+                    <input type="hidden" name="SupplierID" value="<?php echo $supplier['SupplierID']; ?>">
+                    <button type="button" class="btn btn-sm btn-danger deleteSupplierBtn" title="Delete">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                    <input type="hidden" name="delete_supplier" value="1">
+                </form>
+            </td>
+        </tr>
+    <?php endforeach; ?>
                     <?php else: ?>
                         <tr>
                             <td colspan="6" class="text-center">No suppliers found.</td>
@@ -218,8 +251,8 @@ $suppliers = $con->viewSuppliers();
                                 <label for="Sup_DeSched" class="form-label">Delivery Schedule</label>
                                 <select class="form-select" id="Sup_DeSched" name="Sup_DeSched" required>
                                     <option value="">Select Schedule</option>
-                                    <option value="monthly">Monthly</option>
-                                    <option value="weekly">Weekly</option>
+                                    <option value="Monthly">Monthly</option>
+                                    <option value="Weekly">Weekly</option>
                                 </select>
                             </div>
                         </div>
@@ -265,8 +298,8 @@ $suppliers = $con->viewSuppliers();
                                 <label for="edit_Sup_DeSched" class="form-label">Delivery Schedule</label>
                                 <select class="form-select" id="edit_Sup_DeSched" name="Sup_DeSched" required>
                                     <option value="">Select Schedule</option>
-                                    <option value="monthly">Monthly</option>
-                                    <option value="weekly">Weekly</option>
+                                    <option value="Monthly">Monthly</option>
+                                    <option value="Weekly">Weekly</option>
                                 </select>
                             </div>
                         </div>
@@ -295,6 +328,40 @@ $suppliers = $con->viewSuppliers();
         });
     });
     </script>
+
+<script>
+    // Fill Edit Modal with supplier data
+    document.querySelectorAll('.editSupplierBtn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            document.getElementById('edit_Sup_ID').value = this.dataset.id;
+            document.getElementById('edit_Sup_Name').value = this.dataset.name;
+            document.getElementById('edit_Sup_CoInfo').value = this.dataset.coinf;
+            document.getElementById('edit_Sup_PayTerm').value = this.dataset.payterm;
+            document.getElementById('edit_Sup_DeSched').value = this.dataset.desched;
+        });
+    });
+
+    document.querySelectorAll('.deleteSupplierBtn').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const form = this.closest('form');
+            Swal.fire({
+                title: 'Are you sure?',
+                text: "This will permanently delete the supplier.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Yes, delete it!'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    form.submit();
+                }
+            });
+        });
+    });
+</script>
+
     <?php echo $sweetAlertConfig; ?>
 </body>
 </html>

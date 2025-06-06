@@ -181,5 +181,19 @@ function updateSupplier( $Sup_Name, $Sup_CoInfo, $Sup_PayTerm, $Sup_DeSched, $Su
     }
 }
 
+function deleteSupplier($id) {
+    try {
+        $con = $this->opencon();
+        $con->beginTransaction();
+        $stmt = $con->prepare("DELETE FROM suppliers WHERE SupplierID = ?");
+        $result = $stmt->execute([$id]);
+        $con->commit();
+        return $result;
+    } catch (PDOException $e) {
+        if (isset($con)) $con->rollBack();
+        return false;
+    }
+}
+
 }
 ?>
