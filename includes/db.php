@@ -129,6 +129,22 @@ function addCustomer($customerName, $contactInfo, $discountRate) {
     }
 }
 
+function updatePromotionDetails($code, $desc, $amount, $type, $start, $end, $limit, $promotionId){
+    try    {
+        $con = $this->opencon();
+        $con->beginTransaction();
+        $query = $con->prepare("UPDATE promotions SET Prom_Code = ?, Promo_Description = ?, Promo_DiscAmnt =?, Promo_DiscountType = ?, Promo_StartDate = ? , Promo_EndDate = ?, UsageLimit = ? WHERE PromotionID = ? ");
+        $query->execute([$code, $desc, $amount, $type, $start, $end, $limit, $promotionId]);
+        $con->commit();
+        return true;
+ 
+    } catch (PDOException $e) {
+       
+         $con->rollBack();
+        return false;
+    }
+    }
+
  function addSupplier($Sup_Name, $Sup_CoInfo, $Sup_PayTerm, $Sup_DeSched) {
     $con = $this->opencon();
     try {
@@ -149,6 +165,20 @@ function addCustomer($customerName, $contactInfo, $discountRate) {
 function viewSuppliers() {
     $con = $this->opencon();
     return $con->query("SELECT * FROM suppliers")->fetchAll(PDO::FETCH_ASSOC);
+}
+
+function updateSupplier($Sup_Name, $Sup_CoInfo, $Sup_PayTerm, $Sup_DeSched, $SupplierID) {
+    $con = $this->opencon();
+    try {
+        $con->beginTransaction();
+        $stmt = $con->prepare("UPDATE suppliers SET Sup_Name = ?, Sup_CoInfo = ?, Sup_PayTerm = ?, Sup_DeSched = ? WHERE SupplierID = ?");
+        $updated = $stmt->execute([$Sup_Name, $Sup_CoInfo, $Sup_PayTerm, $Sup_DeSched, $SupplierID]);
+        $con->commit();
+        return $updated;
+    } catch (PDOException $e) {
+        $con->rollBack();
+        return false;
+    }
 }
 
 }
