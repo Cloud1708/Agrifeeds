@@ -1,3 +1,56 @@
+<?php
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+session_start();
+
+require_once('../includes/db.php');
+$con = new database();
+$sweetAlertConfig = "";
+
+// Get SweetAlert config from session after redirect
+if (isset($_SESSION['sweetAlertConfig'])) {
+    $sweetAlertConfig = $_SESSION['sweetAlertConfig'];
+    unset($_SESSION['sweetAlertConfig']);
+}
+
+if (isset($_POST['add'])) {
+    $Sup_Name = $_POST['Sup_Name'];
+    $Sup_CoInfo = $_POST['Sup_CoInfo'];
+    $Sup_PayTerm = $_POST['Sup_PayTerm'];
+    $Sup_DeSched = $_POST['Sup_DeSched'];
+
+    $supplierID = $con->addSupplier($Sup_Name, $Sup_CoInfo, $Sup_PayTerm, $Sup_DeSched);
+
+    if ($supplierID) {
+        $_SESSION['sweetAlertConfig'] = "
+        <script>
+        Swal.fire({
+            icon: 'success',
+            title: 'Supplier Added Successfully',
+            text: 'A new supplier has been added!',
+            confirmButtonText: 'Continue'
+        });
+        </script>";
+    } else {
+        $_SESSION['sweetAlertConfig'] = "<script>
+            Swal.fire({
+                icon: 'error',
+                title: 'Something went wrong',
+                text: 'Please try again.'
+            });
+        </script>";
+    }
+    header("Location: " . $_SERVER['PHP_SELF']);
+    exit();
+}
+
+$suppliers = $con->viewSuppliers();
+
+
+?>
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -55,91 +108,90 @@
         </div>
 
         <!-- Suppliers Table -->
-        <div class="table-responsive">
-            <table class="table table-striped table-hover">
-                <thead>
+<div class="table-responsive">
+    <table class="table table-striped table-hover">
+        <thead>
+            <tr>
+                <th>Supplier Name</th>
+                <th>Contact Information</th>
+                <th>Payment Terms</th>
+                <th>Delivery Schedule</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php if (!empty($suppliers)): ?>
+                <?php foreach ($suppliers as $supplier): ?>
                     <tr>
-                        <th>Company Name</th>
-                        <th>Type</th>
-                        <th>Contact Person</th>
-                        <th>Phone</th>
-                        <th>Email</th>
-                        <th>Status</th>
-                        <th>Actions</th>
+                        <td><?php echo htmlspecialchars($supplier['Sup_Name']); ?></td>
+                        <td><?php echo htmlspecialchars($supplier['Sup_CoInfo']); ?></td>
+                        <td><?php echo htmlspecialchars($supplier['Sup_PayTerm']); ?></td>
+                        <td><?php echo htmlspecialchars(ucfirst($supplier['Sup_DeSched'])); ?></td>
+                        <td>
+                            <!-- Example action buttons -->
+                            <button class="btn btn-sm btn-warning" title="Edit"><i class="bi bi-pencil"></i></button>
+                            <button class="btn btn-sm btn-danger" title="Delete"><i class="bi bi-trash"></i></button>
+                        </td>
                     </tr>
-                </thead>
-                <tbody id="suppliersTableBody">
-                    <!-- Table content will be populated by JavaScript -->
-                </tbody>
-            </table>
-        </div>
-    </div>
+                <?php endforeach; ?>
+            <?php else: ?>
+                <tr>
+                    <td colspan="5" class="text-center">No suppliers found.</td>
+                </tr>
+            <?php endif; ?>
+        </tbody>
+    </table>
+</div>
 
-    <!-- Add Supplier Modal -->
-    <div class="modal fade" id="addSupplierModal" tabindex="-1" aria-labelledby="addSupplierModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
+   <!-- Add Supplier Modal -->
+<div class="modal fade" id="addSupplierModal" tabindex="-1" aria-labelledby="addSupplierModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="addSupplierForm" method="POST">
                 <div class="modal-header">
                     <h5 class="modal-title" id="addSupplierModalLabel">Add New Supplier</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <form id="addSupplierForm">
-                        <div class="mb-3">
-                            <label for="companyName" class="form-label">Company Name</label>
-                            <input type="text" class="form-control" id="companyName" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="supplierType" class="form-label">Supplier Type</label>
-                            <select class="form-select" id="supplierType" required>
-                                <option value="">Select Type</option>
-                                <option value="manufacturer">Manufacturer</option>
-                                <option value="distributor">Distributor</option>
-                                <option value="wholesaler">Wholesaler</option>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label for="contactPerson" class="form-label">Contact Person</label>
-                            <input type="text" class="form-control" id="contactPerson" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="phone" class="form-label">Phone Number</label>
-                            <input type="tel" class="form-control" id="phone" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="email" class="form-label">Email Address</label>
-                            <input type="email" class="form-control" id="email" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="address" class="form-label">Address</label>
-                            <textarea class="form-control" id="address" rows="3" required></textarea>
-                        </div>
-                        <div class="mb-3">
-                            <label for="taxId" class="form-label">Tax ID</label>
-                            <input type="text" class="form-control" id="taxId">
-                        </div>
-                        <div class="mb-3">
-                            <label for="paymentTerms" class="form-label">Payment Terms</label>
-                            <select class="form-select" id="paymentTerms" required>
-                                <option value="immediate">Immediate</option>
-                                <option value="net15">Net 15</option>
-                                <option value="net30">Net 30</option>
-                                <option value="net60">Net 60</option>
-                            </select>
-                        </div>
-                    </form>
+                    <input type="hidden" name="add" value="1">
+                    <div class="mb-3">
+                        <label for="Sup_Name" class="form-label">Supplier Name</label>
+                        <input type="text" class="form-control" id="Sup_Name" name="Sup_Name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="Sup_CoInfo" class="form-label">Contact Information</label>
+                        <input type="text" class="form-control" id="Sup_CoInfo" name="Sup_CoInfo" required>
+                    </div>
+                    <div class="mb-3">
+                    <label for="Sup_PayTerm" class="form-label">Payment Terms</label>
+                    <select class="form-select" id="Sup_PayTerm" name="Sup_PayTerm" required>
+                     <option value="">Select Payment Terms</option>
+                     <option value="Immediate">Immediate</option>
+                     <option value="Net 15">Net 15</option>
+                     <option value="Net 30">Net 30</option>
+                    <option value="Net 60">Net 60</option>
+                     </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="Sup_DeSched" class="form-label">Delivery Schedule</label>
+                        <select class="form-select" id="Sup_DeSched" name="Sup_DeSched" required>
+                            <option value="">Select Schedule</option>
+                            <option value="monthly">Monthly</option>
+                            <option value="weekly">Weekly</option>
+                        </select>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-primary" id="saveSupplierBtn">Save Supplier</button>
+                    <button type="submit" class="btn btn-primary">Save Supplier</button>
                 </div>
-            </div>
+            </form>
         </div>
     </div>
-
+</div>
     <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- Custom JS -->
-    <script src="../js/scripts.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <?php echo $sweetAlertConfig; ?>
 </body>
 </html> 

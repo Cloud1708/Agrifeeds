@@ -129,5 +129,27 @@ function addCustomer($customerName, $contactInfo, $discountRate) {
     }
 }
 
+ function addSupplier($Sup_Name, $Sup_CoInfo, $Sup_PayTerm, $Sup_DeSched) {
+    $con = $this->opencon();
+    try {
+        $con->beginTransaction();
+        $stmt = $con->prepare("INSERT INTO suppliers (Sup_Name, Sup_CoInfo, Sup_PayTerm, Sup_DeSched) VALUES (?, ?, ?, ?)");
+        $stmt->execute([$Sup_Name, $Sup_CoInfo, $Sup_PayTerm, $Sup_DeSched]);
+        $supplierID = $con->lastInsertId();
+        $con->commit();
+        return $supplierID;
+    } catch (PDOException $e) {
+        $con->rollback();
+        // Uncomment for debugging:
+        // die("DB Error: " . $e->getMessage());
+        return false;
+    }
+}
+
+function viewSuppliers() {
+    $con = $this->opencon();
+    return $con->query("SELECT * FROM suppliers")->fetchAll(PDO::FETCH_ASSOC);
+}
+
 }
 ?>
