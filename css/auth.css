@@ -1,70 +1,82 @@
+/* ...existing code... */
 .glass-container {
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-    border-radius: 20px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
-    padding: 2rem;
+    background: #fff;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 24px 0 rgba(0,0,0,0.08);
+    padding: 2.5rem 2rem;
+    max-width: 400px;
+    width: 100%;
 }
 
 .glass-input {
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 10px;
-    color: #333;
+    background: #f7fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    color: #22223b;
     padding: 12px;
-    transition: all 0.3s ease;
+    transition: border-color 0.2s;
+    width: 100%;
+    font-size: 1rem;
 }
 
 .glass-input:focus {
-    background: rgba(255, 255, 255, 0.2);
-    border-color: rgba(255, 255, 255, 0.3);
-    box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
+    background: #fff;
+    border-color: #764ba2;
+    box-shadow: 0 0 0 2px #764ba230;
+    outline: none;
 }
 
 .glass-button {
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 10px;
-    color: #333;
-    padding: 12px 30px;
-    transition: all 0.3s ease;
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    border-radius: 6px;
+    color: #fff;
+    padding: 12px 0;
+    width: 100%;
+    transition: background 0.2s, box-shadow 0.2s;
     font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(118, 75, 162, 0.08);
 }
 
 .glass-button:hover {
-    background: rgba(255, 255, 255, 0.2);
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    background: linear-gradient(90deg, #764ba2 0%, #667eea 100%);
+    box-shadow: 0 4px 16px rgba(118, 75, 162, 0.12);
+    transform: translateY(-1px) scale(1.01);
 }
 
 .auth-bg {
     min-height: 100vh;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #f7fafc 0%, #e9d8fd 100%);
     display: flex;
     align-items: center;
     justify-content: center;
 }
 
 .auth-title {
-    color: #333;
+    color: #764ba2;
     font-weight: 700;
     margin-bottom: 1.5rem;
+    font-size: 2rem;
+    text-align: center;
 }
 
 .auth-link {
-    color: #4a5568;
+    color: #764ba2;
     text-decoration: none;
-    transition: all 0.3s ease;
+    transition: color 0.2s;
+    font-weight: 500;
 }
 
 .auth-link:hover {
-    color: #2d3748;
+    color: #667eea;
     text-decoration: underline;
 }
 
 .username-feedback {
-    font-size: 0.875rem;
+    font-size: 0.9rem;
     margin-top: 0.25rem;
 }
 
@@ -74,4 +86,5 @@
 
 .username-taken {
     color: #e53e3e;
-} 
+}
+/* ...existing code... */

@@ -1,3 +1,9 @@
+<?php
+include '../includes/db.php';
+$db = new database();
+$members = $db->viewLoyaltyProgram();
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -98,14 +104,50 @@
                     <tr>
                         <th>LoyaltyID</th>
                         <th>CustomerID</th>
-                        <th>LP_PtsBalance</th>
-                        <th>LP_MbspTier</th>
-                        <th>LP_LastUpdt</th>
+                        <th>Points Balance</th>
+                        <th>Tier</th>
+                        <th>Last Update</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody id="membersTableBody">
-            <!-- Table content will be populated by JavaScript -->
+            <?php
+            // Assume $members is an array of loyalty program data fetched from your database
+            foreach ($members as $member) {
+            ?>
+            <tr>
+                <td><?php echo $member['LoyaltyID']; ?></td>
+                <td><?php echo $member['CustomerID']; ?></td>
+                <td><?php echo number_format($member['LP_PtsBalance']); ?></td>
+                <td>
+                    <?php
+                    $tier = $member['LP_MbspTier'];
+                    if ($tier === 'Platinum') {
+                        echo '<span class="badge bg-gradient text-light" style="background:linear-gradient(90deg,#a8edea,#fed6e3);color:#333;">Platinum</span>';
+                    } elseif ($tier === 'Gold') {
+                        echo '<span class="badge bg-warning text-dark">Gold</span>';
+                    } elseif ($tier === 'Silver') {
+                        echo '<span class="badge bg-secondary">Silver</span>';
+                    } elseif ($tier === 'Bronze') {
+                        echo '<span class="badge bg-light text-dark">Bronze</span>';
+                    } else {
+                        echo '<span class="badge bg-light text-dark">None</span>';
+                    }
+                    ?>
+                </td>
+                <td><?php echo date('Y-m-d', strtotime($member['LP_LastUpdt'])); ?></td>
+                <td>
+                    <button class="btn btn-sm btn-info" onclick="viewMember(<?php echo $member['LoyaltyID']; ?>)">
+                        <i class="bi bi-eye"></i>
+                    </button>
+                    <button class="btn btn-sm btn-warning" onclick="editMember(<?php echo $member['LoyaltyID']; ?>)">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                </td>
+            </tr>
+            <?php
+            }
+            ?>
                 </tbody>
             </table>
         </div>

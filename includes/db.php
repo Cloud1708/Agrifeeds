@@ -298,5 +298,12 @@ function getProductById($id) {
             return false;
         }
     }
+
+        
+    function viewLoyaltyProgram() {
+        $con = $this->opencon();
+        return $con->query("SELECT * FROM loyalty_program")->fetchAll();
+    }
+
 }
 ?>
