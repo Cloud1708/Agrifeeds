@@ -51,7 +51,7 @@ if (isset($_POST['edit_supplier'])) {
     $Sup_PayTerm = $_POST['Sup_PayTerm'];
     $Sup_DeSched = $_POST['Sup_DeSched'];
 
-    $updated = $con->updateSupplier($SupplierID, $Sup_Name, $Sup_CoInfo, $Sup_PayTerm, $Sup_DeSched);
+    $updated = $con->updateSupplier( $Sup_Name, $Sup_CoInfo, $Sup_PayTerm, $Sup_DeSched, $SupplierID);
 
     if ($updated) {
         $_SESSION['sweetAlertConfig'] = "
@@ -237,8 +237,7 @@ $suppliers = $con->viewSuppliers();
             <div class="modal-dialog">
                 <div class="modal-content">
                     <form id="editSupplierForm" method="POST">
-                        <input type="hidden" name="edit_supplier" value="1">
-                        <input type="hidden" name="Sup_ID" id="edit_Sup_ID">
+                        <input type="hidden" name="SupplierID"  id="edit_Sup_ID" value="1">
                         <div class="modal-header">
                             <h5 class="modal-title" id="editSupplierModalLabel">Edit Supplier</h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -273,7 +272,7 @@ $suppliers = $con->viewSuppliers();
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                            <button type="submit" class="btn btn-primary">Update Supplier</button>
+                            <button type="submit" name="edit_supplier" class="btn btn-primary">Update Supplier</button>
                         </div>
                     </form>
                 </div>

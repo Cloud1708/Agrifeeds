@@ -167,7 +167,7 @@ function viewSuppliers() {
     return $con->query("SELECT * FROM suppliers")->fetchAll(PDO::FETCH_ASSOC);
 }
 
-function updateSupplier($Sup_Name, $Sup_CoInfo, $Sup_PayTerm, $Sup_DeSched, $SupplierID) {
+function updateSupplier( $Sup_Name, $Sup_CoInfo, $Sup_PayTerm, $Sup_DeSched, $SupplierID) {
     $con = $this->opencon();
     try {
         $con->beginTransaction();
