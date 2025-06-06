@@ -317,7 +317,6 @@ function getProductById($id) {
             return false;
         }
     }
-
         
 public function viewLoyaltyProgram() {
     $con = $this->opencon();
