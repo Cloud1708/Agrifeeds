@@ -1,3 +1,12 @@
+<?php
+
+require_once('../includes/db.php');
+$con = new database();
+
+// Only this line is needed:
+$purchaseOrders = $con->getPurchaseOrders();
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -69,17 +78,28 @@
             <table class="table table-striped table-hover">
                 <thead>
                     <tr>
-                        <th>PO Number</th>
+                        <th>PO ID</th>
                         <th>Supplier</th>
                         <th>Date</th>
                         <th>Items</th>
-                        <th>Total</th>
                         <th>Status</th>
-                        <th>Actions</th>
+                        <th>Total</th>
                     </tr>
                 </thead>
                 <tbody id="poTableBody">
-                    <!-- Table content will be populated by JavaScript -->
+<tbody id="poTableBody">
+    <?php foreach ($purchaseOrders as $po): ?>
+    <tr>
+        <td><?php echo htmlspecialchars($po['Pur_OrderID']); ?></td>
+        <td><?php echo htmlspecialchars($po['Sup_Name']); ?>
+    <span class="text-muted small">(ID: <?php echo $po['SupplierID']; ?>)</span></td>
+        <td><?php echo htmlspecialchars($po['PO_Order_Date']); ?></td>
+        <td><!-- Items column blank --></td>
+        <td><?php echo htmlspecialchars($po['PO_Order_Stat']); ?></td>
+        <td><!-- Total column blank --></td>
+    </tr>
+    <?php endforeach; ?>
+</tbody>
                 </tbody>
             </table>
         </div>

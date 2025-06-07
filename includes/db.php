@@ -41,42 +41,49 @@ class database{
 
     }
 
+function updateProduct($name, $category, $description, $price, $stock, $id){
+    try {
+        $con = $this->opencon();
+        $con->beginTransaction();
 
-    
-       function updateProduct($name, $category, $description, $price, $stock, $id){
-        try {
-            $con = $this->opencon();
-            $con->beginTransaction();
+        // Fetch the old product details before updating
+        $stmt = $con->prepare("SELECT Prod_Price, Prod_Stock FROM products WHERE ProductID = ?");
+        $stmt->execute([$id]);
+        $oldProduct = $stmt->fetch(PDO::FETCH_ASSOC);
+        $oldPrice = $oldProduct ? $oldProduct['Prod_Price'] : null;
+        $oldStock = $oldProduct ? $oldProduct['Prod_Stock'] : null;
 
-            // Fetch the old price before updating
-            $stmt = $con->prepare("SELECT Prod_Price FROM products WHERE ProductID = ?");
-            $stmt->execute([$id]);
-            $oldProduct = $stmt->fetch(PDO::FETCH_ASSOC);
-            $oldPrice = $oldProduct ? $oldProduct['Prod_Price'] : null;
+        // Update the product
+        $query = $con->prepare("UPDATE products SET Prod_Name = ?, Prod_Cat = ?, Prod_Desc = ?, Prod_Price = ? , Prod_Stock = ? WHERE ProductID = ? ");
+        $query->execute([$name, $category, $description, $price, $stock, $id]);
 
-            // Update the product
-            $query = $con->prepare("UPDATE products SET Prod_Name = ?, Prod_Cat = ?, Prod_Desc = ?, Prod_Price = ? , Prod_Stock = ? WHERE ProductID = ? ");
-            $query->execute([$name, $category, $description, $price, $stock, $id]);
-
-            // If price changed, add to pricing history
-            if ($oldPrice !== null && $oldPrice != $price) {
-                $changeDate = date('Y-m-d');
-                $effectiveFrom = $changeDate;
-                
-                // Add to pricing history
-                $stmt = $con->prepare("INSERT INTO pricing_history 
-                    (ProductID, PH_OldPrice, PH_NewPrice, PH_ChangeDate, PH_Effective_from) 
-                    VALUES (?, ?, ?, ?, ?)");
-                $stmt->execute([$id, $oldPrice, $price, $changeDate, $effectiveFrom]);
-            }
-
-            $con->commit();
-            return true;
-        } catch (PDOException $e) {
-            $con->rollBack();
-            return false; 
+        // If price changed, add to pricing history
+        if ($oldPrice !== null && $oldPrice != $price) {
+            $changeDate = date('Y-m-d');
+            $effectiveFrom = $changeDate;
+            $stmt = $con->prepare("INSERT INTO pricing_history 
+                (ProductID, PH_OldPrice, PH_NewPrice, PH_ChangeDate, PH_Effective_from) 
+                VALUES (?, ?, ?, ?, ?)");
+            $stmt->execute([$id, $oldPrice, $price, $changeDate, $effectiveFrom]);
         }
+
+        // If stock changed, add to inventory history
+        if ($oldStock !== null && $oldStock != $stock) {
+            $qtyChange = $stock - $oldStock;
+            $changeDate = date('Y-m-d H:i:s');
+            $stmt = $con->prepare("INSERT INTO inventory_history 
+                (ProductID, IH_QtyChange, IH_NewStckLvl, IH_ChangeDate) 
+                VALUES (?, ?, ?, ?)");
+            $stmt->execute([$id, $qtyChange, $stock, $changeDate]);
+        }
+
+        $con->commit();
+        return true;
+    } catch (PDOException $e) {
+        $con->rollBack();
+        return false; 
     }
+}
 
     function deleteProduct($id) {
     try {
@@ -472,6 +479,30 @@ function updateMemberTier($customerId) {
     function viewInventoryAlerts() {
     $con = $this->opencon();
     $stmt = $con->prepare("SELECT * FROM inventory_alerts ORDER BY AlertID");
+    $stmt->execute();
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+function viewInventoryHistory() {
+    $con = $this->opencon();
+    $stmt = $con->prepare("
+        SELECT ih.IHID, ih.ProductID, p.Prod_Name, ih.IH_QtyChange, ih.IH_NewStckLvl, ih.IH_ChangeDate
+        FROM inventory_history ih
+        JOIN products p ON ih.ProductID = p.ProductID
+        ORDER BY ih.IH_ChangeDate DESC
+    ");
+    $stmt->execute();
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+function getPurchaseOrders() {
+    $con = $this->opencon();
+    $stmt = $con->prepare("
+        SELECT po.Pur_OrderID, po.SupplierID, s.Sup_Name, po.PO_Order_Date, po.PO_Order_Stat
+        FROM purchase_orders po
+        JOIN suppliers s ON po.SupplierID = s.SupplierID
+        ORDER BY po.Pur_OrderID DESC
+    ");
     $stmt->execute();
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }

@@ -1,3 +1,9 @@
+<?php
+
+require_once('../includes/db.php');
+$con = new database();
+$inventoryHistory = $con->viewInventoryHistory();
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -8,12 +14,9 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-    <!-- Custom CSS -->
     <link href="../css/custom.css" rel="stylesheet">
     <link href="../css/sidebar.css" rel="stylesheet">
-    <!-- Google Fonts: Poppins -->
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- DataTables CSS -->
     <link href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css" rel="stylesheet">
     <style>
         .filter-section {
@@ -43,7 +46,6 @@
 <body>
     <?php include '../includes/sidebar.php'; ?>
 
-    <!-- Main Content -->
     <div class="main-content">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1>Inventory History</h1>
@@ -54,16 +56,14 @@
             </div>
         </div>
 
-        <!-- Filters Section -->
+        <!-- Filters Section (static for now) -->
         <div class="filter-section">
             <div class="row g-3">
                 <div class="col-md-3">
                     <label class="form-label">Product</label>
                     <select class="form-select">
                         <option value="">All Products</option>
-                        <option value="1">B-MEG Chicken Feed</option>
-                        <option value="2">Purina Pig Feed</option>
-                        <option value="3">Nutri-Mix Cattle Feed</option>
+                        <!-- Optionally populate dynamically -->
                     </select>
                 </div>
                 <div class="col-md-3">
@@ -92,47 +92,33 @@
             <table id="inventoryHistoryTable" class="table table-striped">
                 <thead>
                     <tr>
-                        <th>Date</th>
+                        <th>IH ID</th>
                         <th>Product</th>
                         <th>Quantity Change</th>
                         <th>New Stock Level</th>
+                        <th>Date</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
+                    <?php foreach ($inventoryHistory as $row): ?>
                     <tr>
-                        <td>2024-03-15 14:30</td>
-                        <td>B-MEG Chicken Feed</td>
-                        <td class="quantity-change quantity-increase">+50</td>
-                        <td>150</td>
+                        <td><?php echo htmlspecialchars($row['IHID']); ?></td>
+                        <td><?php echo htmlspecialchars($row['Prod_Name']); ?>
+                    <span class="text-muted small">(ID: <?php echo $row['ProductID']; ?>)</span>
+                    </td>
+                        <td class="quantity-change <?php echo ($row['IH_QtyChange'] >= 0) ? 'quantity-increase' : 'quantity-decrease'; ?>">
+                            <?php echo ($row['IH_QtyChange'] >= 0 ? '+' : '') . htmlspecialchars($row['IH_QtyChange']); ?>
+                        </td>
+                        <td><?php echo htmlspecialchars($row['IH_NewStckLvl']); ?></td>
+                        <td><?php echo date('Y-m-d H:i', strtotime($row['IH_ChangeDate'])); ?></td>
                         <td>
                             <button class="btn btn-sm btn-outline-primary">
                                 <i class="bi bi-eye"></i>
                             </button>
                         </td>
                     </tr>
-                    <tr>
-                        <td>2024-03-15 13:45</td>
-                        <td>Purina Pig Feed</td>
-                        <td class="quantity-change quantity-decrease">-20</td>
-                        <td>80</td>
-                        <td>
-                            <button class="btn btn-sm btn-outline-primary">
-                                <i class="bi bi-eye"></i>
-                            </button>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>2024-03-15 11:20</td>
-                        <td>Nutri-Mix Cattle Feed</td>
-                        <td class="quantity-change quantity-increase">+30</td>
-                        <td>120</td>
-                        <td>
-                            <button class="btn btn-sm btn-outline-primary">
-                                <i class="bi bi-eye"></i>
-                            </button>
-                        </td>
-                    </tr>
+                    <?php endforeach; ?>
                 </tbody>
             </table>
         </div>
@@ -144,15 +130,15 @@
     <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
     <script>
-        $(document).ready(function() {
-            $('#inventoryHistoryTable').DataTable({
-                order: [[0, 'desc']],
-                pageLength: 10,
-                language: {
-                    search: "Search records:"
-                }
-            });
-        });
+    $(document).ready(function() {
+        $('#inventoryHistoryTable').DataTable({
+    order: [[0, 'desc']], // 0 = first column (IH ID)
+    pageLength: 10,
+    language: {
+        search: "Search records:"
+    }
+});
+    });
     </script>
 </body>
-</html> 
+</html>
