@@ -84,6 +84,7 @@ $purchaseOrders = $con->getPurchaseOrders();
                         <th>Items</th>
                         <th>Status</th>
                         <th>Total</th>
+                        <th>Action</th>
                     </tr>
                 </thead>
                 <tbody id="poTableBody">
@@ -97,6 +98,7 @@ $purchaseOrders = $con->getPurchaseOrders();
         <td><!-- Items column blank --></td>
         <td><?php echo htmlspecialchars($po['PO_Order_Stat']); ?></td>
         <td><!-- Total column blank --></td>
+        <td><!-- Action column blank --></td>
     </tr>
     <?php endforeach; ?>
 </tbody>

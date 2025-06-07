@@ -476,13 +476,6 @@ function updateMemberTier($customerId) {
         }
     }
 
-    function viewInventoryAlerts() {
-    $con = $this->opencon();
-    $stmt = $con->prepare("SELECT * FROM inventory_alerts ORDER BY AlertID");
-    $stmt->execute();
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
-}
-
 function viewInventoryHistory() {
     $con = $this->opencon();
     $stmt = $con->prepare("
@@ -505,6 +498,27 @@ function getPurchaseOrders() {
     ");
     $stmt->execute();
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+function viewInventoryAlerts() {
+    $con = $this->opencon();
+    $stmt = $con->prepare("SELECT * FROM inventory_alerts ORDER BY AlertID");
+    $stmt->execute();
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+ 
+   
+    public function getAllProducts() {
+    $con = $this->opencon();
+    $stmt = $con->prepare("SELECT * FROM products");
+    $stmt->execute();
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+ 
+public function updateProductStock($productId, $newStock) {
+    $con = $this->opencon();
+    $stmt = $con->prepare("UPDATE products SET Prod_Stock = ? WHERE ProductID = ?");
+    return $stmt->execute([$newStock, $productId]);
 }
 
 }
