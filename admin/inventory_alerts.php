@@ -1,3 +1,12 @@
+<?php
+session_start();
+require_once('../includes/db.php');
+$con = new database();
+$sweetAlertConfig = "";
+
+
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -92,25 +101,61 @@
         </div>
 
         <!-- Alerts Table -->
-        <div class="table-responsive">
-            <table class="table table-striped table-hover">
-                <thead>
-                    <tr>
-                        <th>Product</th>
-                        <th>Alert Type</th>
-                        <th>Current Stock</th>
-                        <th>Threshold</th>
-                        <th>Priority</th>
-                        <th>Last Updated</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="alertsTableBody">
-                    <!-- Table content will be populated by JavaScript -->
-                </tbody>
-            </table>
+<div class="table-responsive">
+    <table class="table table-striped table-hover">
+        <thead>
+            <tr>
+                <th>Alert ID</th>
+                <th>Product ID</th>
+                <th>Alert Type</th>
+                <th>Threshold</th>
+                <th>Alert Date</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody >
+            <?php 
+
+            $data = $con->viewInventoryAlerts();
+            foreach ($data as $rows) {
+
+            ?>
+
+              <tr>
+                <td><?php echo $rows['AlertID']?></td>
+                <td><?php echo $rows['ProductID']?></td>
+                <td><?php echo $rows['IA_AlertType']?></td>
+                <td><?php echo $rows['IA_Threshold']?></td>
+                <td><?php echo $rows['IA_AlertDate']?></td>
+                <td>
+                  <div class="btn-group" role="group">
+                    <form action="update_authors.php" method="post">
+                    
+                    <input type="hidden" name="id" value="<?php echo $rows['AlertID']; ?>">  
+                    <button type="submit" class="btn btn-warning btn-sm">
+                      <i class="bi bi-pencil-square"></i>
+                    </button>
+  
+                    </form>
+                    
+                    <form method="POST" class="mx-1">
+                      <input type="hidden" name="id" value="<?php echo $rows['AlertID']; ?>">
+                      <button type="submit" name="delete" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this user?')">
+                        <i class="bi bi-x-square"></i>
+                      </button>
+                    </form>
         </div>
-    </div>
+ 
+                </td>
+              </tr>
+
+              <?php
+            }
+            ?>
+              
+        </tbody>
+    </table>
+</div>
 
     <!-- Alert Settings Modal -->
     <div class="modal fade" id="alertSettingsModal" tabindex="-1" aria-labelledby="alertSettingsModalLabel" aria-hidden="true">

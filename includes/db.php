@@ -468,5 +468,13 @@ function updateMemberTier($customerId) {
             return false;
         }
     }
+
+    function viewInventoryAlerts() {
+    $con = $this->opencon();
+    $stmt = $con->prepare("SELECT * FROM inventory_alerts ORDER BY AlertID");
+    $stmt->execute();
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
 }
 ?>
