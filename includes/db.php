@@ -521,5 +521,40 @@ public function updateProductStock($productId, $newStock) {
     return $stmt->execute([$newStock, $productId]);
 }
 
+function updateCustomer($id, $name, $contactInfo, $discountRate, $enrollLoyalty) {
+    $con = $this->opencon();
+    try {
+        $con->beginTransaction();
+ 
+        // Update customer details
+        $stmt = $con->prepare("UPDATE customers SET Cust_Name = ?, Cust_CoInfo = ?, Cust_DiscRate = ? WHERE CustomerID = ?");
+        $stmt->execute([$name, $contactInfo, $discountRate, $id]);
+ 
+        // Handle loyalty program enrollment
+        $stmt = $con->prepare("SELECT COUNT(*) FROM loyalty_program WHERE CustomerID = ?");
+        $stmt->execute([$id]);
+        $isEnrolled = $stmt->fetchColumn() > 0;
+ 
+        if ($enrollLoyalty && !$isEnrolled) {
+            // Add to loyalty program
+            $tier = 'None';
+            $points = 0;
+            $now = date('Y-m-d H:i:s');
+            $stmt = $con->prepare("INSERT INTO loyalty_program (CustomerID, LP_PtsBalance, LP_MbspTier, LP_LastUpdt) VALUES (?, ?, ?, ?)");
+            $stmt->execute([$id, $points, $tier, $now]);
+        } elseif (!$enrollLoyalty && $isEnrolled) {
+            // Remove from loyalty program
+            $stmt = $con->prepare("DELETE FROM loyalty_program WHERE CustomerID = ?");
+            $stmt->execute([$id]);
+        }
+ 
+        $con->commit();
+        return true;
+    } catch (PDOException $e) {
+        $con->rollBack();
+        return false;
+    }
+}
+
 }
 ?>
