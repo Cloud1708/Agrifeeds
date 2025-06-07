@@ -1,75 +1,75 @@
 <?php
 session_start();
- 
+
 require_once('../includes/db.php');
 $con = new database();
 $sweetAlertConfig = "";
- 
+
 // Get SweetAlert config from session after redirect
 if (isset($_SESSION['sweetAlertConfig'])) {
     $sweetAlertConfig = $_SESSION['sweetAlertConfig'];
     unset($_SESSION['sweetAlertConfig']);
 }
- 
+
 if (isset($_POST['add'])) {
     $customerName = $_POST['Cust_Name'];
     $contactInfo = $_POST['Cust_CoInfo'];
     $discountRate = $_POST['discountRate'];
     $enrollLoyalty = isset($_POST['enroll_loyalty']) ? true : false;
- 
+
     $custID = $con->addCustomer($customerName, $contactInfo, $discountRate, $enrollLoyalty);
- 
-  if ($custID) {
-    $_SESSION['sweetAlertConfig'] = "
-    <script>
-    Swal.fire({
-        icon: 'success',
-        title: 'Customer Added Successfully',
-        text: 'A new customer has been added!',
-        confirmButtonText: 'Continue'
-     });
-    </script>";
-  } else {
-    $_SESSION['sweetAlertConfig'] = "<script>
-            Swal.fire({
-                icon: 'error',
-                title: 'Something went wrong',
-                text: 'Please try again.'
-            });
+
+    if ($custID) {
+        // Update tier if enrolled in loyalty
+        if ($enrollLoyalty) {
+            $con->updateMemberTier($custID);
+        }
+        $_SESSION['sweetAlertConfig'] = "
+        <script>
+        Swal.fire({
+            icon: 'success',
+            title: 'Customer Added Successfully',
+            text: 'A new customer has been added!',
+            confirmButtonText: 'Continue'
+         });
         </script>";
-  }
-  // Redirect to avoid resubmission
-  header("Location: " . $_SERVER['PHP_SELF']);
-  exit();
+    } else {
+        $_SESSION['sweetAlertConfig'] = "<script>
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Something went wrong',
+                    text: 'Please try again.'
+                });
+            </script>";
+    }
+    header("Location: " . $_SERVER['PHP_SELF']);
+    exit();
 }
- 
- 
+
 $customers = $con->viewCustomers();
- 
+
+// Update each customer's tier before displaying
+foreach ($customers as $customer) {
+    $con->updateMemberTier($customer['CustomerID']);
+}
 ?>
- 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AgriFeeds - Customers</title>
-    <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Bootstrap Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-    <!-- Custom CSS -->
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
     <link href="../css/custom.css" rel="stylesheet">
     <link href="../css/sidebar.css" rel="stylesheet">
-    <!-- Google Fonts: Poppins -->
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
- 
 </head>
 <body>
     <?php include '../includes/sidebar.php'; ?>
- 
-    <!-- Main Content -->
+
     <div class="main-content">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1>Customers</h1>
@@ -77,7 +77,7 @@ $customers = $con->viewCustomers();
                 <i class="bi bi-plus-lg"></i> Add Customer
             </button>
         </div>
- 
+
         <!-- Customer Summary Cards -->
         <div class="row mb-4">
             <div class="col-md-3">
@@ -93,8 +93,8 @@ $customers = $con->viewCustomers();
                     <div class="card-body">
                         <h5 class="card-title">Loyalty Members</h5>
                         <p class="card-text"><?php echo count(array_filter($customers, function($c) {
-    return isset($c['LP_PtsBalance']) && $c['LP_PtsBalance'] > 0;
-})); ?></p>
+                            return isset($c['LP_PtsBalance']) && $c['LP_PtsBalance'] > 0;
+                        })); ?></p>
                     </div>
                 </div>
             </div>
@@ -103,10 +103,11 @@ $customers = $con->viewCustomers();
                     <div class="card-body">
                         <h5 class="card-title">Gold Members</h5>
                         <p class="card-text"><?php
-echo count(array_filter($customers, function($c) {
-    $points = isset($c['LP_PtsBalance']) ? (int)$c['LP_PtsBalance'] : 0;
-    return $points >= 15000;
-})); ?></p>
+                            echo count(array_filter($customers, function($c) {
+                                $points = isset($c['LP_PtsBalance']) ? (int)$c['LP_PtsBalance'] : 0;
+                                return $points >= 15000;
+                            }));
+                        ?></p>
                     </div>
                 </div>
             </div>
@@ -115,11 +116,11 @@ echo count(array_filter($customers, function($c) {
                     <div class="card-body">
                         <h5 class="card-title">Silver Members</h5>
                         <p class="card-text"><?php
-echo count(array_filter($customers, function($c) {
-    $points = isset($c['LP_PtsBalance']) ? (int)$c['LP_PtsBalance'] : 0;
-    return $points >= 10000 && $points < 15000;
-})); ?></p>
- 
+                            echo count(array_filter($customers, function($c) {
+                                $points = isset($c['LP_PtsBalance']) ? (int)$c['LP_PtsBalance'] : 0;
+                                return $points >= 10000 && $points < 15000;
+                            }));
+                        ?></p>
                     </div>
                 </div>
             </div>
@@ -128,15 +129,16 @@ echo count(array_filter($customers, function($c) {
                     <div class="card-body">
                         <h5 class="card-title">Bronze Members</h5>
                         <p class="card-text"><?php
-echo count(array_filter($customers, function($c) {
-    $points = isset($c['LP_PtsBalance']) ? (int)$c['LP_PtsBalance'] : 0;
-    return $points >= 5000 && $points < 10000;
-})); ?></p>
+                            echo count(array_filter($customers, function($c) {
+                                $points = isset($c['LP_PtsBalance']) ? (int)$c['LP_PtsBalance'] : 0;
+                                return $points >= 5000 && $points < 10000;
+                            }));
+                        ?></p>
                     </div>
                 </div>
             </div>
         </div>
- 
+
         <!-- Search and Filter -->
         <div class="row mb-4">
             <div class="col-md-4">
@@ -153,64 +155,70 @@ echo count(array_filter($customers, function($c) {
                     <option value="all">All Loyalty Status</option>
                     <option value="gold">Gold</option>
                     <option value="silver">Silver</option>
+                    <option value="bronze">Bronze</option>
                     <option value="none">No Loyalty</option>
                 </select>
             </div>
         </div>
- 
+
         <!-- Customers Table -->
         <div class="table-responsive">
             <table class="table table-striped table-hover">
                 <thead>
-    <tr>
-        <th>Customer ID</th>
-        <th>Name</th>
-        <th>Contact Info</th>
-        <th>Loyalty Status</th>
-        <th>Discount Rate</th>
-        <th>Actions</th>
-    </tr>
-</thead>
-<tbody>
-    <?php
-    foreach ($customers as $customer) {
-    ?>
-    <tr>
-        <td><?php echo $customer['CustomerID']?></td>
-        <td><?php echo $customer['Cust_Name']?></td>
-        <td><?php echo $customer['Cust_CoInfo']?></td>
-        <td>
-<?php
-$points = isset($customer['LP_PtsBalance']) ? (int)$customer['LP_PtsBalance'] : 0;
-if ($points >= 15000) {
-    echo '<span class="badge bg-warning text-dark">Gold</span>';
-} elseif ($points >= 10000) {
-    echo '<span class="badge bg-secondary">Silver</span>';
-} elseif ($points >= 5000) {
-    echo '<span class="badge bg-light text-dark">Bronze</span>';
-} else {
-    echo '<span class="badge bg-light text-dark">None</span>';
-}
-?>
-</td>
-        <td><?php echo number_format($customer['Cust_DiscRate'], 0) . '%'; ?></td>
-        <td>
-            <button class="btn btn-sm btn-info" onclick="viewCustomer(<?php echo $customer['CustomerID']; ?>)">
-                <i class="bi bi-eye"></i>
-            </button>
-            <button class="btn btn-sm btn-warning" onclick="editCustomer(<?php echo $customer['CustomerID']; ?>)">
-                <i class="bi bi-pencil"></i>
-            </button>
-        </td>
-    </tr>
-    <?php
-    }
-    ?>
-            </tbody>
+                    <tr>
+                        <th>Customer ID</th>
+                        <th>Name</th>
+                        <th>Contact Info</th>
+                        <th>Loyalty Status</th>
+                        <th>Discount Rate</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                <?php
+                foreach ($customers as $customer) {
+                    // Fetch the updated tier for display
+                    $stmt = $con->opencon()->prepare("SELECT LP_MbspTier FROM loyalty_program WHERE CustomerID = ?");
+                    $stmt->execute([$customer['CustomerID']]);
+                    $tier = $stmt->fetchColumn();
+                ?>
+                <tr>
+                    <td><?php echo $customer['CustomerID']?></td>
+                    <td><?php echo $customer['Cust_Name']?></td>
+                    <td><?php echo $customer['Cust_CoInfo']?></td>
+                    <td>
+                        <?php
+                        switch ($tier) {
+                            case 'Gold':
+                                echo '<span class="badge bg-warning text-dark">Gold</span>';
+                                break;
+                            case 'Silver':
+                                echo '<span class="badge bg-secondary">Silver</span>';
+                                break;
+                            case 'Bronze':
+                                echo '<span class="badge bg-dark text-light">Bronze</span>';
+                                break;
+                            default:
+                                echo '<span class="badge bg-light text-dark">None</span>';
+                        }
+                        ?>
+                    </td>
+                    <td><?php echo number_format($customer['Cust_DiscRate'], 0) . '%'; ?></td>
+                    <td>
+                        <button class="btn btn-sm btn-info" onclick="viewCustomer(<?php echo $customer['CustomerID']; ?>)">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                        <button class="btn btn-sm btn-warning" onclick="editCustomer(<?php echo $customer['CustomerID']; ?>)">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                    </td>
+                </tr>
+                <?php } ?>
+                </tbody>
             </table>
         </div>
     </div>
- 
+
     <!-- Add Customer Modal -->
     <div class="modal fade" id="addCustomerModal" tabindex="-1" aria-labelledby="addCustomerModalLabel" aria-hidden="true">
         <div class="modal-dialog">
@@ -250,8 +258,49 @@ if ($points >= 15000) {
             </div>
         </div>
     </div>
- 
-    <!-- Bootstrap 5 JS Bundle -->
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const searchInput = document.getElementById('customerSearch');
+        const loyaltyFilter = document.getElementById('loyaltyFilter');
+        const tableRows = document.querySelectorAll('tbody tr');
+
+        function filterTable() {
+            const searchValue = searchInput.value.toLowerCase();
+            const loyaltyValue = loyaltyFilter.value;
+
+            tableRows.forEach(row => {
+                const name = row.children[1].textContent.toLowerCase();
+                const loyalty = row.children[3].textContent.toLowerCase();
+
+                // Check search match
+                const matchesSearch = name.includes(searchValue);
+
+                // Check loyalty filter match
+                let matchesLoyalty = false;
+                if (loyaltyValue === 'all') {
+                    matchesLoyalty = true;
+                } else if (loyaltyValue === 'none') {
+                    matchesLoyalty = loyalty.includes('none');
+                } else if (loyaltyValue === 'bronze') {
+                    matchesLoyalty = loyalty.includes('bronze');
+                } else {
+                    matchesLoyalty = loyalty.includes(loyaltyValue);
+                }
+
+                if (matchesSearch && matchesLoyalty) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+
+        searchInput.addEventListener('input', filterTable);
+        loyaltyFilter.addEventListener('change', filterTable);
+    });
+    </script>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <?php echo $sweetAlertConfig; ?>

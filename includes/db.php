@@ -118,12 +118,14 @@ function addCustomer($customerName, $contactInfo, $discountRate, $enrollLoyalty 
     }
 }
  
-    function viewCustomers() {
- 
-        $con = $this->opencon();
-        return $con->query("SELECT * FROM customers")->fetchAll();
- 
-    }
+    
+function viewCustomers() {
+    $con = $this->opencon();
+    $sql = "SELECT c.*, l.LP_PtsBalance 
+            FROM customers c
+            LEFT JOIN loyalty_program l ON c.CustomerID = l.CustomerID";
+    return $con->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+}
 
     function viewPromotions() {
     $con = $this->opencon();
@@ -329,6 +331,33 @@ function getProductById($id) {
     ");
     $stmt->execute();
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+function updateMemberTier($customerId) {
+    $con = $this->opencon();
+    // Get current points
+    $stmt = $con->prepare("SELECT LP_PtsBalance FROM loyalty_program WHERE CustomerID = ?");
+    $stmt->execute([$customerId]);
+    $points = (int)$stmt->fetchColumn();
+
+    // Determine tier
+    if ($points >= 15000) {
+        $tier = 'Gold';
+    } elseif ($points >= 10000) {
+        $tier = 'Silver';
+    } elseif ($points >= 5000) {
+        $tier = 'Bronze';
+    } else {
+        $tier = 'None';
+    }
+
+    // Update tier in DB
+    $stmt = $con->prepare("UPDATE loyalty_program SET LP_MbspTier = ? WHERE CustomerID = ?");
+    $stmt->execute([$tier, $customerId]);
+
+    // Update loyalty status in customers table
+    $stmt = $con->prepare("UPDATE customers SET Cust_LoStat = ? WHERE CustomerID = ?");
+    $stmt->execute([$tier, $customerId]);
 }
 
     // Pricing History Functions
