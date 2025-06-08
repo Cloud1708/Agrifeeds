@@ -615,5 +615,98 @@ public function getProductsInStock() {
     return $row ? (int)$row['total'] : 0;
 }
 
+// new methods
+
+
+
+function getUserInfo($userID) {
+    $con = $this->opencon();
+    $stmt = $con->prepare("
+        SELECT * FROM User_Accounts 
+        WHERE UserID = ?
+    ");
+    $stmt->execute([$userID]);
+    return $stmt->fetch(PDO::FETCH_ASSOC);
+}
+
+function getCustomerInfo($userID) {
+    $con = $this->opencon();
+    $stmt = $con->prepare("
+        SELECT 
+            c.*,
+            COALESCE(l.LP_PtsBalance, 0) as LP_PtsBalance,
+            COALESCE(l.LP_MbspTier, 'None') as Cust_LoStat,
+            COALESCE(c.Cust_DiscRate, '0.00') as Cust_DiscRate
+        FROM Customers c
+        LEFT JOIN Loyalty_Program l ON c.CustomerID = l.CustomerID
+        WHERE c.UserID = ?
+    ");
+    $stmt->execute([$userID]);
+    return $stmt->fetch(PDO::FETCH_ASSOC);
+}
+
+function getTotalOrders($userID) {
+    $con = $this->opencon();
+    $stmt = $con->prepare("
+        SELECT COUNT(DISTINCT s.SaleID) as total 
+        FROM Sales s
+        JOIN Customers c ON s.CustomerID = c.CustomerID
+        WHERE c.UserID = ?
+    ");
+    $stmt->execute([$userID]);
+    $result = $stmt->fetch(PDO::FETCH_ASSOC);
+    return $result['total'] ?? 0;
+}
+
+function getRecentOrders($userID, $limit = 5) {
+    $con = $this->opencon();
+    $stmt = $con->prepare("
+        SELECT 
+            s.SaleID,
+            s.Sale_Date as Order_Date,
+            (SELECT COUNT(*) FROM Sale_Item WHERE SaleID = s.SaleID) as item_count,
+            (SELECT SUM(SI_Quantity * SI_Price) FROM Sale_Item WHERE SaleID = s.SaleID) as Order_Total,
+            s.Sale_Method as Order_Status
+        FROM Sales s
+        JOIN Customers c ON s.CustomerID = c.CustomerID
+        WHERE c.UserID = ?
+        ORDER BY s.Sale_Date DESC
+        LIMIT " . (int)$limit
+    );
+    $stmt->execute([$userID]);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+function getUserOrders($userID) {
+    $con = $this->opencon();
+    $stmt = $con->prepare("
+        SELECT s.*, 
+               (SELECT COUNT(*) FROM Sale_Item WHERE SaleID = s.SaleID) as item_count
+        FROM Sales s
+        JOIN Customers c ON s.CustomerID = c.CustomerID
+        WHERE c.UserID = ?
+        ORDER BY s.Sale_Date DESC
+    ");
+    $stmt->execute([$userID]);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+function getOrderDetails($saleID) {
+    $con = $this->opencon();
+    $stmt = $con->prepare("
+        SELECT s.*, si.*, p.Prod_Name as product_name,
+               c.Cust_Name, c.Cust_DiscRate,
+               COALESCE(op.OrderP_DiscntApplied, 0) as discount_applied
+        FROM Sales s
+        JOIN Sale_Item si ON s.SaleID = si.SaleID
+        JOIN Products p ON si.ProductID = p.ProductID
+        JOIN Customers c ON s.CustomerID = c.CustomerID
+        LEFT JOIN Order_Promotions op ON s.SaleID = op.SaleID
+        WHERE s.SaleID = ?
+    ");
+    $stmt->execute([$saleID]);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
 }
 ?>
