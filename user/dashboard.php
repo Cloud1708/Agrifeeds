@@ -1,77 +1,22 @@
 <?php
+require_once('../includes/db.php');
+$con = new database();
 session_start();
-require_once '../includes/db.php';
 
-// Check if user is logged in and is a normal user
-if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] != 2) {
+// Check if user is logged in
+if (!isset($_SESSION['user_id'])) {
     header('Location: ../index.php');
     exit();
 }
 
-$db = new database();
-$user = $db->getUserById($_SESSION['user_id']);
-$success = '';
-$error = '';
+// Get user information
+$userID = $_SESSION['user_id'];
+$userInfo = $con->getUserInfo($userID);
+$customerInfo = $con->getCustomerInfo($userID);
 
-// Handle profile updates
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (isset($_POST['update_profile'])) {
-        $username = trim($_POST['username']);
-        $photo = null;
-
-        // Handle file upload
-        if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
-            $allowed = ['jpg', 'jpeg', 'png'];
-            $filename = $_FILES['photo']['name'];
-            $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-            
-            if (in_array($ext, $allowed)) {
-                $new_filename = uniqid() . '.' . $ext;
-                $upload_path = '../uploads/profile_photos/' . $new_filename;
-                
-                if (!is_dir('../uploads/profile_photos')) {
-                    mkdir('../uploads/profile_photos', 0777, true);
-                }
-                
-                if (move_uploaded_file($_FILES['photo']['tmp_name'], $upload_path)) {
-                    $photo = $upload_path;
-                }
-            }
-        }
-
-        if ($db->updateUserProfile($_SESSION['user_id'], $username, $photo)) {
-            $_SESSION['username'] = $username;
-            $success = "Profile updated successfully!";
-            $user = $db->getUserById($_SESSION['user_id']); // Refresh user data
-        } else {
-            $error = "Failed to update profile.";
-        }
-    } elseif (isset($_POST['update_password'])) {
-        $current_password = $_POST['current_password'];
-        $new_password = $_POST['new_password'];
-        $confirm_password = $_POST['confirm_password'];
-
-        if (empty($current_password) || empty($new_password) || empty($confirm_password)) {
-            $error = "All password fields are required";
-        } elseif ($new_password !== $confirm_password) {
-            $error = "New passwords do not match";
-        } elseif (strlen($new_password) < 6) {
-            $error = "New password must be at least 6 characters long";
-        } else {
-            // Verify current password
-            $user_data = $db->loginUser($user['User_Name'], $current_password);
-            if ($user_data) {
-                if ($db->updateUserPassword($_SESSION['user_id'], $new_password)) {
-                    $success = "Password updated successfully!";
-                } else {
-                    $error = "Failed to update password.";
-                }
-            } else {
-                $error = "Current password is incorrect";
-            }
-        }
-    }
-}
+// Get dashboard data
+$totalOrders = $con->getTotalOrders($userID);
+$recentOrders = $con->getRecentOrders($userID, 5);
 ?>
 
 <!DOCTYPE html>
@@ -79,114 +24,183 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>User Dashboard - AgriFeeds</title>
-    <link href="../bootstrap-5.3.3-dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>AgriFeeds - User Dashboard</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link href="../css/custom.css" rel="stylesheet">
+    <link href="../css/sidebar.css" rel="stylesheet">
+    <!-- Google Fonts: Poppins -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container">
-            <a class="navbar-brand" href="#">AgriFeeds</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav me-auto">
-                    <li class="nav-item">
-                        <a class="nav-link active" href="dashboard.php">Dashboard</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="orders.php">My Orders</a>
-                    </li>
-                </ul>
-                <div class="navbar-nav">
-                    <div class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
-                            <?php echo htmlspecialchars($_SESSION['username']); ?>
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a class="dropdown-item" href="#profile" data-bs-toggle="tab">Profile</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="../logout.php">Logout</a></li>
-                        </ul>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <a href="dashboard.php" class="sidebar-brand">AgriFeeds</a>
+        <div class="sidebar-nav">
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link active" href="dashboard.php">
+                        <i class="bi bi-speedometer2 me-2"></i> Dashboard
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="products.php">
+                        <i class="bi bi-box me-2"></i> View Products
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="orders.php">
+                        <i class="bi bi-cart me-2"></i> My Orders
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="perks.php">
+                        <i class="bi bi-gift me-2"></i> My Perks
+                    </a>
+                </li>
+            </ul>
+        </div>
+        <div class="sidebar-footer">
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link" href="profile.php">
+                        <i class="bi bi-person-circle me-2"></i> Profile
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="../logout.php">
+                        <i class="bi bi-box-arrow-right me-2"></i> Logout
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>Welcome, <?php echo htmlspecialchars($customerInfo['Cust_Name']); ?>!</h1>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card dashboard-card">
+                    <div class="card-body">
+                        <h5 class="card-title">Loyalty Points</h5>
+                        <p class="card-text"><?php echo number_format($customerInfo['LP_PtsBalance'] ?? 0); ?></p>
+                        <small class="text-muted">Available points</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card dashboard-card">
+                    <div class="card-body">
+                        <h5 class="card-title">Discount Rate</h5>
+                        <p class="card-text"><?php echo $customerInfo['Cust_DiscRate']; ?>%</p>
+                        <small class="text-muted">Current discount</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card dashboard-card">
+                    <div class="card-body">
+                        <h5 class="card-title">Total Orders</h5>
+                        <p class="card-text"><?php echo number_format($totalOrders ?? 0); ?></p>
+                        <small class="text-muted">All time</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card dashboard-card">
+                    <div class="card-body">
+                        <h5 class="card-title">Loyalty Status</h5>
+                        <p class="card-text"><?php echo htmlspecialchars($customerInfo['Cust_LoStat'] ?? 'None'); ?></p>
+                        <small class="text-muted">Current tier</small>
                     </div>
                 </div>
             </div>
         </div>
-    </nav>
 
-    <div class="container mt-4">
-        <?php if ($success): ?>
-            <div class="alert alert-success"><?php echo $success; ?></div>
-        <?php endif; ?>
-        <?php if ($error): ?>
-            <div class="alert alert-danger"><?php echo $error; ?></div>
-        <?php endif; ?>
-
-        <div class="row">
-            <div class="col-md-12">
-                <h2>Welcome, <?php echo htmlspecialchars($_SESSION['username']); ?>!</h2>
+        <!-- Recent Orders -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Recent Orders</h5>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Order ID</th>
+                                <th>Date</th>
+                                <th>Items</th>
+                                <th>Total</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if (!empty($recentOrders)): ?>
+                                <?php foreach ($recentOrders as $order): ?>
+                                <tr>
+                                    <td>#<?php echo str_pad($order['SaleID'], 6, '0', STR_PAD_LEFT); ?></td>
+                                    <td><?php echo date('M d, Y', strtotime($order['Order_Date'])); ?></td>
+                                    <td><?php echo $order['item_count']; ?> items</td>
+                                    <td>₱<?php echo number_format($order['Order_Total'], 2); ?></td>
+                                    <td>
+                                        <span class="badge bg-<?php 
+                                            echo match($order['Order_Status']) {
+                                                'pending' => 'warning',
+                                                'processing' => 'info',
+                                                'completed' => 'success',
+                                                'cancelled' => 'danger',
+                                                default => 'secondary'
+                                            };
+                                        ?>">
+                                            <?php echo ucfirst($order['Order_Status']); ?>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <a href="orders.php?view=<?php echo $order['SaleID']; ?>" 
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-eye"></i> View
+                                        </a>
+                                    </td>
+                                </tr>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <tr>
+                                    <td colspan="6" class="text-center">No recent orders found</td>
+                                </tr>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
-        <div class="row mt-4">
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="card-title mb-0">Profile Information</h5>
-                    </div>
-                    <div class="card-body">
-                        <form method="POST" enctype="multipart/form-data">
-                            <div class="mb-3">
-                                <label for="username" class="form-label">Username</label>
-                                <input type="text" class="form-control" id="username" name="username" 
-                                       value="<?php echo htmlspecialchars($user['User_Name']); ?>" required>
-                            </div>
-                            <div class="mb-3">
-                                <label for="photo" class="form-label">Profile Photo</label>
-                                <?php if ($user['User_Photo']): ?>
-                                    <div class="mb-2">
-                                        <img src="<?php echo htmlspecialchars($user['User_Photo']); ?>" 
-                                             alt="Profile Photo" class="img-thumbnail" style="max-width: 200px;">
-                                    </div>
-                                <?php endif; ?>
-                                <input type="file" class="form-control" id="photo" name="photo" accept="image/*">
-                            </div>
-                            <button type="submit" name="update_profile" class="btn btn-primary">Update Profile</button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="card-title mb-0">Change Password</h5>
-                    </div>
-                    <div class="card-body">
-                        <form method="POST">
-                            <div class="mb-3">
-                                <label for="current_password" class="form-label">Current Password</label>
-                                <input type="password" class="form-control" id="current_password" 
-                                       name="current_password" required>
-                            </div>
-                            <div class="mb-3">
-                                <label for="new_password" class="form-label">New Password</label>
-                                <input type="password" class="form-control" id="new_password" 
-                                       name="new_password" required>
-                            </div>
-                            <div class="mb-3">
-                                <label for="confirm_password" class="form-label">Confirm New Password</label>
-                                <input type="password" class="form-control" id="confirm_password" 
-                                       name="confirm_password" required>
-                            </div>
-                            <button type="submit" name="update_password" class="btn btn-primary">Update Password</button>
-                        </form>
-                    </div>
+        <!-- Quick Actions -->
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Quick Actions</h5>
+                <div class="d-flex flex-wrap gap-2">
+                    <a href="products.php" class="btn btn-primary">
+                        <i class="bi bi-box me-2"></i> Browse Products
+                    </a>
+                    <a href="profile.php" class="btn btn-info">
+                        <i class="bi bi-person-circle me-2"></i> Update Profile
+                    </a>
+                    <a href="perks.php" class="btn btn-success">
+                        <i class="bi bi-gift me-2"></i> View Perks
+                    </a>
                 </div>
             </div>
         </div>
     </div>
 
-    <script src="../bootstrap-5.3.3-dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html> 
