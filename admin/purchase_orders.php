@@ -88,20 +88,23 @@ $purchaseOrders = $con->getPurchaseOrders();
                     </tr>
                 </thead>
                 <tbody id="poTableBody">
-<tbody id="poTableBody">
-    <?php foreach ($purchaseOrders as $po): ?>
-    <tr>
-        <td><?php echo htmlspecialchars($po['Pur_OrderID']); ?></td>
-        <td><?php echo htmlspecialchars($po['Sup_Name']); ?>
-    <span class="text-muted small">(ID: <?php echo $po['SupplierID']; ?>)</span></td>
-        <td><?php echo htmlspecialchars($po['PO_Order_Date']); ?></td>
-        <td><!-- Items column blank --></td>
-        <td><?php echo htmlspecialchars($po['PO_Order_Stat']); ?></td>
-        <td><!-- Total column blank --></td>
-        <td><!-- Action column blank --></td>
-    </tr>
-    <?php endforeach; ?>
-</tbody>
+                    <?php foreach ($purchaseOrders as $po): ?>
+                    <tr>
+                        <td><?php echo htmlspecialchars($po['Pur_OrderID']); ?></td>
+                        <td><?php echo htmlspecialchars($po['Sup_Name']); ?>
+                            <span class="text-muted small">(ID: <?php echo $po['SupplierID']; ?>)</span>
+                        </td>
+                        <td><?php echo htmlspecialchars($po['PO_Order_Date']); ?></td>
+                        <td><!-- Items column blank --></td>
+                        <td><?php echo htmlspecialchars($po['PO_Order_Stat']); ?></td>
+                        <td><?php echo isset($po['PO_Total_Amount']) ? '₱' . number_format($po['PO_Total_Amount'], 2) : ''; ?></td>
+                        <td>
+                            <button class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#viewPOModal" data-po-id="<?php echo htmlspecialchars($po['Pur_OrderID']); ?>">
+                                <i class="bi bi-eye"></i> View
+                            </button>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
                 </tbody>
             </table>
         </div>
@@ -311,7 +314,46 @@ $purchaseOrders = $con->getPurchaseOrders();
 
     <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- Custom JS -->
-    
+    <!-- Pass PHP PO data to JS -->
+    <script>
+        const purchaseOrders = <?php echo json_encode($purchaseOrders); ?>;
+    </script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('button[data-bs-target="#viewPOModal"]').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const poId = this.getAttribute('data-po-id');
+                const po = purchaseOrders.find(p => p.Pur_OrderID == poId);
+                if (!po) return;
+
+                document.getElementById('viewPONumber').textContent = po.Pur_OrderID ?? '';
+                document.getElementById('viewPODate').textContent = po.PO_Order_Date ?? '';
+                document.getElementById('viewPOStatus').textContent = po.PO_Order_Stat ?? '';
+                document.getElementById('viewPOSupplier').textContent = po.Sup_Name ?? '';
+                document.getElementById('viewPOSupplierContact').textContent = po.Sup_Contact ?? '';
+                document.getElementById('viewPOPaymentTerms').textContent = po.PO_Payment_Terms ?? '';
+                document.getElementById('viewPOExpectedDelivery').textContent = po.PO_Expected_Delivery ?? '';
+                document.getElementById('viewPONotes').textContent = po.PO_Notes ?? '';
+                document.getElementById('viewPOShippingCost').textContent = po.PO_Shipping_Cost ?? '';
+                document.getElementById('viewPOTotal').textContent = po.PO_Total_Amount ?? '';
+                document.getElementById('viewPOSupplierContact').textContent = po.Sup_CoInfo ?? '';
+                document.getElementById('viewPOPaymentTerms').textContent = po.Sup_PayTerm ?? '';
+                // Items (if you have items in your $purchaseOrders, otherwise leave blank)
+                let itemsHtml = '';
+                if (po.items && Array.isArray(po.items)) {
+                    po.items.forEach(item => {
+                        itemsHtml += `<tr>
+                            <td>${item.product_name ?? ''}</td>
+                            <td>${item.quantity ?? ''}</td>
+                            <td>${item.unit_price ?? ''}</td>
+                            <td>${item.subtotal ?? ''}</td>
+                        </tr>`;
+                    });
+                }
+                document.getElementById('viewPOItems').innerHTML = itemsHtml;
+            });
+        });
+    });
+    </script>
 </body>
-</html> 
+</html>

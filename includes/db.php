@@ -490,12 +490,10 @@ function viewInventoryHistory() {
 
 function getPurchaseOrders() {
     $con = $this->opencon();
-    $stmt = $con->prepare("
-        SELECT po.Pur_OrderID, po.SupplierID, s.Sup_Name, po.PO_Order_Date, po.PO_Order_Stat
+    $stmt = $con->prepare("SELECT po.*, s.Sup_Name, s.Sup_CoInfo, s.Sup_PayTerm
         FROM purchase_orders po
         JOIN suppliers s ON po.SupplierID = s.SupplierID
-        ORDER BY po.Pur_OrderID DESC
-    ");
+        ORDER BY po.Pur_OrderID DESC");
     $stmt->execute();
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
@@ -554,6 +552,67 @@ function updateCustomer($id, $name, $contactInfo, $discountRate, $enrollLoyalty)
         $con->rollBack();
         return false;
     }
+}
+
+public function addPurchaseOrder($supplierId, $orderDate, $expectedDelivery, $paymentTerms, $notes, $shippingCost, $totalAmount, $items = []) {
+    $con = $this->opencon();
+    try {
+        $con->beginTransaction();
+
+        // Insert into purchase_orders
+        $stmt = $con->prepare("INSERT INTO purchase_orders 
+            (SupplierID, PO_Order_Date, PO_Expected_Delivery, PO_Payment_Terms, PO_Notes, PO_Shipping_Cost, PO_Total_Amount, PO_Order_Stat)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'Draft')");
+        $stmt->execute([$supplierId, $orderDate, $expectedDelivery, $paymentTerms, $notes, $shippingCost, $totalAmount]);
+        $poId = $con->lastInsertId();
+
+        // Insert items into purchase_order_items
+        $itemStmt = $con->prepare("INSERT INTO purchase_order_items 
+            (Pur_OrderID, ProductID, Pur_OIQuantity, Pur_OIPrice)
+            VALUES (?, ?, ?, ?)");
+        foreach ($items as $item) {
+            $itemStmt->execute([
+                $poId,
+                $item['product_id'],
+                $item['quantity'],
+                $item['price']
+            ]);
+        }
+
+        $con->commit();
+        return $poId;
+    } catch (PDOException $e) {
+        $con->rollBack();
+        return false;
+    }
+}
+
+public function getCustomerById($customerId) {
+    $conn = $this->opencon();
+    $stmt = $conn->prepare("
+        SELECT c.*, l.LP_PtsBalance, l.LP_MbspTier, l.LP_LastUpdt
+        FROM customers c
+        LEFT JOIN loyalty_program l ON c.CustomerID = l.CustomerID
+        WHERE c.CustomerID = ?
+    ");
+    $stmt->execute([$customerId]);
+    return $stmt->fetch(PDO::FETCH_ASSOC);
+}
+
+public function getCustomerCount() {
+    $con = $this->opencon();
+    $stmt = $con->prepare("SELECT COUNT(*) as total FROM customers");
+    $stmt->execute();
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    return $row ? (int)$row['total'] : 0;
+}
+
+public function getProductsInStock() {
+    $con = $this->opencon();
+    $stmt = $con->prepare("SELECT COUNT(*) as total FROM products WHERE Prod_Stock > 0");
+    $stmt->execute();
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    return $row ? (int)$row['total'] : 0;
 }
 
 }

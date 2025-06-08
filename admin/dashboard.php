@@ -1,3 +1,10 @@
+<?php
+require_once('../includes/db.php');
+$con = new database();
+$totalCustomers = $con->getCustomerCount();
+$productsInStock = $con->getProductsInStock();
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -74,7 +81,7 @@
                 <div class="card dashboard-card">
                     <div class="card-body">
                         <h5 class="card-title">Total Customers</h5>
-                        <p class="card-text" id="totalCustomers">0</p>
+                        <p class="card-text" id="totalCustomers"><?php echo $totalCustomers; ?></p>
                         <small class="text-muted">Active customers</small>
                     </div>
                 </div>
@@ -83,7 +90,7 @@
                 <div class="card dashboard-card">
                     <div class="card-body">
                         <h5 class="card-title">Total Products</h5>
-                        <p class="card-text" id="totalProducts">0</p>
+                        <p class="card-text" id="totalProducts"><?php echo $productsInStock; ?></p>
                         <small class="text-muted">In stock</small>
                     </div>
                 </div>

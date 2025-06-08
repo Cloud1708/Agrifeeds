@@ -1,4 +1,5 @@
 <?php
+ 
 session_start();
  
 require_once('../includes/db.php');
@@ -8,16 +9,7 @@ $sweetAlertConfig = "";
 // Handle AJAX request for customer data
 if (isset($_GET['action']) && $_GET['action'] === 'get_customer' && isset($_GET['id'])) {
     $customerId = $_GET['id'];
-   
-    // Get customer data with loyalty program info
-    $stmt = $con->opencon()->prepare("
-        SELECT c.*, l.LP_PtsBalance
-        FROM customers c
-        LEFT JOIN loyalty_program l ON c.CustomerID = l.CustomerID
-        WHERE c.CustomerID = ?
-    ");
-    $stmt->execute([$customerId]);
-    $customer = $stmt->fetch(PDO::FETCH_ASSOC);
+    $customer = $con->getCustomerById($customerId);
  
     if (!$customer) {
         http_response_code(404);
@@ -33,7 +25,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_customer' && isset($_GET[
 // Handle sales history request
 if (isset($_GET['action']) && $_GET['action'] === 'get_sales_history' && isset($_GET['id'])) {
     $customerId = $_GET['id'];
-   
+ 
     $stmt = $con->opencon()->prepare("
         SELECT s.SaleID, s.Sale_Date, s.Sale_Total, s.Sale_Status,
                GROUP_CONCAT(CONCAT(p.Prod_Name, ' (', sd.SaleDet_Qty, ')') SEPARATOR ', ') as items
@@ -55,7 +47,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_sales_history' && isset($
 // Handle discount history request
 if (isset($_GET['action']) && $_GET['action'] === 'get_discount_history' && isset($_GET['id'])) {
     $customerId = $_GET['id'];
-   
+ 
     $stmt = $con->opencon()->prepare("
         SELECT
             s.SaleID,
@@ -83,6 +75,7 @@ if (isset($_SESSION['sweetAlertConfig'])) {
     unset($_SESSION['sweetAlertConfig']);
 }
  
+// Handle Add Customer
 if (isset($_POST['add'])) {
     $customerName = $_POST['Cust_Name'];
     $contactInfo = $_POST['Cust_CoInfo'];
@@ -155,6 +148,14 @@ if (isset($_POST['edit_customer'])) {
     }
     header("Location: " . $_SERVER['PHP_SELF']);
     exit();
+}
+ 
+// Handle Edit Modal Open (like products.php)
+$editCustomerData = null;
+$showEditModal = false;
+if (isset($_POST['edit_customer_modal']) && isset($_POST['customerID'])) {
+    $editCustomerData = $con->getCustomerById($_POST['customerID']);
+    $showEditModal = true;
 }
  
 $customers = $con->viewCustomers();
@@ -319,9 +320,13 @@ foreach ($customers as $customer) {
                         <button class="btn btn-sm btn-info" onclick="viewCustomer(<?php echo $customer['CustomerID']; ?>)">
                             <i class="bi bi-eye"></i>
                         </button>
-                        <button class="btn btn-sm btn-warning" onclick="editCustomer(<?php echo $customer['CustomerID']; ?>)">
-                            <i class="bi bi-pencil"></i>
-                        </button>
+                        <form method="post" style="display:inline;">
+                            <input type="hidden" name="edit_customer_modal" value="1">
+                            <input type="hidden" name="customerID" value="<?php echo $customer['CustomerID']; ?>">
+                            <button type="submit" class="btn btn-sm btn-warning">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                        </form>
                     </td>
                 </tr>
                 <?php } ?>
@@ -383,19 +388,23 @@ foreach ($customers as $customer) {
                     <div class="modal-body">
                         <div class="mb-3">
                             <label for="editCustomerName" class="form-label">Full Name</label>
-                            <input type="text" class="form-control" id="editCustomerName" name="Cust_Name" required>
+                            <input type="text" class="form-control" id="editCustomerName" name="Cust_Name" required
+                                value="<?php echo isset($editCustomerData['Cust_Name']) ? htmlspecialchars($editCustomerData['Cust_Name']) : ''; ?>">
                         </div>
                         <div class="mb-3">
                             <label for="editContactInfo" class="form-label">Contact Information</label>
-                            <input type="text" class="form-control" id="editContactInfo" name="Cust_CoInfo" required>
+                            <input type="text" class="form-control" id="editContactInfo" name="Cust_CoInfo" required
+                                value="<?php echo isset($editCustomerData['Cust_CoInfo']) ? htmlspecialchars($editCustomerData['Cust_CoInfo']) : ''; ?>">
                         </div>
                         <div class="mb-3">
                             <label for="editDiscountRate" class="form-label">Discount Rate (%)</label>
-                            <input type="number" class="form-control" id="editDiscountRate" name="discountRate" step="0.01" min="0" max="100">
+                            <input type="number" class="form-control" id="editDiscountRate" name="discountRate" step="0.01" min="0" max="100"
+                                value="<?php echo isset($editCustomerData['Cust_DiscRate']) ? htmlspecialchars($editCustomerData['Cust_DiscRate']) : ''; ?>">
                         </div>
                         <div class="mb-3">
                             <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="editEnrollLoyalty" name="enroll_loyalty">
+                                <input class="form-check-input" type="checkbox" id="editEnrollLoyalty" name="enroll_loyalty"
+                                    <?php echo (isset($editCustomerData['LP_PtsBalance']) && $editCustomerData['LP_PtsBalance'] !== null) ? 'checked' : ''; ?>>
                                 <label class="form-check-label" for="editEnrollLoyalty">
                                     Enroll in Loyalty Program
                                 </label>
@@ -403,7 +412,8 @@ foreach ($customers as $customer) {
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <input type="hidden" name="customerID" id="editCustomerID">
+                        <input type="hidden" name="customerID" id="editCustomerID"
+                            value="<?php echo isset($editCustomerData['CustomerID']) ? htmlspecialchars($editCustomerData['CustomerID']) : ''; ?>">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                         <button type="submit" class="btn btn-primary">Update Customer</button>
                     </div>
@@ -540,31 +550,6 @@ foreach ($customers as $customer) {
         loyaltyFilter.addEventListener('change', filterTable);
     });
  
-    // Edit Customer Functionality
-    function editCustomer(customerId) {
-        // Fetch customer data
-        fetch(`customers.php?action=get_customer&id=${customerId}`)
-            .then(response => response.json())
-            .then(data => {
-                document.getElementById('editCustomerID').value = data.CustomerID;
-                document.getElementById('editCustomerName').value = data.Cust_Name;
-                document.getElementById('editContactInfo').value = data.Cust_CoInfo;
-                document.getElementById('editDiscountRate').value = data.Cust_DiscRate;
-                document.getElementById('editEnrollLoyalty').checked = data.LP_PtsBalance !== null;
-               
-                // Show the modal
-                new bootstrap.Modal(document.getElementById('editCustomerModal')).show();
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'Failed to load customer data'
-                });
-            });
-    }
- 
     // View Customer Functionality
     function viewCustomer(customerId) {
         // Fetch customer details
@@ -667,5 +652,12 @@ foreach ($customers as $customer) {
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <?php echo $sweetAlertConfig; ?>
+ 
+    <?php if ($showEditModal): ?>
+    <script>
+        var editModal = new bootstrap.Modal(document.getElementById('editCustomerModal'));
+        editModal.show();
+    </script>
+    <?php endif; ?>
 </body>
 </html>
