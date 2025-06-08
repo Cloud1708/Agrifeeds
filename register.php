@@ -8,11 +8,12 @@ $success = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = trim($_POST['username']);
+    $name = trim($_POST['name']);
     $password = $_POST['password'];
     $confirm_password = $_POST['confirm_password'];
     $photo = null;
 
-    if (empty($username) || empty($password) || empty($confirm_password)) {
+    if (empty($username) || empty($password) || empty($confirm_password) || empty($name)) {
         $error = "All fields are required";
     } elseif ($password !== $confirm_password) {
         $error = "Passwords do not match";
@@ -40,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        $userID = $db->registerUser($username, $password, 2, $photo);
+        $userID = $db->registerUser($username, $password, 2, $photo, $name);
 
         if ($userID) {
             $success = "Registration successful! Redirecting to login...";
@@ -152,6 +153,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <?php endif; ?>
 
         <form method="POST" enctype="multipart/form-data">
+            <div class="mb-3">
+                <label class="form-label" for="name">Full Name</label>
+                <input type="text" name="name" class="form-control" id="name" required>
+            </div>
+
             <div class="mb-3">
                 <label class="form-label" for="username">Username</label>
                 <input type="text" name="username" class="form-control" id="username" required>
