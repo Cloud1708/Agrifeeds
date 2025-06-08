@@ -232,25 +232,37 @@ function getProductById($id) {
 }
  
 
-    function registerUser($username, $password, $role, $photo = null) {
-        try {
-            $con = $this->opencon();
-            $con->beginTransaction();
-            
-            // Hash the password
-            $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-            
-            $stmt = $con->prepare("INSERT INTO USER_ACCOUNTS (User_Name, User_Password, User_Role, User_Photo) VALUES (?, ?, ?, ?)");
-            $stmt->execute([$username, $hashedPassword, $role, $photo]);
-            
-            $userID = $con->lastInsertId();
-            $con->commit();
-            return $userID;
-        } catch (PDOException $e) {
-            if (isset($con)) $con->rollBack();
-            return false;
-        }
+function registerUser($username, $password, $role, $photo = null, $name = null) {
+    try {
+        $con = $this->opencon();
+        $con->beginTransaction();
+        
+        // Hash the password
+        $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+        
+        // Insert into USER_ACCOUNTS
+        $stmt = $con->prepare("INSERT INTO USER_ACCOUNTS (User_Name, User_Password, User_Role, User_Photo, User_CreatedAt) VALUES (?, ?, ?, ?, NOW())");
+        $stmt->execute([$username, $hashedPassword, $role, $photo]);
+        
+        $userID = $con->lastInsertId();
+
+        // Insert into Customers
+        $stmt = $con->prepare("INSERT INTO customers (UserID, Cust_Name, Cust_CoInfo, Cust_LoStat, Cust_DiscRate) VALUES (?, ?, ?, 'None', '0.00')");
+        $stmt->execute([$userID, $name, $username]); // Using username as contact info initially
+        
+        $customerID = $con->lastInsertId();
+
+        // Insert into Loyalty_Program
+        $stmt = $con->prepare("INSERT INTO loyalty_program (CustomerID, LP_PtsBalance, LP_MbspTier, LP_LastUpdt) VALUES (?, 0, 'None', NOW())");
+        $stmt->execute([$customerID]);
+
+        $con->commit();
+        return $userID;
+    } catch (PDOException $e) {
+        if (isset($con)) $con->rollBack();
+        return false;
     }
+}
 
     function loginUser($username, $password) {
         try {
