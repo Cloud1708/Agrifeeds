@@ -97,6 +97,11 @@ error_log("Is super admin: " . (isset($_SESSION['user_role']) && $_SESSION['user
                     <i class="bi bi-shield-lock me-2"></i> Manage Accounts
                 </a>
             </li>
+            <li class="nav-item">
+                <a class="nav-link <?php echo $current_page === 'audit_log.php' ? 'active' : ''; ?>" href="audit_log.php">
+                    <i class="bi bi-journal-text me-2"></i> Audit Log
+                </a>
+            </li>
             <?php endif; ?>
             <li class="nav-item">
                 <a class="nav-link <?php echo $current_page === 'profile.php' ? 'active' : ''; ?>" href="profile.php">
