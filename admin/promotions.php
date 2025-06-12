@@ -1,5 +1,8 @@
 <?php
  
+// Set timezone to ensure correct date comparisons
+date_default_timezone_set('Asia/Manila');
+ 
 session_start();
 require_once('../includes/db.php');
 $con = new database();
@@ -57,7 +60,7 @@ if (isset($_POST['EditPromotion'])) {
     $end = $_POST['Promo_EndDate'];
     $limit = $_POST['UsageLimit'];
  
-    $result = $con->updatePromotionDetails( $code, $desc, $amount, $type, $start, $end, $limit, $promotionId);
+    $result = $con->updatePromotionDetails($code, $desc, $amount, $type, $start, $end, $limit, $promotionId);
  
     if ($result) {
         $_SESSION['sweetAlertConfig'] = "<script>
@@ -165,33 +168,33 @@ $allPromotions = $con->viewPromotions();
                     <?php if (!empty($allPromotions)): ?>
                     <?php foreach ($allPromotions as $promo): ?>
                     <?php
-$now = strtotime(date('Y-m-d H:i:s'));
-$start = strtotime($promo['Promo_StartDate']);
-$end = strtotime($promo['Promo_EndDate']);
-$isActive = $promo['Promo_IsActive'];
+                        $now = strtotime(date('Y-m-d H:i:s'));
+                        $start = strtotime($promo['Promo_StartDate']);
+                        $end = strtotime($promo['Promo_EndDate']);
+                        $isActive = $promo['Promo_IsActive'];
  
-// Determine status and update database if needed
-if ($now < $start && $isActive == 1) {
-    $status = 'Scheduled';
-    $badge = 'bg-info text-dark';
-} elseif ($now > $end && $isActive == 1) {
-    // Expired: set to 0 in DB if not already
-    $status = 'Expired';
-    $badge = 'bg-danger';
-    $con->opencon()->prepare("UPDATE promotions SET Promo_IsActive=0 WHERE PromotionID=?")->execute([$promo['PromotionID']]);
-    $isActive = 0;
-} elseif ($now >= $start && $now <= $end && $isActive == 1) {
-    $status = 'Active';
-    $badge = 'bg-success';
-} elseif ($isActive == 0) {
-    // Only show expired promos (not inactive)
-    $status = 'Expired';
-    $badge = 'bg-danger';
-} else {
-    // Skip any other status (like inactive)
-    continue;
-}
-?>
+                        // Determine status and update database if needed
+                        if ($now < $start && $isActive == 1) {
+                            $status = 'Scheduled';
+                            $badge = 'bg-info text-dark';
+                        } elseif ($now > $end && $isActive == 1) {
+                            // Expired: set to 0 in DB if not already
+                            $status = 'Expired';
+                            $badge = 'bg-danger';
+                            $con->opencon()->prepare("UPDATE promotions SET Promo_IsActive=0 WHERE PromotionID=?")->execute([$promo['PromotionID']]);
+                            $isActive = 0;
+                        } elseif ($now >= $start && $now <= $end && $isActive == 1) {
+                            $status = 'Active';
+                            $badge = 'bg-success';
+                        } elseif ($isActive == 0) {
+                            // Only show expired promos (not inactive)
+                            $status = 'Expired';
+                            $badge = 'bg-danger';
+                        } else {
+                            // Skip any other status (like inactive)
+                            continue;
+                        }
+                    ?>
                     <tr>
                         <td><?php echo htmlspecialchars($promo['PromotionID']); ?></td>
                         <td><?php echo htmlspecialchars($promo['Prom_Code']); ?></td>
@@ -206,52 +209,53 @@ if ($now < $start && $isActive == 1) {
                         <td>
                             <!-- View Description Modal Trigger -->
                             <button class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#viewDescModal<?php echo $promo['PromotionID']; ?>">
-        <i class="bi bi-eye"></i> View
-    </button>
+                                <i class="bi bi-eye"></i> View
+                            </button>
  
-     <!-- Edit Promotion Modal Trigger -->
-                    <button class="btn btn-sm btn-warning editPromotionBtn"
-                        data-id="<?php echo $promo['PromotionID']; ?>"
-                        data-code="<?php echo htmlspecialchars($promo['Prom_Code']); ?>"
-                        data-desc="<?php echo htmlspecialchars($promo['Promo_Description']); ?>"
-                        data-amount="<?php echo htmlspecialchars($promo['Promo_DiscAmnt']); ?>"
-                        data-type="<?php echo htmlspecialchars($promo['Promo_DiscountType']); ?>"
-                        data-start="<?php echo date('Y-m-d\TH:i', strtotime($promo['Promo_StartDate'])); ?>"
-                        data-end="<?php echo date('Y-m-d\TH:i', strtotime($promo['Promo_EndDate'])); ?>"
-                        data-limit="<?php echo htmlspecialchars($promo['UsageLimit']); ?>"
-                        data-bs-toggle="modal" data-bs-target="#editPromotionModal">
-                        <i class="bi bi-pencil"></i> Edit
-                    </button>
+                            <?php if ($status !== 'Expired'): ?>
+                            <!-- Edit Promotion Modal Trigger (only if not expired) -->
+                            <button class="btn btn-sm btn-warning editPromotionBtn"
+                                data-id="<?php echo $promo['PromotionID']; ?>"
+                                data-code="<?php echo htmlspecialchars($promo['Prom_Code']); ?>"
+                                data-desc="<?php echo htmlspecialchars($promo['Promo_Description']); ?>"
+                                data-amount="<?php echo htmlspecialchars($promo['Promo_DiscAmnt']); ?>"
+                                data-type="<?php echo htmlspecialchars($promo['Promo_DiscountType']); ?>"
+                                data-start="<?php echo date('Y-m-d\TH:i', strtotime($promo['Promo_StartDate'])); ?>"
+                                data-end="<?php echo date('Y-m-d\TH:i', strtotime($promo['Promo_EndDate'])); ?>"
+                                data-limit="<?php echo htmlspecialchars($promo['UsageLimit']); ?>"
+                                data-bs-toggle="modal" data-bs-target="#editPromotionModal">
+                                <i class="bi bi-pencil"></i> Edit
+                            </button>
+                            <?php endif; ?>
  
                             <!-- View Description Modal -->
-                           <div class="modal fade" id="viewDescModal<?php echo $promo['PromotionID']; ?>" tabindex="-1" aria-labelledby="viewDescLabel<?php echo $promo['PromotionID']; ?>" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-    <h5 class="modal-title border-start border-4 border-success ps-3 text-success" id="viewDescLabel<?php echo $promo['PromotionID']; ?>">
-        Promotion Details
-    </h5>
-    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-</div>
-            <div class="modal-body">
-                <ul class="list-group list-group-flush">
-                    <li class="list-group-item"><strong>Promotion Code:</strong> <?php echo htmlspecialchars($promo['Prom_Code']); ?></li>
-                    <li class="list-group-item"><strong>Discount:</strong> <?php echo htmlspecialchars($promo['Promo_DiscAmnt']); ?></li>
-                    <li class="list-group-item"><strong>Description:</strong> <?php echo nl2br(htmlspecialchars($promo['Promo_Description'])); ?></li>
-                    <li class="list-group-item"><strong>Discount Type:</strong> <?php echo htmlspecialchars($promo['Promo_DiscountType']); ?></li>
-                    <li class="list-group-item"><strong>Start Date:</strong> <?php echo htmlspecialchars($promo['Promo_StartDate']); ?></li>
-                    <li class="list-group-item"><strong>End Date:</strong> <?php echo htmlspecialchars($promo['Promo_EndDate']); ?></li>
-                    <li class="list-group-item"><strong>Usage Limit:</strong> <?php echo htmlspecialchars($promo['UsageLimit']); ?></li>
-                    <li class="list-group-item"><strong>Status:</strong> <span class="badge <?php echo $badge; ?>"><?php echo $status; ?></span></li>
-                </ul>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-            </div>
-        </div>
-    </div>
-</div>
-                           
+                            <div class="modal fade" id="viewDescModal<?php echo $promo['PromotionID']; ?>" tabindex="-1" aria-labelledby="viewDescLabel<?php echo $promo['PromotionID']; ?>" aria-hidden="true">
+                                <div class="modal-dialog">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title border-start border-4 border-success ps-3 text-success" id="viewDescLabel<?php echo $promo['PromotionID']; ?>">
+                                                Promotion Details
+                                            </h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <ul class="list-group list-group-flush">
+                                                <li class="list-group-item"><strong>Promotion Code:</strong> <?php echo htmlspecialchars($promo['Prom_Code']); ?></li>
+                                                <li class="list-group-item"><strong>Discount:</strong> <?php echo htmlspecialchars($promo['Promo_DiscAmnt']); ?></li>
+                                                <li class="list-group-item"><strong>Description:</strong> <?php echo nl2br(htmlspecialchars($promo['Promo_Description'])); ?></li>
+                                                <li class="list-group-item"><strong>Discount Type:</strong> <?php echo htmlspecialchars($promo['Promo_DiscountType']); ?></li>
+                                                <li class="list-group-item"><strong>Start Date:</strong> <?php echo htmlspecialchars($promo['Promo_StartDate']); ?></li>
+                                                <li class="list-group-item"><strong>End Date:</strong> <?php echo htmlspecialchars($promo['Promo_EndDate']); ?></li>
+                                                <li class="list-group-item"><strong>Usage Limit:</strong> <?php echo htmlspecialchars($promo['UsageLimit']); ?></li>
+                                                <li class="list-group-item"><strong>Status:</strong> <span class="badge <?php echo $badge; ?>"><?php echo $status; ?></span></li>
+                                            </ul>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </td>
                     </tr>
                     <?php endforeach; ?>
@@ -319,75 +323,75 @@ if ($now < $start && $isActive == 1) {
     </div>
  
     <!-- Edit Promotion Modal  -->
-<div class="modal fade" id="editPromotionModal" tabindex="-1" aria-labelledby="editPromotionModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <form method="POST" class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="editPromotionModalLabel">Edit Promotion</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div class="mb-3">
-                    <label class="form-label">Promotion Code</label>
-                    <input type="text" class="form-control" name="Prom_Code" id="editPromCode" required>
+    <div class="modal fade" id="editPromotionModal" tabindex="-1" aria-labelledby="editPromotionModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <form method="POST" class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editPromotionModalLabel">Edit Promotion</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="mb-3">
-                    <label class="form-label">Description</label>
-                    <textarea class="form-control" name="Promo_Description" id="editPromoDescription" rows="2" required></textarea>
-                </div>
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label class="form-label">Discount Amount</label>
-                        <input type="number" class="form-control" name="Promo_DiscAmnt" id="editPromoDiscAmnt" step="0.01" min="0" required>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Promotion Code</label>
+                        <input type="text" class="form-control" name="Prom_Code" id="editPromCode" required>
                     </div>
-                    <div class="col-md-6">
-                        <label class="form-label">Discount Type</label>
-                        <select class="form-select" name="Promo_DiscountType" id="editPromoDiscountType" required>
-                            <option value="Percentage">Percentage</option>
-                            <option value="Fixed">Fixed Amount</option>
-                        </select>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control" name="Promo_Description" id="editPromoDescription" rows="2" required></textarea>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Discount Amount</label>
+                            <input type="number" class="form-control" name="Promo_DiscAmnt" id="editPromoDiscAmnt" step="0.01" min="0" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Discount Type</label>
+                            <select class="form-select" name="Promo_DiscountType" id="editPromoDiscountType" required>
+                                <option value="Percentage">Percentage</option>
+                                <option value="Fixed">Fixed Amount</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Start Date & Time</label>
+                            <input type="datetime-local" class="form-control" name="Promo_StartDate" id="editPromoStartDate" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">End Date & Time</label>
+                            <input type="datetime-local" class="form-control" name="Promo_EndDate" id="editPromoEndDate" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Usage Limit</label>
+                        <input type="number" class="form-control" name="UsageLimit" id="editUsageLimit" min="1" required>
                     </div>
                 </div>
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label class="form-label">Start Date & Time</label>
-                        <input type="datetime-local" class="form-control" name="Promo_StartDate" id="editPromoStartDate" required>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label">End Date & Time</label>
-                        <input type="datetime-local" class="form-control" name="Promo_EndDate" id="editPromoEndDate" required>
-                    </div>
+                <div class="modal-footer">
+                    <input type="hidden" name="PromotionID" id="editPromotionID">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" name="EditPromotion" class="btn btn-primary">Save</button>
                 </div>
-                <div class="mb-3">
-                    <label class="form-label">Usage Limit</label>
-                    <input type="number" class="form-control" name="UsageLimit" id="editUsageLimit" min="1" required>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <input type="hidden" name="PromotionID" id="editPromotionID">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="submit" name="EditPromotion" class="btn btn-primary">Save</button>
-            </div>
-        </form>
+            </form>
+        </div>
     </div>
-</div>
  
     <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-// Fill Edit Promotion Modal with row data
-document.querySelectorAll('.editPromotionBtn').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-        document.getElementById('editPromotionID').value = this.getAttribute('data-id');
-        document.getElementById('editPromCode').value = this.getAttribute('data-code');
-        document.getElementById('editPromoDescription').value = this.getAttribute('data-desc');
-        document.getElementById('editPromoDiscAmnt').value = this.getAttribute('data-amount');
-        document.getElementById('editPromoDiscountType').value = this.getAttribute('data-type');
-        document.getElementById('editPromoStartDate').value = this.getAttribute('data-start');
-        document.getElementById('editPromoEndDate').value = this.getAttribute('data-end');
-        document.getElementById('editUsageLimit').value = this.getAttribute('data-limit');
+    // Fill Edit Promotion Modal with row data
+    document.querySelectorAll('.editPromotionBtn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            document.getElementById('editPromotionID').value = this.getAttribute('data-id');
+            document.getElementById('editPromCode').value = this.getAttribute('data-code');
+            document.getElementById('editPromoDescription').value = this.getAttribute('data-desc');
+            document.getElementById('editPromoDiscAmnt').value = this.getAttribute('data-amount');
+            document.getElementById('editPromoDiscountType').value = this.getAttribute('data-type');
+            document.getElementById('editPromoStartDate').value = this.getAttribute('data-start');
+            document.getElementById('editPromoEndDate').value = this.getAttribute('data-end');
+            document.getElementById('editUsageLimit').value = this.getAttribute('data-limit');
+        });
     });
-});
-</script>
+    </script>
 </body>
 </html>
