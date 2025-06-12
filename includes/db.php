@@ -99,13 +99,13 @@ function updateProduct($name, $category, $description, $price, $stock, $id){
     }
 }
 
-function addCustomer($customerName, $contactInfo, $discountRate, $enrollLoyalty = false) {
+function addCustomer($firstName, $lastName, $contactInfo, $discountRate, $enrollLoyalty = false) {
     $con = $this->opencon();
     try {
         $con->beginTransaction();
  
-        $stmt = $con->prepare("INSERT INTO customers (Cust_Name, Cust_CoInfo, Cust_DiscRate) VALUES (?, ?, ?)");
-        $stmt->execute([$customerName, $contactInfo, $discountRate]);
+        $stmt = $con->prepare("INSERT INTO customers (Cust_FN, Cust_LN, Cust_CoInfo, Cust_DiscRate) VALUES (?, ?, ?, ?)");
+        $stmt->execute([$firstName, $lastName, $contactInfo, $discountRate]);
         $custID = $con->lastInsertId();
  
         // If enroll loyalty is checked, add to loyalty_program
@@ -232,7 +232,7 @@ function getProductById($id) {
 }
  
 
-function registerUser($username, $password, $role, $photo = null, $name = null) {
+function registerUser($username, $password, $role, $photo = null, $firstName = null, $lastName = null, $contactInfo = null) {
     try {
         $con = $this->opencon();
         $con->beginTransaction();
@@ -247,8 +247,8 @@ function registerUser($username, $password, $role, $photo = null, $name = null) 
         $userID = $con->lastInsertId();
 
         // Insert into Customers
-        $stmt = $con->prepare("INSERT INTO customers (UserID, Cust_Name, Cust_CoInfo, Cust_LoStat, Cust_DiscRate) VALUES (?, ?, ?, 'None', '0.00')");
-        $stmt->execute([$userID, $name, $username]); // Using username as contact info initially
+        $stmt = $con->prepare("INSERT INTO customers (UserID, Cust_FN, Cust_LN, Cust_CoInfo, Cust_LoStat, Cust_DiscRate) VALUES (?, ?, ?, ?, 'None', '0.00')");
+        $stmt->execute([$userID, $firstName, $lastName, $contactInfo]);
         
         $customerID = $con->lastInsertId();
 
@@ -343,7 +343,7 @@ function registerUser($username, $password, $role, $photo = null, $name = null) 
     function viewLoyaltyProgram() {
     $con = $this->opencon();
     $stmt = $con->prepare("
-        SELECT l.LoyaltyID, l.CustomerID, c.Cust_Name, l.LP_PtsBalance, l.LP_LastUpdt
+        SELECT l.LoyaltyID, l.CustomerID, c.Cust_FN, c.Cust_LN, l.LP_PtsBalance, l.LP_LastUpdt
         FROM loyalty_program l
         JOIN customers c ON l.CustomerID = c.CustomerID
         ORDER BY l.LoyaltyID
@@ -531,14 +531,14 @@ public function updateProductStock($productId, $newStock) {
     return $stmt->execute([$newStock, $productId]);
 }
 
-function updateCustomer($id, $name, $contactInfo, $discountRate, $enrollLoyalty) {
+function updateCustomer($id, $firstName, $lastName, $contactInfo, $discountRate, $enrollLoyalty) {
     $con = $this->opencon();
     try {
         $con->beginTransaction();
  
         // Update customer details
-        $stmt = $con->prepare("UPDATE customers SET Cust_Name = ?, Cust_CoInfo = ?, Cust_DiscRate = ? WHERE CustomerID = ?");
-        $stmt->execute([$name, $contactInfo, $discountRate, $id]);
+        $stmt = $con->prepare("UPDATE customers SET Cust_FN = ?, Cust_LN = ?, Cust_CoInfo = ?, Cust_DiscRate = ? WHERE CustomerID = ?");
+        $stmt->execute([$firstName, $lastName, $contactInfo, $discountRate, $id]);
  
         // Handle loyalty program enrollment
         $stmt = $con->prepare("SELECT COUNT(*) FROM loyalty_program WHERE CustomerID = ?");
