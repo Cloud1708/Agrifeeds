@@ -320,8 +320,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_from_cart'])) 
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-            <?php if (!empty($_SESSION['cart'])): ?>
-              <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#checkoutModal" data-bs-dismiss="modal">Checkout</button>
+            <?php if (isset($_SESSION['cart']) && !empty($_SESSION['cart'])): ?>
+              <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#checkoutModal" data-bs-dismiss="modal">
+                <i class="bi bi-credit-card"></i> Checkout
+              </button>
             <?php endif; ?>
           </div>
         </div>
@@ -438,7 +440,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_from_cart'])) 
     function updateCartContent() {
         const cartModal = document.getElementById('cartModal');
         const modalBody = cartModal.querySelector('.modal-body');
-        const checkoutButton = cartModal.querySelector('.modal-footer .btn-success');
+        const modalFooter = cartModal.querySelector('.modal-footer');
 
         fetch('products.php', {
             method: 'GET',
@@ -451,14 +453,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_from_cart'])) 
             const parser = new DOMParser();
             const doc = parser.parseFromString(html, 'text/html');
             const newCartContent = doc.querySelector('#cartModal .modal-body');
+            const newFooterContent = doc.querySelector('#cartModal .modal-footer');
             
             if (newCartContent) {
                 modalBody.innerHTML = newCartContent.innerHTML;
-                
-                // Update checkout button visibility
-                if (checkoutButton) {
-                    checkoutButton.style.display = newCartContent.querySelector('table') ? 'block' : 'none';
-                }
+            }
+            
+            if (newFooterContent) {
+                modalFooter.innerHTML = newFooterContent.innerHTML;
             }
         })
         .catch(error => {
