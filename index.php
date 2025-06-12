@@ -2,7 +2,10 @@
 session_start();
 require_once 'includes/db.php';
 
+error_log("Session started. Current session data: " . print_r($_SESSION, true));
+
 if (isset($_SESSION['user_id'])) {
+    error_log("User already logged in. User ID: " . $_SESSION['user_id'] . ", Role: " . $_SESSION['user_role']);
     switch ($_SESSION['user_role']) {
         case 1:
         case 3:
@@ -22,15 +25,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = trim($_POST['username']);
     $password = $_POST['password'];
 
+    error_log("Login attempt - Username: " . $username);
+
     if (empty($username) || empty($password)) {
         $error = "Please enter both username and password";
+        error_log("Login failed - Empty username or password");
     } else {
         $user = $db->loginUser($username, $password);
         
         if ($user) {
+            error_log("Login successful. Setting session variables:");
+            error_log("User ID: " . $user['UserID']);
+            error_log("Username: " . $user['User_Name']);
+            error_log("User Role: " . $user['User_Role']);
+            
             $_SESSION['user_id'] = $user['UserID'];
             $_SESSION['username'] = $user['User_Name'];
             $_SESSION['user_role'] = $user['User_Role'];
+            
+            error_log("Session after login: " . print_r($_SESSION, true));
             
             switch ($user['User_Role']) {
                 case 1:
@@ -44,6 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit();
         } else {
             $error = "Invalid username or password";
+            error_log("Login failed - Invalid credentials");
         }
     }
 }
