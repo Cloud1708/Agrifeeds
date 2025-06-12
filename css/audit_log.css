@@ -1,0 +1,196 @@
+/* Main Content Area */
+.main-content {
+    padding: 2rem;
+    background-color: #f8f9fa;
+    min-height: 100vh;
+}
+
+/* Header Section */
+.page-header {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    margin-bottom: 2rem;
+}
+
+.page-header h1 {
+    color: #2c3e50;
+    font-size: 1.8rem;
+    margin: 0;
+    font-weight: 600;
+}
+
+/* Filter Buttons */
+.filter-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 2rem;
+}
+
+.filter-btn {
+    padding: 0.6rem 1.2rem;
+    border-radius: 8px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border: 2px solid #e9ecef;
+    background: white;
+    color: #495057;
+}
+
+.filter-btn:hover {
+    background: #f8f9fa;
+    border-color: #dee2e6;
+    transform: translateY(-1px);
+}
+
+.filter-btn.active {
+    background: #0d6efd;
+    border-color: #0d6efd;
+    color: white;
+}
+
+.filter-btn i {
+    font-size: 1.1rem;
+}
+
+/* Activity Feed */
+.activity-feed {
+    display: grid;
+    gap: 1rem;
+}
+
+.feed-item {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    transition: all 0.3s ease;
+    border-left: 4px solid #0d6efd;
+    position: relative;
+}
+
+.feed-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+/* Activity Type Colors */
+.feed-item[data-type="product_add"] {
+    border-left-color: #198754;
+}
+
+.feed-item[data-type="product_update"] {
+    border-left-color: #0dcaf0;
+}
+
+.feed-item[data-type="price_update"] {
+    border-left-color: #ffc107;
+}
+
+.feed-item[data-type="stock_update"] {
+    border-left-color: #dc3545;
+}
+
+.feed-item .date {
+    color: #6c757d;
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.feed-item .text {
+    color: #2c3e50;
+    font-size: 1rem;
+    line-height: 1.5;
+}
+
+.feed-item strong {
+    color: #0d6efd;
+    font-weight: 600;
+}
+
+/* Pagination */
+.pagination-container {
+    margin-top: 2rem;
+    display: flex;
+    justify-content: center;
+}
+
+.pagination {
+    gap: 0.5rem;
+}
+
+.page-link {
+    border-radius: 8px;
+    padding: 0.5rem 1rem;
+    color: #495057;
+    border: 2px solid #e9ecef;
+    transition: all 0.3s ease;
+}
+
+.page-link:hover {
+    background: #f8f9fa;
+    border-color: #dee2e6;
+    color: #0d6efd;
+}
+
+.page-item.active .page-link {
+    background: #0d6efd;
+    border-color: #0d6efd;
+    color: white;
+}
+
+/* Stats Cards */
+.stats-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.stat-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    text-align: center;
+}
+
+.stat-card .number {
+    font-size: 2rem;
+    font-weight: 600;
+    color: #0d6efd;
+    margin-bottom: 0.5rem;
+}
+
+.stat-card .label {
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .main-content {
+        padding: 1rem;
+    }
+
+    .filter-buttons {
+        flex-direction: column;
+    }
+
+    .filter-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .stats-container {
+        grid-template-columns: 1fr;
+    }
+} 
