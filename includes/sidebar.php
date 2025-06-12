@@ -1,6 +1,14 @@
 <?php
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 // Get the current page name to set active state
 $current_page = basename($_SERVER['PHP_SELF']);
+
+// Debug information
+error_log("Current user role: " . (isset($_SESSION['user_role']) ? $_SESSION['user_role'] : 'not set'));
+error_log("Is super admin: " . (isset($_SESSION['user_role']) && $_SESSION['user_role'] == 3 ? 'yes' : 'no'));
 ?>
 <!-- Sidebar -->
 <div class="sidebar">
@@ -83,6 +91,13 @@ $current_page = basename($_SERVER['PHP_SELF']);
     </div>
     <div class="sidebar-footer">
         <ul class="nav flex-column">
+            <?php if (isset($_SESSION['user_role']) && $_SESSION['user_role'] == 3): ?>
+            <li class="nav-item">
+                <a class="nav-link <?php echo $current_page === 'manage_accounts.php' ? 'active' : ''; ?>" href="manage_accounts.php">
+                    <i class="bi bi-shield-lock me-2"></i> Manage Accounts
+                </a>
+            </li>
+            <?php endif; ?>
             <li class="nav-item">
                 <a class="nav-link <?php echo $current_page === 'profile.php' ? 'active' : ''; ?>" href="profile.php">
                     <i class="bi bi-person-circle me-2"></i> Profile
