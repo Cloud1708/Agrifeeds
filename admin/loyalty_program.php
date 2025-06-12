@@ -126,7 +126,7 @@ unset($member);
             <tr>
                 <td><?php echo $member['LoyaltyID']; ?></td>
                 <td>
-                    <?php echo htmlspecialchars($member['Cust_Name']); ?>
+                    <?php echo htmlspecialchars($member['Cust_FN'] . ' ' . $member['Cust_LN']); ?>
                     <span class="text-muted small">(ID: <?php echo $member['CustomerID']; ?>)</span>
                 </td>
                 <td><?php echo number_format($member['LP_PtsBalance']); ?></td>
