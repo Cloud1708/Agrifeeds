@@ -175,7 +175,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <div class="mb-3">
                                 <label for="name" class="form-label">Full Name</label>
                                 <input type="text" class="form-control" id="name" name="name" 
-                                       value="<?php echo htmlspecialchars($customerInfo['Cust_Name']); ?>" required>
+                                       value="<?php echo htmlspecialchars($customerInfo['Cust_FN'] . ' ' . $customerInfo['Cust_LN']); ?>" required>
                             </div>
                             <div class="mb-3">
                                 <label for="photo" class="form-label">Profile Photo</label>
@@ -231,7 +231,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <h5 class="card-title">Account Information</h5>
                         <div class="row">
                             <div class="col-md-6">
-                                <p><strong>Member Since:</strong> <?php echo date('F d, Y', strtotime($userInfo['User_DateCreated'])); ?></p>
+                                <p><strong>Member Since:</strong> <?php echo date('F d, Y', strtotime($userInfo['User_CreatedAt'])); ?></p>
                                 <p><strong>Loyalty Status:</strong> <?php echo htmlspecialchars($customerInfo['Cust_LoStat']); ?></p>
                             </div>
                             <div class="col-md-6">
