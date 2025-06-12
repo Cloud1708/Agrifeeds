@@ -1,6 +1,11 @@
 <?php
- 
- 
+// Prevent PHP errors from being displayed
+error_reporting(0);
+ini_set('display_errors', 0);
+
+// Start output buffering
+ob_start();
+
 require_once('../includes/db.php');
 $con = new database();
 session_start();
@@ -21,38 +26,56 @@ $products = $con->getAllProducts();
  
 // --- CART LOGIC (SESSION BASED) ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'], $_POST['quantity'])) {
-    // Fetch product info from DB using product_id
-    $prod = $con->getProductById($_POST['product_id']);
-    if ($prod) {
-        $cartItem = [
-            'id' => $prod['ProductID'],
-            'name' => $prod['Prod_Name'],
-            'price' => $prod['Prod_Price'],
-            'image' => $prod['Prod_Image'],
-            'quantity' => (int)$_POST['quantity']
-        ];
-        // Add or update cart
-        if (!isset($_SESSION['cart'])) $_SESSION['cart'] = [];
-        $found = false;
-        foreach ($_SESSION['cart'] as &$item) {
-            if ($item['id'] == $cartItem['id']) {
-                $item['quantity'] += $cartItem['quantity'];
-                $found = true;
-                break;
+    // Ensure no output before JSON response
+    ob_clean();
+    
+    try {
+        // Fetch product info from DB using product_id
+        $prod = $con->getProductById($_POST['product_id']);
+        if ($prod) {
+            $cartItem = [
+                'id' => $prod['ProductID'],
+                'name' => $prod['Prod_Name'],
+                'price' => $prod['Prod_Price'],
+                'image' => $prod['Prod_Image'],
+                'quantity' => (int)$_POST['quantity']
+            ];
+            // Add or update cart
+            if (!isset($_SESSION['cart'])) $_SESSION['cart'] = [];
+            $found = false;
+            foreach ($_SESSION['cart'] as &$item) {
+                if ($item['id'] == $cartItem['id']) {
+                    $item['quantity'] += $cartItem['quantity'];
+                    $found = true;
+                    break;
+                }
+            }
+            if (!$found) {
+                $_SESSION['cart'][] = $cartItem;
+            }
+            
+            // AJAX response for add to cart
+            if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+                header('Content-Type: application/json');
+                echo json_encode(['success' => true]);
+                exit();
+            }
+            header("Location: products.php");
+            exit();
+        } else {
+            if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+                header('Content-Type: application/json');
+                echo json_encode(['success' => false, 'message' => 'Product not found']);
+                exit();
             }
         }
-        if (!$found) {
-            $_SESSION['cart'][] = $cartItem;
+    } catch (Exception $e) {
+        if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => 'An error occurred while adding to cart: ' . $e->getMessage()]);
+            exit();
         }
     }
-    // AJAX response for add to cart
-    if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
-        header('Content-Type: application/json');
-        echo json_encode(['success' => true]);
-        exit();
-    }
-    header("Location: products.php");
-    exit();
 }
  
 // Remove from cart
@@ -319,8 +342,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_from_cart'])) 
                 <label class="form-label fw-bold">Customer Name:</label>
                 <div>
                   <?php
-                    $fname = isset($customerInfo['Cust_FName']) ? htmlspecialchars($customerInfo['Cust_FName']) : '';
-                    $lname = isset($customerInfo['Cust_LName']) ? htmlspecialchars($customerInfo['Cust_LName']) : '';
+                    $fname = isset($customerInfo['Cust_FN']) ? htmlspecialchars($customerInfo['Cust_FN']) : '';
+                    $lname = isset($customerInfo['Cust_LN']) ? htmlspecialchars($customerInfo['Cust_LN']) : '';
                     echo trim($fname . ' ' . $lname) ?: '<span class="text-danger">No customer name found</span>';
                   ?>
                 </div>
@@ -416,6 +439,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_from_cart'])) 
         form.addEventListener('submit', function(e) {
             e.preventDefault();
             const formData = new FormData(form);
+            
+            // Debug: Log form data
+            console.log('Form Data:', {
+                product_id: formData.get('product_id'),
+                quantity: formData.get('quantity')
+            });
+            
             fetch('products.php', {
                 method: 'POST',
                 body: formData,
@@ -423,18 +453,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_from_cart'])) 
                     'X-Requested-With': 'XMLHttpRequest'
                 }
             })
-            .then(response => response.json())
+            .then(response => {
+                // Debug: Log raw response
+                console.log('Raw Response:', response);
+                return response.json();
+            })
             .then(data => {
+                // Debug: Log parsed data
+                console.log('Response Data:', data);
+                
                 if (data.success) {
                     Swal.fire({
                         icon: 'success',
                         title: 'Added to Cart!',
-                        showConfirmButton: false,
-                        timer: 1200
-                    }).then(() => {
-                        window.location.reload();
+                        text: 'Product has been added to your cart successfully.',
+                        showCancelButton: true,
+                        confirmButtonText: 'View Cart',
+                        cancelButtonText: 'Close',
+                        reverseButtons: true
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            // Show cart modal
+                            const cartModal = new bootstrap.Modal(document.getElementById('cartModal'));
+                            cartModal.show();
+                        }
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: data.message || 'Failed to add product to cart. Please try again.',
+                        confirmButtonText: 'Close'
                     });
                 }
+            })
+            .catch(error => {
+                // Debug: Log error details
+                console.error('Fetch Error:', error);
+                
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'An error occurred: ' + error.message,
+                    confirmButtonText: 'Close'
+                });
             });
         });
     });
