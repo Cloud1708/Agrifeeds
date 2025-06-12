@@ -82,7 +82,7 @@ $recentOrders = $con->getRecentOrders($userID, 5);
     <!-- Main Content -->
     <div class="main-content">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1>Welcome, <?php echo htmlspecialchars($customerInfo['Cust_Name']); ?>!</h1>
+            <h1>Welcome, <?php echo htmlspecialchars($customerInfo['Cust_FN'] . ' ' . $customerInfo['Cust_LN']); ?>!</h1>
         </div>
 
         <!-- Summary Cards -->
