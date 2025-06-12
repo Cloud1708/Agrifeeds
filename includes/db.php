@@ -271,11 +271,20 @@ function registerUser($username, $password, $role, $photo = null, $firstName = n
             $stmt->execute([$username]);
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
             
+            error_log("Login attempt for username: " . $username);
+            error_log("User found: " . ($user ? 'yes' : 'no'));
+            
+            if ($user) {
+                error_log("User role: " . $user['User_Role']);
+                error_log("Password verification: " . (password_verify($password, $user['User_Password']) ? 'success' : 'failed'));
+            }
+            
             if ($user && password_verify($password, $user['User_Password'])) {
                 return $user;
             }
             return false;
         } catch (PDOException $e) {
+            error_log("Login error: " . $e->getMessage());
             return false;
         }
     }
@@ -718,6 +727,74 @@ function getOrderDetails($saleID) {
     ");
     $stmt->execute([$saleID]);
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+
+
+//
+
+
+function getAllUsers($offset = null, $limit = null) {
+    try {
+        $con = $this->opencon();
+        $sql = "SELECT * FROM USER_ACCOUNTS ORDER BY UserID";
+        
+        if ($offset !== null && $limit !== null) {
+            $sql .= " LIMIT ? OFFSET ?";
+            $stmt = $con->prepare($sql);
+            $stmt->bindValue(1, $limit, PDO::PARAM_INT);
+            $stmt->bindValue(2, $offset, PDO::PARAM_INT);
+        } else {
+            $stmt = $con->prepare($sql);
+        }
+        
+        $stmt->execute();
+        $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        error_log("getAllUsers - Number of users fetched: " . count($results));
+        error_log("getAllUsers - Offset: " . $offset . ", Limit: " . $limit);
+        return $results;
+    } catch (PDOException $e) {
+        error_log("getAllUsers error: " . $e->getMessage());
+        return false;
+    }
+}
+
+function getTotalUsers() {
+    try {
+        $con = $this->opencon();
+        $stmt = $con->prepare("SELECT COUNT(*) as total FROM USER_ACCOUNTS");
+        $stmt->execute();
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        $count = (int)$result['total'];
+        error_log("getTotalUsers - Raw count from database: " . $count);
+        return $count;
+    } catch (PDOException $e) {
+        error_log("getTotalUsers error: " . $e->getMessage());
+        return 0;
+    }
+}
+
+function updateUserRole($userID, $newRole) {
+    try {
+        $con = $this->opencon();
+        $con->beginTransaction();
+        
+        $stmt = $con->prepare("UPDATE USER_ACCOUNTS SET User_Role = ? WHERE UserID = ?");
+        $result = $stmt->execute([$newRole, $userID]);
+        
+        if ($result) {
+            error_log("Successfully updated role for user $userID to $newRole");
+        } else {
+            error_log("Failed to update role for user $userID");
+        }
+        
+        $con->commit();
+        return $result;
+    } catch (PDOException $e) {
+        error_log("updateUserRole error: " . $e->getMessage());
+        if (isset($con)) $con->rollBack();
+        return false;
+    }
 }
 
 }
