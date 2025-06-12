@@ -8,12 +8,20 @@ $success = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = trim($_POST['username']);
-    $name = trim($_POST['name']);
+    $firstName = trim($_POST['firstName']);
+    $lastName = trim($_POST['lastName']);
+    $countryCode = trim($_POST['countryCode']);
+    $phoneNumber = trim($_POST['phoneNumber']);
+    
+    // Remove leading zero if present
+    $phoneNumber = ltrim($phoneNumber, '0');
+    
+    $contactInfo = $countryCode . $phoneNumber; // Combine for database storage
     $password = $_POST['password'];
     $confirm_password = $_POST['confirm_password'];
     $photo = null;
 
-    if (empty($username) || empty($password) || empty($confirm_password) || empty($name)) {
+    if (empty($username) || empty($password) || empty($confirm_password) || empty($firstName) || empty($lastName) || empty($phoneNumber)) {
         $error = "All fields are required";
     } elseif ($password !== $confirm_password) {
         $error = "Passwords do not match";
@@ -41,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        $userID = $db->registerUser($username, $password, 2, $photo, $name);
+        $userID = $db->registerUser($username, $password, 2, $photo, $firstName, $lastName, $contactInfo);
 
         if ($userID) {
             $success = "Registration successful! Redirecting to login...";
@@ -138,6 +146,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             text-decoration: underline;
         }
     </style>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const phoneInput = document.getElementById('phoneNumber');
+            
+            phoneInput.addEventListener('input', function(e) {
+                let value = e.target.value;
+                // Remove leading zero if present
+                if (value.startsWith('0')) {
+                    value = value.substring(1);
+                }
+                // Update the input value
+                e.target.value = value;
+            });
+        });
+    </script>
 </head>
 <body>
 
@@ -154,13 +177,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         <form method="POST" enctype="multipart/form-data">
             <div class="mb-3">
-                <label class="form-label" for="name">Full Name</label>
-                <input type="text" name="name" class="form-control" id="name" required>
+                <label class="form-label" for="firstName">First Name</label>
+                <input type="text" name="firstName" class="form-control" id="firstName" required>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label" for="lastName">Last Name</label>
+                <input type="text" name="lastName" class="form-control" id="lastName" required>
             </div>
 
             <div class="mb-3">
                 <label class="form-label" for="username">Username</label>
                 <input type="text" name="username" class="form-control" id="username" required>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Phone Number</label>
+                <div class="input-group">
+                    <select class="form-select" name="countryCode" id="countryCode" style="max-width: 120px;">
+                        <option value="+63">+63 (PH)</option>
+                        <option value="+1">+1 (US)</option>
+                        <option value="+44">+44 (UK)</option>
+                        <option value="+61">+61 (AU)</option>
+                        <option value="+65">+65 (SG)</option>
+                        <option value="+60">+60 (MY)</option>
+                        <option value="+66">+66 (TH)</option>
+                        <option value="+84">+84 (VN)</option>
+                        <option value="+62">+62 (ID)</option>
+                    </select>
+                    <input type="tel" name="phoneNumber" class="form-control" id="phoneNumber" 
+                           placeholder="Enter phone number" required
+                           pattern="[0-9]{10,11}" 
+                           title="Please enter a valid phone number (10-11 digits)">
+                </div>
+                <small class="text-muted">Enter your mobile number (with or without starting 0)</small>
             </div>
 
             <div class="mb-3">
