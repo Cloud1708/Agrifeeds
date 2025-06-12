@@ -77,12 +77,13 @@ if (isset($_SESSION['sweetAlertConfig'])) {
  
 // Handle Add Customer
 if (isset($_POST['add'])) {
-    $customerName = $_POST['Cust_Name'];
+    $firstName = $_POST['Cust_FN'];
+    $lastName = $_POST['Cust_LN'];
     $contactInfo = $_POST['Cust_CoInfo'];
     $discountRate = $_POST['discountRate'];
     $enrollLoyalty = isset($_POST['enroll_loyalty']) ? true : false;
  
-    $custID = $con->addCustomer($customerName, $contactInfo, $discountRate, $enrollLoyalty);
+    $custID = $con->addCustomer($firstName, $lastName, $contactInfo, $discountRate, $enrollLoyalty);
  
     if ($custID) {
         // Update tier if enrolled in loyalty
@@ -114,12 +115,13 @@ if (isset($_POST['add'])) {
 // Handle Edit Customer
 if (isset($_POST['edit_customer'])) {
     $id = $_POST['customerID'];
-    $name = $_POST['Cust_Name'];
+    $firstName = $_POST['Cust_FN'];
+    $lastName = $_POST['Cust_LN'];
     $contactInfo = $_POST['Cust_CoInfo'];
     $discountRate = $_POST['discountRate'];
     $enrollLoyalty = isset($_POST['enroll_loyalty']) ? true : false;
  
-    $result = $con->updateCustomer($id, $name, $contactInfo, $discountRate, $enrollLoyalty);
+    $result = $con->updateCustomer($id, $firstName, $lastName, $contactInfo, $discountRate, $enrollLoyalty);
  
     if ($result) {
         // Update tier if enrolled in loyalty
@@ -296,7 +298,7 @@ foreach ($customers as $customer) {
                 ?>
                 <tr>
                     <td><?php echo $customer['CustomerID']?></td>
-                    <td><?php echo $customer['Cust_Name']?></td>
+                    <td><?php echo $customer['Cust_FN'] . ' ' . $customer['Cust_LN']?></td>
                     <td><?php echo $customer['Cust_CoInfo']?></td>
                     <td>
                         <?php
@@ -346,8 +348,12 @@ foreach ($customers as $customer) {
                 <div class="modal-body">
                     <form id="addCustomerForm" method="POST">
                         <div class="mb-3">
-                            <label for="customerName" class="form-label">Full Name</label>
-                            <input type="text" class="form-control" id="customerName" name="Cust_Name" required>
+                            <label for="firstName" class="form-label">First Name</label>
+                            <input type="text" class="form-control" id="firstName" name="Cust_FN" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="lastName" class="form-label">Last Name</label>
+                            <input type="text" class="form-control" id="lastName" name="Cust_LN" required>
                         </div>
                         <div class="mb-3">
                             <label for="contactInfo" class="form-label">Contact Information</label>
@@ -387,9 +393,14 @@ foreach ($customers as $customer) {
                     </div>
                     <div class="modal-body">
                         <div class="mb-3">
-                            <label for="editCustomerName" class="form-label">Full Name</label>
-                            <input type="text" class="form-control" id="editCustomerName" name="Cust_Name" required
-                                value="<?php echo isset($editCustomerData['Cust_Name']) ? htmlspecialchars($editCustomerData['Cust_Name']) : ''; ?>">
+                            <label for="editFirstName" class="form-label">First Name</label>
+                            <input type="text" class="form-control" id="editFirstName" name="Cust_FN" required
+                                value="<?php echo isset($editCustomerData['Cust_FN']) ? htmlspecialchars($editCustomerData['Cust_FN']) : ''; ?>">
+                        </div>
+                        <div class="mb-3">
+                            <label for="editLastName" class="form-label">Last Name</label>
+                            <input type="text" class="form-control" id="editLastName" name="Cust_LN" required
+                                value="<?php echo isset($editCustomerData['Cust_LN']) ? htmlspecialchars($editCustomerData['Cust_LN']) : ''; ?>">
                         </div>
                         <div class="mb-3">
                             <label for="editContactInfo" class="form-label">Contact Information</label>
@@ -558,7 +569,7 @@ foreach ($customers as $customer) {
             .then(data => {
                 // Update customer information
                 document.getElementById('viewCustomerId').textContent = data.CustomerID;
-                document.getElementById('viewCustomerName').textContent = data.Cust_Name;
+                document.getElementById('viewCustomerName').textContent = data.Cust_FN + ' ' + data.Cust_LN;
                 document.getElementById('viewCustomerContact').textContent = data.Cust_CoInfo;
                 document.getElementById('viewCustomerDiscount').textContent = data.Cust_DiscRate + '%';
                
