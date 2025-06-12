@@ -816,5 +816,85 @@ function updateUserRole($userID, $newRole) {
     }
 }
 
+function addAuditLog($userId, $action, $details) {
+    try {
+        $con = $this->opencon();
+        $ipAddress = $_SERVER['REMOTE_ADDR'];
+        
+        $stmt = $con->prepare("INSERT INTO audit_logs (user_id, action, details, ip_address, timestamp) 
+                              VALUES (?, ?, ?, ?, NOW())");
+        $result = $stmt->execute([$userId, $action, $details, $ipAddress]);
+        
+        return $result;
+    } catch (PDOException $e) {
+        error_log("Error adding audit log: " . $e->getMessage());
+        return false;
+    }
+}
+
+function getAuditLogs($start = 0, $length = 25, $search = '', $orderColumn = 'timestamp', $orderDir = 'DESC') {
+    try {
+        $con = $this->opencon();
+        
+        $query = "SELECT a.*, u.User_Name 
+                 FROM audit_logs a 
+                 LEFT JOIN USER_ACCOUNTS u ON a.user_id = u.UserID";
+        
+        if (!empty($search)) {
+            $query .= " WHERE a.action LIKE :search 
+                       OR a.details LIKE :search 
+                       OR u.User_Name LIKE :search 
+                       OR a.ip_address LIKE :search";
+        }
+        
+        $query .= " ORDER BY $orderColumn $orderDir LIMIT :start, :length";
+        
+        $stmt = $con->prepare($query);
+        
+        if (!empty($search)) {
+            $searchParam = "%$search%";
+            $stmt->bindParam(':search', $searchParam);
+        }
+        
+        $stmt->bindParam(':start', $start, PDO::PARAM_INT);
+        $stmt->bindParam(':length', $length, PDO::PARAM_INT);
+        $stmt->execute();
+        
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        error_log("Error getting audit logs: " . $e->getMessage());
+        return false;
+    }
+}
+
+function getTotalAuditLogs($search = '') {
+    try {
+        $con = $this->opencon();
+        
+        $query = "SELECT COUNT(*) FROM audit_logs a 
+                 LEFT JOIN USER_ACCOUNTS u ON a.user_id = u.UserID";
+        
+        if (!empty($search)) {
+            $query .= " WHERE a.action LIKE :search 
+                       OR a.details LIKE :search 
+                       OR u.User_Name LIKE :search 
+                       OR a.ip_address LIKE :search";
+        }
+        
+        $stmt = $con->prepare($query);
+        
+        if (!empty($search)) {
+            $searchParam = "%$search%";
+            $stmt->bindParam(':search', $searchParam);
+        }
+        
+        $stmt->execute();
+        return $stmt->fetchColumn();
+    } catch (PDOException $e) {
+        error_log("Error getting total audit logs: " . $e->getMessage());
+        return 0;
+    }
+}
+
 }
 ?>
