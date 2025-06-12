@@ -10,28 +10,47 @@ class database{
     }
 
     function addProduct($productName, $category, $description, $price, $stock, $imagePath = null) {
- 
         $con = $this->opencon();
        
         try {
+            if (!isset($_SESSION['user_id'])) {
+                error_log("User not logged in when adding product");
+                return ['success' => false, 'message' => 'User not logged in'];
+            }
+
             $con->beginTransaction();
  
-            $stmt = $con->prepare("INSERT INTO products (Prod_Name, Prod_Cat, Prod_Desc, Prod_Price, Prod_Stock, Prod_Image) VALUES (?, ?, ?, ?, ?, ?)");
-            $stmt->execute([$productName, $category, $description, $price, $stock, $imagePath]);
+            // Debug the image path
+            error_log("Image path being saved: " . ($imagePath ?? 'null'));
+ 
+            $stmt = $con->prepare("INSERT INTO products (Prod_Name, Prod_Cat, Prod_Desc, Prod_Price, Prod_Stock, Prod_Image, UserID, Prod_Created_at, Prod_Updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())");
+            
+            if (!$stmt) {
+                error_log("Failed to prepare statement: " . implode(", ", $con->errorInfo()));
+                throw new PDOException(implode(", ", $con->errorInfo()));
+            }
+
+            $params = [$productName, $category, $description, $price, $stock, $imagePath, $_SESSION['user_id']];
+            error_log("SQL Parameters: " . print_r($params, true));
+
+            $result = $stmt->execute($params);
            
+            if (!$result) {
+                error_log("Failed to execute statement: " . implode(", ", $stmt->errorInfo()));
+                throw new PDOException(implode(", ", $stmt->errorInfo()));
+            }
+
             $productID = $con->lastInsertId();
+            error_log("Product added successfully with ID: " . $productID);
  
             $con->commit();
- 
-            return $productID;
+            return ['success' => true, 'message' => 'Product added successfully'];
  
         } catch (PDOException $e) {
- 
-            $con->rollback();
-            return false;
- 
+            if (isset($con)) $con->rollback();
+            error_log("Error adding product: " . $e->getMessage());
+            return ['success' => false, 'message' => $e->getMessage()];
         }
- 
     }
 
     function viewProducts() {
