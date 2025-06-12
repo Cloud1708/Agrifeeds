@@ -13,55 +13,126 @@ if (isset($_SESSION['sweetAlertConfig'])) {
 }
  
 if (isset($_POST['add_product'])) {
- 
-  $productName = $_POST['productName'];
-  $category = $_POST['category'];
-  $description = $_POST['description'];
-  $price = $_POST['price'];
-  $stock = $_POST['stock'];
-  $imagePath = null;
- 
-  // Handle image upload
-  if (isset($_FILES['productImage']) && $_FILES['productImage']['error'] === UPLOAD_ERR_OK) {
-      $allowed = ['jpg', 'jpeg', 'png', 'gif'];
-      $filename = $_FILES['productImage']['name'];
-      $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-      if (in_array($ext, $allowed)) {
-          $new_filename = uniqid('prod_') . '.' . $ext;
-          $upload_path = '../uploads/product_images/' . $new_filename;
-          if (!is_dir('../uploads/product_images/')) {
-              mkdir('../uploads/product_images/', 0777, true);
-          }
-          if (move_uploaded_file($_FILES['productImage']['tmp_name'], $upload_path)) {
-              $imagePath = 'uploads/product_images/' . $new_filename; // relative path for DB
-          }
-      }
-  }
- 
-  $productID = $con->addProduct($productName, $category, $description, $price, $stock, $imagePath);
- 
-  if ($productID) {
-    $_SESSION['sweetAlertConfig'] = "
-    <script>
-    Swal.fire({
-        icon: 'success',
-        title: 'Product Added Successfully',
-        text: 'A new product has been added!',
-        confirmButtonText: 'Continue'
-     });
-    </script>";
-  } else {
-    $_SESSION['sweetAlertConfig'] = "<script>
+    $productName = $_POST['productName'];
+    $category = $_POST['category'];
+    $description = $_POST['description'];
+    $price = $_POST['price'];
+    $stock = $_POST['stock'];
+    
+    // Handle image upload
+    $imagePath = null;
+    if (isset($_FILES['product_image']) && $_FILES['product_image']['error'] === UPLOAD_ERR_OK) {
+        // Define the upload directory
+        $uploadDir = '../uploads/product_images/';
+        error_log("Attempting to upload to directory: " . $uploadDir);
+        
+        // Create directory if it doesn't exist
+        if (!file_exists($uploadDir)) {
+            error_log("Directory does not exist, attempting to create: " . $uploadDir);
+            if (!mkdir($uploadDir, 0777, true)) {
+                error_log("Failed to create directory: " . $uploadDir);
+                $_SESSION['sweetAlertConfig'] = "<script>
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'Failed to create upload directory'
+                    });
+                </script>";
+                header("Location: " . $_SERVER['PHP_SELF']);
+                exit();
+            }
+            error_log("Directory created successfully");
+        }
+        
+        // Verify directory is writable
+        if (!is_writable($uploadDir)) {
+            error_log("Directory not writable: " . $uploadDir);
+            $_SESSION['sweetAlertConfig'] = "<script>
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Upload directory is not writable'
+                });
+            </script>";
+            header("Location: " . $_SERVER['PHP_SELF']);
+            exit();
+        }
+        
+        $fileExtension = strtolower(pathinfo($_FILES['product_image']['name'], PATHINFO_EXTENSION));
+        $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif'];
+        
+        if (!in_array($fileExtension, $allowedExtensions)) {
+            $_SESSION['sweetAlertConfig'] = "<script>
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Invalid file type. Only JPG, JPEG, PNG, and GIF files are allowed.'
+                });
+            </script>";
+            header("Location: " . $_SERVER['PHP_SELF']);
+            exit();
+        }
+        
+        $fileName = uniqid() . '.' . $fileExtension;
+        $targetPath = $uploadDir . $fileName;
+        
+        // Debug upload information
+        error_log("File upload details:");
+        error_log("Original name: " . $_FILES['product_image']['name']);
+        error_log("Temporary path: " . $_FILES['product_image']['tmp_name']);
+        error_log("Target path: " . $targetPath);
+        
+        if (move_uploaded_file($_FILES['product_image']['tmp_name'], $targetPath)) {
+            // Set the relative path for database storage
+            $imagePath = 'uploads/product_images/' . $fileName;
+            error_log("Image uploaded successfully. Path: " . $imagePath);
+            
+            // Verify file exists after upload
+            if (file_exists($targetPath)) {
+                error_log("File exists after upload: " . $targetPath);
+            } else {
+                error_log("File does not exist after upload: " . $targetPath);
+            }
+        } else {
+            $uploadError = error_get_last();
+            error_log("Failed to upload image: " . ($uploadError ? $uploadError['message'] : 'Unknown error'));
+            $_SESSION['sweetAlertConfig'] = "<script>
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Failed to upload image: " . addslashes($uploadError ? $uploadError['message'] : 'Unknown error') . "'
+                });
+            </script>";
+            header("Location: " . $_SERVER['PHP_SELF']);
+            exit();
+        }
+    }
+    
+    // Debug the image path before database insertion
+    error_log("Image path before database insertion: " . ($imagePath ?? 'null'));
+    
+    $result = $con->addProduct($productName, $category, $description, $price, $stock, $imagePath);
+    
+    if ($result['success']) {
+        $_SESSION['sweetAlertConfig'] = "<script>
             Swal.fire({
-                icon: 'error',
-                title: 'Something went wrong',
-                text: 'Please try again.'
+                icon: 'success',
+                title: 'Success',
+                text: 'Product added successfully'
             });
         </script>";
-  }
-  // Redirect to avoid resubmission
-  header("Location: " . $_SERVER['PHP_SELF']);
-  exit();
+    } else {
+        $_SESSION['sweetAlertConfig'] = "<script>
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: '" . addslashes($result['message']) . "'
+            });
+        </script>";
+    }
+    
+    header("Location: " . $_SERVER['PHP_SELF']);
+    exit();
 }
  
 // Handle Edit Product
@@ -349,7 +420,7 @@ foreach ($allProducts as $prod) {
                         </div>
                         <div class="mb-3">
                             <label for="productImage" class="form-label">Product Image</label>
-                            <input type="file" class="form-control" id="productImage" name="productImage" accept="image/*">
+                            <input type="file" class="form-control" id="productImage" name="product_image" accept="image/*">
                         </div>
                         <div class="mb-3">
                             <label for="category" class="form-label">Category</label>
