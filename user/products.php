@@ -386,7 +386,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_from_cart'])) 
     <!-- SweetAlert2 -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <!-- Custom JS -->
-   <script>
+    <script>
     function incrementQuantity(button) {
         const input = button.parentElement.querySelector('input');
         const max = parseInt(input.getAttribute('max'));
@@ -395,7 +395,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_from_cart'])) 
             input.value = currentValue + 1;
         }
     }
- 
+
     function decrementQuantity(button) {
         const input = button.parentElement.querySelector('input');
         const currentValue = parseInt(input.value);
@@ -403,7 +403,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_from_cart'])) 
             input.value = currentValue - 1;
         }
     }
- 
+
     function validateQuantity(input, max) {
         let value = parseInt(input.value);
         if (isNaN(value) || value < 1) {
@@ -412,39 +412,71 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_from_cart'])) 
             input.value = max;
         }
     }
- 
+
     // Search and filter functionality
     document.getElementById('searchProduct').addEventListener('input', filterProducts);
     document.getElementById('categoryFilter').addEventListener('change', filterProducts);
- 
+
     function filterProducts() {
         const searchTerm = document.getElementById('searchProduct').value.toLowerCase();
         const category = document.getElementById('categoryFilter').value.toLowerCase();
         const products = document.querySelectorAll('#productsGrid .col-md-4');
- 
+
         products.forEach(product => {
             const title = product.querySelector('.card-title').textContent.toLowerCase();
             const description = product.querySelector('.card-text').textContent.toLowerCase();
             const productCategory = product.getAttribute('data-category') || '';
- 
+
             const matchesSearch = title.includes(searchTerm) || description.includes(searchTerm);
             const matchesCategory = !category || productCategory === category;
- 
+
             product.style.display = matchesSearch && matchesCategory ? '' : 'none';
         });
     }
- 
+
+    // Function to update cart content
+    function updateCartContent() {
+        const cartModal = document.getElementById('cartModal');
+        const modalBody = cartModal.querySelector('.modal-body');
+        const checkoutButton = cartModal.querySelector('.modal-footer .btn-success');
+
+        fetch('products.php', {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.text())
+        .then(html => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const newCartContent = doc.querySelector('#cartModal .modal-body');
+            
+            if (newCartContent) {
+                modalBody.innerHTML = newCartContent.innerHTML;
+                
+                // Update checkout button visibility
+                if (checkoutButton) {
+                    checkoutButton.style.display = newCartContent.querySelector('table') ? 'block' : 'none';
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error updating cart:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Failed to update cart. Please try again.',
+                confirmButtonText: 'Close'
+            });
+        });
+    }
+
     // SweetAlert for Add to Cart
     document.querySelectorAll('form[action=""]').forEach(form => {
         form.addEventListener('submit', function(e) {
             e.preventDefault();
             const formData = new FormData(form);
-            
-            // Debug: Log form data
-            console.log('Form Data:', {
-                product_id: formData.get('product_id'),
-                quantity: formData.get('quantity')
-            });
             
             fetch('products.php', {
                 method: 'POST',
@@ -453,16 +485,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_from_cart'])) 
                     'X-Requested-With': 'XMLHttpRequest'
                 }
             })
-            .then(response => {
-                // Debug: Log raw response
-                console.log('Raw Response:', response);
-                return response.json();
-            })
+            .then(response => response.json())
             .then(data => {
-                // Debug: Log parsed data
-                console.log('Response Data:', data);
-                
                 if (data.success) {
+                    // Update cart content
+                    updateCartContent();
+                    
                     Swal.fire({
                         icon: 'success',
                         title: 'Added to Cart!',
@@ -488,9 +516,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_from_cart'])) 
                 }
             })
             .catch(error => {
-                // Debug: Log error details
-                console.error('Fetch Error:', error);
-                
                 Swal.fire({
                     icon: 'error',
                     title: 'Error',
@@ -500,12 +525,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_from_cart'])) 
             });
         });
     });
- 
+
     // SweetAlert for Remove from Cart
     document.querySelectorAll('.remove-from-cart-form').forEach(form => {
         form.addEventListener('submit', function(e) {
             e.preventDefault();
             const formData = new FormData(form);
+            
             fetch('products.php', {
                 method: 'POST',
                 body: formData,
@@ -516,35 +542,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_from_cart'])) 
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
+                    // Update cart content
+                    updateCartContent();
+                    
                     Swal.fire({
                         icon: 'success',
                         title: 'Removed from Cart!',
                         showConfirmButton: false,
                         timer: 1200
                     });
-                    // Remove the row from the cart table
-                    const row = form.closest('tr');
-                    if (row) row.remove();
- 
-                    // Optionally, update the total price or show "cart is empty" if needed
-                    const cartTableBody = document.querySelector('#cartModal tbody');
-                    if (cartTableBody && cartTableBody.children.length === 0) {
-                        // Replace table with empty cart message
-                        const modalBody = document.querySelector('#cartModal .modal-body');
-                        if (modalBody) {
-                            modalBody.innerHTML = `
-                                <div class="text-center text-muted py-4">
-                                    <i class="bi bi-cart-x" style="font-size:2rem;"></i><br>
-                                    Your cart is empty.
-                                </div>
-                            `;
-                        }
-                    }
                 }
+            })
+            .catch(error => {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Failed to remove item from cart. Please try again.',
+                    confirmButtonText: 'Close'
+                });
             });
         });
     });
- 
+
     // Promo code autocomplete
     document.addEventListener('DOMContentLoaded', function() {
         const promoInput = document.getElementById('promoCodeInput');
