@@ -9,6 +9,35 @@ ob_start();
 require_once('../includes/db.php');
 $con = new database();
 session_start();
+
+// Handle checkout process
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['payment_method'])) {
+    // Ensure no output before JSON response
+    ob_clean();
+    
+    try {
+        if (!isset($_SESSION['cart']) || empty($_SESSION['cart'])) {
+            echo json_encode(['success' => false, 'message' => 'Your cart is empty']);
+            exit();
+        }
+
+        // Process the order
+        $total = 0;
+        foreach ($_SESSION['cart'] as $item) {
+            $total += $item['price'] * $item['quantity'];
+        }
+
+        // Clear the cart after successful order
+        $_SESSION['cart'] = [];
+        
+        // Return success response
+        echo json_encode(['success' => true, 'message' => 'Order placed successfully']);
+        exit();
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'message' => 'An error occurred: ' . $e->getMessage()]);
+        exit();
+    }
+}
  
 // Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
@@ -172,9 +201,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_from_cart'])) 
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1>Available Products</h1>
             <div class="d-flex gap-2">
-                <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#cartModal">
-                    <i class="bi bi-cart"></i> View Cart
-                </button>
+                <form method="GET" action="products.php" style="display: inline;">
+                    <input type="hidden" name="show_cart" value="1">
+                    <button type="submit" class="btn btn-outline-primary">
+                        <i class="bi bi-cart"></i> View Cart
+                    </button>
+                </form>
                 <div class="input-group">
                     <span class="input-group-text">
                         <i class="bi bi-search"></i>
@@ -334,12 +366,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_from_cart'])) 
     <div class="modal fade" id="checkoutModal" tabindex="-1" aria-labelledby="checkoutModalLabel" aria-hidden="true">
       <div class="modal-dialog modal-lg">
         <div class="modal-content">
-          <form id="checkoutForm" method="POST" action="checkout.php">
+          <form id="checkoutForm" method="POST">
             <div class="modal-header">
               <h5 class="modal-title" id="checkoutModalLabel"><i class="bi bi-credit-card"></i> Checkout</h5>
               <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body" id="checkoutModalBody">
               <div class="mb-3">
                 <label class="form-label fw-bold">Customer Name:</label>
                 <div>
@@ -352,7 +384,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_from_cart'])) 
               </div>
               <div class="mb-3">
                 <label class="form-label fw-bold">Items:</label>
-                <ul class="list-group">
+                <ul class="list-group" id="checkoutItems">
                   <?php foreach ($_SESSION['cart'] as $item): ?>
                     <li class="list-group-item d-flex justify-content-between align-items-center">
                       <?php echo htmlspecialchars($item['name']); ?> x <?php echo $item['quantity']; ?>
@@ -474,7 +506,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_from_cart'])) 
         });
     }
 
-    // SweetAlert for Add to Cart
+    // Function to update checkout modal content
+    function updateCheckoutContent() {
+        const checkoutItems = document.getElementById('checkoutItems');
+        if (!checkoutItems) return;
+
+        fetch('products.php', {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.text())
+        .then(html => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const newCheckoutItems = doc.querySelector('#checkoutItems');
+            
+            if (newCheckoutItems) {
+                checkoutItems.innerHTML = newCheckoutItems.innerHTML;
+            }
+        })
+        .catch(error => {
+            console.error('Error updating checkout content:', error);
+        });
+    }
+
+    // Update checkout content when modal is shown
+    document.getElementById('checkoutModal').addEventListener('show.bs.modal', function () {
+        updateCheckoutContent();
+    });
+
+    // Update both cart and checkout content when adding to cart
     document.querySelectorAll('form[action=""]').forEach(form => {
         form.addEventListener('submit', function(e) {
             e.preventDefault();
@@ -490,8 +553,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_from_cart'])) 
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // Update cart content
+                    // Update both cart and checkout content
                     updateCartContent();
+                    updateCheckoutContent();
                     
                     Swal.fire({
                         icon: 'success',
@@ -500,12 +564,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_from_cart'])) 
                         showCancelButton: true,
                         confirmButtonText: 'View Cart',
                         cancelButtonText: 'Close',
-                        reverseButtons: true
+                        reverseButtons: true,
+                        allowOutsideClick: false,
+                        allowEscapeKey: false
                     }).then((result) => {
                         if (result.isConfirmed) {
                             // Show cart modal
                             const cartModal = new bootstrap.Modal(document.getElementById('cartModal'));
                             cartModal.show();
+                        } else {
+                            // Refresh and redirect to products page
+                            setTimeout(() => {
+                                window.location.href = 'products.php';
+                            }, 100);
                         }
                     });
                 } else {
@@ -513,7 +584,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_from_cart'])) 
                         icon: 'error',
                         title: 'Error',
                         text: data.message || 'Failed to add product to cart. Please try again.',
-                        confirmButtonText: 'Close'
+                        confirmButtonText: 'Close',
+                        allowOutsideClick: false,
+                        allowEscapeKey: false
+                    }).then(() => {
+                        // Refresh and redirect to products page
+                        setTimeout(() => {
+                            window.location.href = 'products.php';
+                        }, 100);
                     });
                 }
             })
@@ -523,6 +601,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_from_cart'])) 
                     title: 'Error',
                     text: 'An error occurred: ' + error.message,
                     confirmButtonText: 'Close'
+                }).then(() => {
+                    // Refresh and redirect to products page
+                    setTimeout(() => {
+                        window.location.href = 'products.php';
+                    }, 100);
                 });
             });
         });
@@ -552,6 +635,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_from_cart'])) 
                         title: 'Removed from Cart!',
                         showConfirmButton: false,
                         timer: 1200
+                    }).then(() => {
+                        // Refresh and redirect to products page
+                        setTimeout(() => {
+                            window.location.href = 'products.php';
+                        }, 100);
                     });
                 }
             })
@@ -561,6 +649,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_from_cart'])) 
                     title: 'Error',
                     text: 'Failed to remove item from cart. Please try again.',
                     confirmButtonText: 'Close'
+                }).then(() => {
+                    // Refresh and redirect to products page
+                    setTimeout(() => {
+                        window.location.href = 'products.php';
+                    }, 100);
                 });
             });
         });
@@ -608,6 +701,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_from_cart'])) 
                     suggestions.style.display = 'none';
                 }
             });
+        }
+    });
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Check if we should show the cart modal
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('show_cart') === '1') {
+            // Show the cart modal
+            const cartModal = new bootstrap.Modal(document.getElementById('cartModal'));
+            cartModal.show();
+            
+            // Remove the show_cart parameter from the URL without refreshing
+            const newUrl = window.location.pathname + window.location.search.replace(/[?&]show_cart=1/, '');
+            window.history.replaceState({}, '', newUrl);
         }
     });
     </script>
