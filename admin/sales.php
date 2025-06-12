@@ -1,3 +1,5 @@
+Reyes, Althea Gabrielle
+TARTA
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -16,7 +18,7 @@
 </head>
 <body>
     <?php include '../includes/sidebar.php'; ?>
-
+ 
     <!-- Main Content -->
     <div class="main-content">
         <div class="d-flex justify-content-between align-items-center mb-4">
@@ -30,7 +32,7 @@
                 </button>
             </div>
         </div>
-
+ 
         <!-- Sales Summary Cards -->
         <div class="row mb-4">
             <div class="col-md-3">
@@ -66,7 +68,7 @@
                 </div>
             </div>
         </div>
-
+ 
         <!-- Search and Filter -->
         <div class="row mb-4">
             <div class="col-md-3">
@@ -74,7 +76,7 @@
                     <span class="input-group-text">
                         <i class="bi bi-search"></i>
                     </span>
-                    <input type="text" class="form-control" id="saleSearch" 
+                    <input type="text" class="form-control" id="saleSearch"
                            placeholder="Search sales..." aria-label="Search sales">
                 </div>
             </div>
@@ -97,7 +99,7 @@
                 </div>
             </div>
         </div>
-
+ 
         <!-- Sales Table -->
         <div class="table-responsive">
             <table class="table table-striped table-hover">
@@ -109,7 +111,7 @@
                         <th>Sale Person</th>
                         <th>Customer</th>
                         <th>Promotion</th>
-                        <th>Payment</th>
+                        <th>Status</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -119,7 +121,7 @@
             </table>
         </div>
     </div>
-
+ 
     <!-- New Sale Modal -->
     <div class="modal fade" id="newSaleModal" tabindex="-1" aria-labelledby="newSaleModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg">
@@ -143,7 +145,7 @@
                                 <input type="date" class="form-control" id="saleDate" required>
                             </div>
                         </div>
-
+ 
                         <div class="mb-3">
                             <label class="form-label">Products</label>
                             <div id="productList">
@@ -155,15 +157,15 @@
                                         </select>
                                     </div>
                                     <div class="col-md-2">
-                                        <input type="number" class="form-control quantity-input" 
+                                        <input type="number" class="form-control quantity-input"
                                                placeholder="Qty" min="1" required>
                                     </div>
                                     <div class="col-md-2">
-                                        <input type="number" class="form-control price-input" 
+                                        <input type="number" class="form-control price-input"
                                                placeholder="Price" step="0.01" min="0" readonly>
                                     </div>
                                     <div class="col-md-2">
-                                        <input type="number" class="form-control subtotal-input" 
+                                        <input type="number" class="form-control subtotal-input"
                                                placeholder="Subtotal" readonly>
                                     </div>
                                     <div class="col-md-2">
@@ -177,7 +179,7 @@
                                 <i class="bi bi-plus-lg"></i> Add Product
                             </button>
                         </div>
-
+ 
                         <div class="row mb-3">
                             <div class="col-md-6">
                                 <label for="paymentMethod" class="form-label">Payment Method</label>
@@ -196,14 +198,14 @@
                                 </select>
                             </div>
                         </div>
-
+ 
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="discount" class="form-label">Discount</label>
                                     <div class="input-group">
                                         <span class="input-group-text">$</span>
-                                        <input type="number" class="form-control" id="discount" 
+                                        <input type="number" class="form-control" id="discount"
                                                step="0.01" min="0" value="0">
                                     </div>
                                 </div>
@@ -213,13 +215,13 @@
                                     <label for="totalAmount" class="form-label">Total Amount</label>
                                     <div class="input-group">
                                         <span class="input-group-text">$</span>
-                                        <input type="number" class="form-control" id="totalAmount" 
+                                        <input type="number" class="form-control" id="totalAmount"
                                                step="0.01" min="0" readonly>
                                     </div>
                                 </div>
                             </div>
                         </div>
-
+ 
                         <div class="mb-3">
                             <label for="promotionSelect" class="form-label">Promotion</label>
                             <select class="form-select" id="promotionSelect">
@@ -236,7 +238,7 @@
             </div>
         </div>
     </div>
-
+ 
     <!-- Sale Items Modal -->
     <div class="modal fade" id="saleItemsModal" tabindex="-1" aria-labelledby="saleItemsModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg">
@@ -269,7 +271,7 @@
             </div>
         </div>
     </div>
-
+ 
     <!-- Payment History Modal -->
     <div class="modal fade" id="paymentHistoryModal" tabindex="-1" aria-labelledby="paymentHistoryModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-xl">
@@ -286,7 +288,7 @@
                                 <span class="input-group-text">
                                     <i class="bi bi-search"></i>
                                 </span>
-                                <input type="text" class="form-control" id="paymentSearch" 
+                                <input type="text" class="form-control" id="paymentSearch"
                                        placeholder="Search payments..." aria-label="Search payments">
                             </div>
                         </div>
@@ -309,7 +311,7 @@
                             </div>
                         </div>
                     </div>
-
+ 
                     <!-- Payment History Table -->
                     <div class="table-responsive">
                         <table class="table table-striped table-hover">
@@ -336,11 +338,12 @@
             </div>
         </div>
     </div>
-
+ 
     <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <!-- Custom JS -->
-    
+   
     <script src="../js/scripts.js"></script>
 </body>
-</html> 
+</html>
+ 

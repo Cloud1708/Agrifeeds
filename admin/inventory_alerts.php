@@ -34,21 +34,26 @@ foreach ($products as $product) {
     $priority = 'low';
     $currentStock = $product['Prod_Stock'];
     $expirationDate = $product['Prod_ExpDate'] ?? null;
- 
-    // Low stock logic with different thresholds and priorities
-    if ($currentStock <= $highThreshold) {
-        $alertType = 'Low Stock';
-        $priority = 'low';
-        $threshold = $highThreshold;
-    } elseif ($currentStock <= $mediumThreshold) {
-        $alertType = 'Low Stock';
-        $priority = 'medium';
-        $threshold = $mediumThreshold;
-    } elseif ($currentStock <= $lowThreshold) {
-        $alertType = 'Low Stock';
-        $priority = 'high';
-        $threshold = $lowThreshold;
-    }
+   
+    if ($currentStock == 0) {
+    $alertType = 'Out of Stock';
+    $priority = 'high';
+    $threshold = 0;
+}
+// Low stock logic with different thresholds and priorities
+elseif ($currentStock <= $highThreshold) {
+    $alertType = 'Low Stock';
+    $priority = 'high';
+    $threshold = $highThreshold;
+} elseif ($currentStock <= $mediumThreshold) {
+    $alertType = 'Low Stock';
+    $priority = 'medium';
+    $threshold = $mediumThreshold;
+} elseif ($currentStock <= $lowThreshold) {
+    $alertType = 'Low Stock';
+    $priority = 'low';
+    $threshold = $lowThreshold;
+}
     // Expiring soon
     elseif ($expirationDate && strtotime($expirationDate) <= strtotime("+$expiringDays days")) {
         $alertType = 'Expiring Soon';
@@ -345,4 +350,3 @@ foreach ($products as $product) {
 </script>
 </body>
 </html>
- 

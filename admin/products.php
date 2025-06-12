@@ -1,4 +1,5 @@
 <?php
+ 
 session_start();
  
 require_once('../includes/db.php');
@@ -18,7 +19,26 @@ if (isset($_POST['add_product'])) {
   $description = $_POST['description'];
   $price = $_POST['price'];
   $stock = $_POST['stock'];
-  $productID = $con->addProduct($productName, $category, $description, $price, $stock);
+  $imagePath = null;
+ 
+  // Handle image upload
+  if (isset($_FILES['productImage']) && $_FILES['productImage']['error'] === UPLOAD_ERR_OK) {
+      $allowed = ['jpg', 'jpeg', 'png', 'gif'];
+      $filename = $_FILES['productImage']['name'];
+      $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+      if (in_array($ext, $allowed)) {
+          $new_filename = uniqid('prod_') . '.' . $ext;
+          $upload_path = '../uploads/product_images/' . $new_filename;
+          if (!is_dir('../uploads/product_images/')) {
+              mkdir('../uploads/product_images/', 0777, true);
+          }
+          if (move_uploaded_file($_FILES['productImage']['tmp_name'], $upload_path)) {
+              $imagePath = 'uploads/product_images/' . $new_filename; // relative path for DB
+          }
+      }
+  }
+ 
+  $productID = $con->addProduct($productName, $category, $description, $price, $stock, $imagePath);
  
   if ($productID) {
     $_SESSION['sweetAlertConfig'] = "
@@ -130,7 +150,6 @@ foreach ($allProducts as $prod) {
     }
 }
  
- 
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -152,6 +171,8 @@ foreach ($allProducts as $prod) {
 </head>
 <body>
     <?php include '../includes/sidebar.php';  ?>
+ 
+   
  
     <!-- Main Content -->
     <div class="main-content">
@@ -235,6 +256,7 @@ foreach ($allProducts as $prod) {
                 <thead>
                     <tr>
                         <th>Product ID</th>
+                        <th>Image</th>
                         <th>Name</th>
                         <th>Category</th>
                         <th>Description</th>
@@ -246,11 +268,9 @@ foreach ($allProducts as $prod) {
                 </thead>
                 <tbody>
                     <?php
-           
-            $data = $con->viewProducts();
-            foreach ($data as $rows) {
- 
-                if ($rows['Prod_Stock'] == 0) {
+                    $data = $con->viewProducts();
+                    foreach ($data as $rows) {
+                        if ($rows['Prod_Stock'] == 0) {
                             $statusClass = 'bg-danger';
                             $status = 'Out of Stock';
                         } elseif ($rows['Prod_Stock'] > 0 && $rows['Prod_Stock'] <= 10) {
@@ -260,50 +280,53 @@ foreach ($allProducts as $prod) {
                             $statusClass = 'bg-success';
                             $status = 'In Stock';
                         }
- 
-            ?>
- 
-              <tr>
-                <td><?php echo $rows['ProductID']?></td>
-                <td><?php echo $rows['Prod_Name']?></td>
-                <td><?php echo $rows['Prod_Cat']?></td>
-                <td><?php echo $rows['Prod_Desc']?></td>
-                <td>₱<?php echo number_format($rows['Prod_Price'], 2); ?></td>
-                <td><?php echo $rows['Prod_Stock']?></td>
-                <td><span class="badge <?php echo $statusClass; ?>"><?php echo $status; ?></span></td>
-                <td>
-  <div class="btn-group" role="group">
-    <!-- EDIT BUTTON -->
-    <button
-        type="button"
-        class="btn btn-warning btn-sm editProductBtn"
-        data-id="<?php echo $rows['ProductID']; ?>"
-        data-name="<?php echo htmlspecialchars($rows['Prod_Name']); ?>"
-        data-category="<?php echo htmlspecialchars($rows['Prod_Cat']); ?>"
-        data-description="<?php echo htmlspecialchars($rows['Prod_Desc']); ?>"
-        data-price="<?php echo $rows['Prod_Price']; ?>"
-        data-stock="<?php echo $rows['Prod_Stock']; ?>"
-        data-bs-toggle="modal"
-        data-bs-target="#editProductModal"
-    >
-      <i class="bi bi-pencil-square"></i>
-    </button>
-   
-<!-- DELETE BUTTON -->
-<form method="POST" class="mx-1 deleteProductForm" style="display:inline;">
-  <input type="hidden" name="id" value="<?php echo $rows['ProductID']; ?>">
-  <input type="hidden" name="delete" value="1"> <!-- ADD THIS LINE -->
-  <button type="button" name="deleteBtn" class="btn btn-danger btn-sm deleteProductBtn">
-    <i class="bi bi-x-square"></i>
-  </button>
-</form>
-  </div>
-</td>
-              </tr>
- 
-              <?php
-            }
-            ?>
+                    ?>
+                    <tr>
+                        <td><?php echo $rows['ProductID']?></td>
+                        <td>
+                            <?php if (!empty($rows['Prod_Image'])): ?>
+                                <img src="../<?php echo $rows['Prod_Image']; ?>" alt="Product Image" style="width:50px;height:50px;object-fit:cover;">
+                            <?php else: ?>
+                                <span class="text-muted">No Image</span>
+                            <?php endif; ?>
+                        </td>
+                        <td><?php echo $rows['Prod_Name']?></td>
+                        <td><?php echo $rows['Prod_Cat']?></td>
+                        <td><?php echo $rows['Prod_Desc']?></td>
+                        <td>₱<?php echo number_format($rows['Prod_Price'], 2); ?></td>
+                        <td><?php echo $rows['Prod_Stock']?></td>
+                        <td><span class="badge <?php echo $statusClass; ?>"><?php echo $status; ?></span></td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <!-- EDIT BUTTON -->
+                                <button
+                                    type="button"
+                                    class="btn btn-warning btn-sm editProductBtn"
+                                    data-id="<?php echo $rows['ProductID']; ?>"
+                                    data-name="<?php echo htmlspecialchars($rows['Prod_Name']); ?>"
+                                    data-category="<?php echo htmlspecialchars($rows['Prod_Cat']); ?>"
+                                    data-description="<?php echo htmlspecialchars($rows['Prod_Desc']); ?>"
+                                    data-price="<?php echo $rows['Prod_Price']; ?>"
+                                    data-stock="<?php echo $rows['Prod_Stock']; ?>"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#editProductModal"
+                                >
+                                  <i class="bi bi-pencil-square"></i>
+                                </button>
+                                <!-- DELETE BUTTON -->
+                                <form method="POST" class="mx-1 deleteProductForm" style="display:inline;">
+                                  <input type="hidden" name="id" value="<?php echo $rows['ProductID']; ?>">
+                                  <input type="hidden" name="delete" value="1">
+                                  <button type="button" name="deleteBtn" class="btn btn-danger btn-sm deleteProductBtn">
+                                    <i class="bi bi-x-square"></i>
+                                  </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    <?php
+                    }
+                    ?>
                 </tbody>
             </table>
         </div>
@@ -318,11 +341,15 @@ foreach ($allProducts as $prod) {
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <form id="addProductForm" method="POST">
+                    <form id="addProductForm" method="POST" enctype="multipart/form-data">
                         <input type="hidden" name="add_product" value="1">
                         <div class="mb-3">
                             <label for="productName" class="form-label">Product Name</label>
                             <input type="text" class="form-control" id="productName" name="productName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="productImage" class="form-label">Product Image</label>
+                            <input type="file" class="form-control" id="productImage" name="productImage" accept="image/*">
                         </div>
                         <div class="mb-3">
                             <label for="category" class="form-label">Category</label>
@@ -358,7 +385,6 @@ foreach ($allProducts as $prod) {
             </div>
         </div>
     </div>
- 
  
     <!-- Edit Product Modal -->
     <div class="modal fade" id="editProductModal" tabindex="-1" aria-labelledby="editProductModalLabel" aria-hidden="true">
@@ -454,10 +480,10 @@ foreach ($allProducts as $prod) {
             const stock = stockFilter.value;
             rows.forEach(row => {
                 const cells = row.querySelectorAll('td');
-                const name = cells[1].textContent.toLowerCase();
-                const cat = cells[2].textContent.toLowerCase();
-                const desc = cells[3].textContent.toLowerCase();
-                const stockVal = parseInt(cells[5].textContent);
+                const name = cells[2].textContent.toLowerCase();
+                const cat = cells[3].textContent.toLowerCase();
+                const desc = cells[4].textContent.toLowerCase();
+                const stockVal = parseInt(cells[6].textContent);
                 let show = true;
                 if (search && !(name.includes(search) || cat.includes(search) || desc.includes(search))) {
                     show = false;
@@ -479,7 +505,7 @@ foreach ($allProducts as $prod) {
  
         // SORTING
         table.querySelectorAll('th').forEach((th, idx) => {
-            if (idx === 7) return; // Skip Actions column
+            if (idx === 8) return; // Skip Actions column
             th.style.cursor = 'pointer';
             th.addEventListener('click', function() {
                 let dir = 1;
@@ -489,7 +515,7 @@ foreach ($allProducts as $prod) {
                     let aText = a.children[idx].textContent.trim();
                     let bText = b.children[idx].textContent.trim();
                     // Numeric sort for price, stock, id
-                    if (idx === 0 || idx === 4 || idx === 5) {
+                    if (idx === 0 || idx === 5 || idx === 6) {
                         aText = parseFloat(aText.replace(/[^\d.\-]/g, ''));
                         bText = parseFloat(bText.replace(/[^\d.\-]/g, ''));
                         if (isNaN(aText)) aText = 0;
@@ -505,28 +531,28 @@ foreach ($allProducts as $prod) {
         });
     });
  
-document.querySelectorAll('.deleteProductBtn').forEach(function(btn) {
-    btn.addEventListener('click', function(e) {
-        e.preventDefault();
-        const form = btn.closest('form');
-        Swal.fire({
-            title: 'Are you sure?',
-            text: "This product will be deleted!",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#d33',
-            cancelButtonColor: '#6c757d',
-            confirmButtonText: 'Yes, delete it!',
-            reverseButtons: true
-        }).then((result) => {
-            if (result.isConfirmed) {
-                form.submit();
-            }
+    document.querySelectorAll('.deleteProductBtn').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const form = btn.closest('form');
+            Swal.fire({
+                title: 'Are you sure?',
+                text: "This product will be deleted!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Yes, delete it!',
+                reverseButtons: true
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    form.submit();
+                }
+            });
         });
     });
-});
  
-</script>
-<?php echo $sweetAlertConfig; ?>
+    </script>
+    <?php echo $sweetAlertConfig; ?>
 </body>
 </html>
