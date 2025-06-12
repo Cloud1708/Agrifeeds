@@ -189,6 +189,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="mb-3">
                 <label class="form-label" for="username">Username</label>
                 <input type="text" name="username" class="form-control" id="username" required>
+                <div class="valid-feedback">Username is available!</div>
+                <div class="invalid-feedback">Please enter a valid username.</div>
+                <div id="usernameFeedback" class="invalid-feedback"></div>
             </div>
 
             <div class="mb-3">
@@ -239,5 +242,64 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
 
     <script src="bootstrap-5.3.3-dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+    $(document).ready(function(){
+        let usernameValid = false;
+
+        function toggleNextButton() {
+            $('#nextButton').prop('disabled', !usernameValid);
+        }
+
+        $('#username').on('input', function(){
+            var username = $(this).val();
+            if (username.length > 0) {
+                $.ajax({
+                    url: 'AJAX/check_username.php',
+                    method: 'POST',
+                    data: { username: username },
+                    dataType: 'json',
+                    success: function(response) {
+                        if (response.exists) {
+                            // Username is already taken
+                            $('#username').removeClass('is-valid').addClass('is-invalid');
+                            $('#usernameFeedback').text('Username is already taken.').show();
+                            $('#username')[0].setCustomValidity('Username is already taken.');
+                            $('#username').siblings('.invalid-feedback').not('#usernameFeedback').hide();
+                            usernameValid = false;
+                        } else {
+                            // Username is valid and available
+                            $('#username').removeClass('is-invalid').addClass('is-valid');
+                            $('#usernameFeedback').text('').hide();
+                            $('#username')[0].setCustomValidity('');
+                            $('#username').siblings('.valid-feedback').show();
+                            usernameValid = true;
+                        }
+                        toggleNextButton();
+                    },
+                    error: function(xhr, status, error) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'An error occurred while checking username availability.'
+                        });
+                        usernameValid = false;
+                        toggleNextButton();
+                    }
+                });
+            } else {
+                // Empty input reset
+                $('#username').removeClass('is-valid is-invalid');
+                $('#usernameFeedback').text('').hide();
+                $('#username')[0].setCustomValidity('');
+                usernameValid = false;
+                toggleNextButton();
+            }
+        });
+
+        // Initial state
+        toggleNextButton();
+    });
+    </script>
 </body>
 </html>
