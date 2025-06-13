@@ -387,24 +387,28 @@ function updateMemberTier($customerId) {
     $stmt->execute([$customerId]);
     $points = (int)$stmt->fetchColumn();
 
-    // Determine tier
+    // Determine tier and discount rate
     if ($points >= 15000) {
         $tier = 'Gold';
+        $discount = 15;
     } elseif ($points >= 10000) {
         $tier = 'Silver';
+        $discount = 10;
     } elseif ($points >= 5000) {
         $tier = 'Bronze';
+        $discount = 5;
     } else {
         $tier = 'None';
+        $discount = 0;
     }
 
     // Update tier in DB
     $stmt = $con->prepare("UPDATE loyalty_program SET LP_MbspTier = ? WHERE CustomerID = ?");
     $stmt->execute([$tier, $customerId]);
 
-    // Update loyalty status in customers table
-    $stmt = $con->prepare("UPDATE customers SET Cust_LoStat = ? WHERE CustomerID = ?");
-    $stmt->execute([$tier, $customerId]);
+    // Update loyalty status and discount rate in customers table
+    $stmt = $con->prepare("UPDATE customers SET Cust_LoStat = ?, Cust_DiscRate = ? WHERE CustomerID = ?");
+    $stmt->execute([$tier, $discount, $customerId]);
 }
 
     // Pricing History Functions
