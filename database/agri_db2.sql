@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Jun 12, 2025 at 12:27 PM
+-- Generation Time: Jun 12, 2025 at 01:37 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -51,28 +51,13 @@ INSERT INTO `categories` (`CategoryID`, `CategoryName`) VALUES
 
 CREATE TABLE `customers` (
   `CustomerID` int(11) NOT NULL,
-  `UserID` int(11) NOT NULL,
-  `Cust_FN` varchar(100) DEFAULT NULL,
-  `Cust_LN` varchar(100) DEFAULT NULL,
+  `UserID` int(11) DEFAULT NULL,
+  `Cust_FN` varchar(255) NOT NULL,
+  `Cust_LN` varchar(255) NOT NULL,
   `Cust_CoInfo` varchar(255) DEFAULT NULL,
   `Cust_LoStat` varchar(100) DEFAULT NULL,
   `Cust_DiscRate` decimal(5,2) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `customers`
---
-
-INSERT INTO `customers` (`CustomerID`, `UserID`, `Cust_FN`, `Cust_LN`, `Cust_CoInfo`, `Cust_LoStat`, `Cust_DiscRate`) VALUES
-(1, 0, NULL, NULL, 'Farm Owner', 'None', 5.00),
-(2, 0, NULL, NULL, 'Retailer', 'None', 3.00),
-(3, 7, NULL, NULL, '2', 'None', 2.00),
-(4, 8, NULL, NULL, 'sdd', 'None', 23.00),
-(5, 9, NULL, NULL, 'test', 'None', 0.00),
-(6, 4, NULL, NULL, 'aiannnnn', 'None', 0.00),
-(7, 5, NULL, NULL, 'aian21', 'None', 0.00),
-(8, 6, 'Cris', 'Hernandez', '+639952604071', 'None', 0.00),
-(9, 7, 'Cris Carlo', 'Hernandez', '+639952604071', 'Bronze', 0.00);
 
 -- --------------------------------------------------------
 
@@ -88,14 +73,6 @@ CREATE TABLE `customer_discount_rate` (
   `CDR_ExpirationDate` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
---
--- Dumping data for table `customer_discount_rate`
---
-
-INSERT INTO `customer_discount_rate` (`CusDiscountID`, `CustomerID`, `CDR_DiscountRate`, `CDR_EffectiveDate`, `CDR_ExpirationDate`) VALUES
-(1, 1, 5.00, '2025-06-03 07:06:52', '2025-06-03 07:06:52'),
-(2, 2, 3.00, '2025-06-03 07:06:52', '2025-06-03 07:06:52');
-
 -- --------------------------------------------------------
 
 --
@@ -109,24 +86,6 @@ CREATE TABLE `inventory_alerts` (
   `IA_Threshold` int(11) DEFAULT NULL,
   `IA_AlertDate` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `inventory_alerts`
---
-
-INSERT INTO `inventory_alerts` (`AlertID`, `ProductID`, `IA_AlertType`, `IA_Threshold`, `IA_AlertDate`) VALUES
-(1, 1, 'Low Stock', 10, '2025-06-03 07:06:52'),
-(2, 2, 'Out of Stock', 0, '2025-06-03 07:06:52'),
-(3, 5, 'Low Stock', 5, '2025-06-12 07:45:03'),
-(4, 6, 'Low Stock', 5, '2025-06-12 07:45:03'),
-(5, 7, 'Low Stock', 5, '2025-06-12 08:20:51'),
-(6, 5, 'Out of Stock', 0, '2025-06-12 08:25:16'),
-(7, 7, 'Out of Stock', 0, '2025-06-12 08:25:16'),
-(8, 8, 'Low Stock', 5, '2025-06-12 08:28:35'),
-(9, 8, 'Low Stock', 15, '2025-06-12 08:28:44'),
-(10, 9, 'Low Stock', 5, '2025-06-12 08:32:32'),
-(11, 10, 'Low Stock', 5, '2025-06-12 08:36:14'),
-(12, 11, 'Out of Stock', 0, '2025-06-12 08:36:35');
 
 -- --------------------------------------------------------
 
@@ -142,17 +101,6 @@ CREATE TABLE `inventory_history` (
   `IH_ChangeDate` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
---
--- Dumping data for table `inventory_history`
---
-
-INSERT INTO `inventory_history` (`IHID`, `ProductID`, `IH_QtyChange`, `IH_NewStckLvl`, `IH_ChangeDate`) VALUES
-(1, 1, -10, 90, '2025-06-03 07:06:52'),
-(2, 2, 20, 100, '2025-06-03 07:06:52'),
-(3, 7, 100, 100, '2025-06-12 02:25:45'),
-(4, 8, 10, 11, '2025-06-12 02:28:42'),
-(5, 8, 10, 21, '2025-06-12 02:29:53');
-
 -- --------------------------------------------------------
 
 --
@@ -166,18 +114,6 @@ CREATE TABLE `loyalty_program` (
   `LP_MbspTier` varchar(100) DEFAULT NULL,
   `LP_LastUpdt` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `loyalty_program`
---
-
-INSERT INTO `loyalty_program` (`LoyaltyID`, `CustomerID`, `LP_PtsBalance`, `LP_MbspTier`, `LP_LastUpdt`) VALUES
-(1, 1, 3200, 'None', '2025-06-03 07:06:52'),
-(2, 2, 1100, 'None', '2025-06-03 07:06:52'),
-(3, 6, 0, 'None', '2025-06-11 17:57:14'),
-(4, 7, 0, 'None', '2025-06-11 17:59:02'),
-(5, 8, 0, 'None', '2025-06-12 05:07:43'),
-(6, 9, 5000, 'Bronze', '2025-06-12 05:09:06');
 
 -- --------------------------------------------------------
 
@@ -194,14 +130,6 @@ CREATE TABLE `loyalty_transaction_history` (
   `LoTranH_TransDesc` text DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
---
--- Dumping data for table `loyalty_transaction_history`
---
-
-INSERT INTO `loyalty_transaction_history` (`LoTranHID`, `LoyaltyID`, `LoTranH_PtsEarned`, `LoTranH_PtsRedeemed`, `LoTranH_TransDate`, `LoTranH_TransDesc`) VALUES
-(1, 1, 200, 0, '2025-06-03 07:06:52', 'Initial points'),
-(2, 2, 0, 100, '2025-06-03 07:06:52', 'Redeemed for discount');
-
 -- --------------------------------------------------------
 
 --
@@ -216,14 +144,6 @@ CREATE TABLE `order_promotions` (
   `OrderP_AppliedDate` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
---
--- Dumping data for table `order_promotions`
---
-
-INSERT INTO `order_promotions` (`OrderPromotionID`, `SaleID`, `PromotionID`, `OrderP_DiscntApplied`, `OrderP_AppliedDate`) VALUES
-(1, 1, 1, 10.00, '2025-06-03 07:06:53'),
-(2, 2, 2, 20.00, '2025-06-03 07:06:53');
-
 -- --------------------------------------------------------
 
 --
@@ -237,14 +157,6 @@ CREATE TABLE `payment_history` (
   `PT_PayDate` timestamp NOT NULL DEFAULT current_timestamp(),
   `PT_PayMethod` varchar(100) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `payment_history`
---
-
-INSERT INTO `payment_history` (`PaytoryID`, `SaleID`, `PT_PayAmount`, `PT_PayDate`, `PT_PayMethod`) VALUES
-(1, 1, 100.00, '2025-06-03 07:06:51', 'Cash'),
-(2, 2, 320.00, '2025-06-03 07:06:51', 'Card');
 
 -- --------------------------------------------------------
 
@@ -262,14 +174,6 @@ CREATE TABLE `pricing_history` (
   `PH_Effective_to` date DEFAULT NULL,
   `PH_Created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `pricing_history`
---
-
-INSERT INTO `pricing_history` (`HistoryID`, `ProductID`, `PH_OldPrice`, `PH_NewPrice`, `PH_ChangeDate`, `PH_Effective_from`, `PH_Effective_to`, `PH_Created_at`) VALUES
-(1, 1, 45.00, 50.00, '2025-06-03 07:06:50', '2024-06-01', NULL, '2025-06-03 07:06:50'),
-(2, 2, 40.00, 45.00, '2025-06-03 07:06:50', '2024-06-01', NULL, '2025-06-03 07:06:50');
 
 -- --------------------------------------------------------
 
@@ -290,24 +194,6 @@ CREATE TABLE `products` (
   `Prod_Updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
---
--- Dumping data for table `products`
---
-
-INSERT INTO `products` (`ProductID`, `Prod_Name`, `Prod_Cat`, `Prod_Desc`, `Prod_Price`, `Prod_Stock`, `Prod_Image`, `UserID`, `Prod_Created_at`, `Prod_Updated_at`) VALUES
-(1, 'B-MEG Chicken Feed', 'Poultry', 'High quality chicken feed', 50.00, 100, NULL, 1, '2025-06-03 07:06:50', '2025-06-03 07:06:50'),
-(2, 'Purina Pig Feed', 'Swine', 'Premium pig feed', 45.00, 80, NULL, 2, '2025-06-03 07:06:50', '2025-06-03 07:06:50'),
-(3, 'Nutri-Mix Cattle Feed', 'Cattle', 'Balanced cattle feed', 65.00, 120, NULL, 1, '2025-06-03 07:06:50', '2025-06-03 07:06:50'),
-(4, 'Integra 4000', 'feed', 'patuka sa chicken', 45.00, 1000, 'uploads/product_images/prod_684a6a976c0f9.png', NULL, '2025-06-12 05:50:15', '2025-06-12 05:50:15'),
-(5, 'Integra 3000', 'feed', 'dsadad', 35.00, 0, 'uploads/product_images/prod_684a72b89b04b.png', NULL, '2025-06-12 06:24:56', '2025-06-12 06:24:56'),
-(6, 'Integra 2000', 'feed', 'sdasda', 25.00, 1, 'uploads/product_images/prod_684a7306015f3.png', NULL, '2025-06-12 06:26:14', '2025-06-12 06:26:14'),
-(7, 'B Meg Starter', 'feed', 'sdsad', 190.00, 100, 'uploads/product_images/prod_684a8ddfd2d02.png', NULL, '2025-06-12 08:20:47', '2025-06-12 08:25:45'),
-(8, 'dda', 'feed', 'sdasd', 212.00, 21, 'uploads/product_images/prod_684a8fafd6926.png', NULL, '2025-06-12 08:28:31', '2025-06-12 08:29:53'),
-(9, 'sdasdada', 'feed', 'sdad', 121.00, 1, 'uploads/product_images/prod_684a909ea72f0.png', NULL, '2025-06-12 08:32:30', '2025-06-12 08:32:30'),
-(10, 'sdsad', 'supplements', 'sdsad', 12.00, 1, NULL, NULL, '2025-06-12 08:36:11', '2025-06-12 08:36:11'),
-(11, 'dsda', 'feed', 'dsadasd', 121.00, 0, NULL, NULL, '2025-06-12 08:36:32', '2025-06-12 08:36:32'),
-(12, 'sdasd', 'supplements', 'sdasd', 166.00, 10, 'uploads/product_images/prod_684aa32cb3de9.png', NULL, '2025-06-12 09:51:40', '2025-06-12 09:51:40');
-
 -- --------------------------------------------------------
 
 --
@@ -321,14 +207,6 @@ CREATE TABLE `product_access_log` (
   `Pal_Action` varchar(100) DEFAULT NULL,
   `Pal_TimeStamp` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `product_access_log`
---
-
-INSERT INTO `product_access_log` (`LogID`, `ProductID`, `UserID`, `Pal_Action`, `Pal_TimeStamp`) VALUES
-(1, 1, 1, 'view', '2025-06-03 07:06:53'),
-(2, 2, 2, 'edit', '2025-06-03 07:06:53');
 
 -- --------------------------------------------------------
 
@@ -349,14 +227,6 @@ CREATE TABLE `promotions` (
   `Promo_IsActive` tinyint(1) DEFAULT 1
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
---
--- Dumping data for table `promotions`
---
-
-INSERT INTO `promotions` (`PromotionID`, `Prom_Code`, `Promo_Description`, `Promo_DiscAmnt`, `Promo_DiscountType`, `Promo_StartDate`, `Promo_EndDate`, `UsageLimit`, `Promo_MaxDiscAmnt`, `Promo_IsActive`) VALUES
-(1, 'SUMMER10', '10% off summer promo', 10.00, 'percentage', '2025-06-03 07:06:52', '2025-06-03 07:06:52', 100, 50.00, 0),
-(2, 'BUNDLE20', 'Bundle deal for pig and cattle feed', 20.00, 'fixed', '2025-06-03 07:06:52', '2025-06-03 07:06:52', 50, 20.00, 0);
-
 -- --------------------------------------------------------
 
 --
@@ -370,14 +240,6 @@ CREATE TABLE `purchase_orders` (
   `PO_Order_Stat` varchar(100) DEFAULT NULL,
   `PO_Total_Amount` decimal(10,2) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `purchase_orders`
---
-
-INSERT INTO `purchase_orders` (`Pur_OrderID`, `PO_Order_Date`, `SupplierID`, `PO_Order_Stat`, `PO_Total_Amount`) VALUES
-(1, '2025-06-03 07:06:51', 1, 'Pending', 1200.00),
-(2, '2025-06-03 07:06:51', 2, 'Completed', 800.00);
 
 -- --------------------------------------------------------
 
@@ -393,15 +255,6 @@ CREATE TABLE `purchase_order_item` (
   `Pur_OIPrice` decimal(10,2) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
---
--- Dumping data for table `purchase_order_item`
---
-
-INSERT INTO `purchase_order_item` (`Pur_OrderItemID`, `Pur_OrderID`, `ProductID`, `Pur_OIQuantity`, `Pur_OIPrice`) VALUES
-(1, 1, 1, 10, 50.00),
-(2, 1, 2, 5, 45.00),
-(3, 2, 3, 8, 65.00);
-
 -- --------------------------------------------------------
 
 --
@@ -415,14 +268,6 @@ CREATE TABLE `sales` (
   `Sale_Per` varchar(100) DEFAULT NULL,
   `CustomerID` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `sales`
---
-
-INSERT INTO `sales` (`SaleID`, `Sale_Date`, `Sale_Method`, `Sale_Per`, `CustomerID`) VALUES
-(1, '2025-06-03 07:06:51', 'Cash', 'John', 1),
-(2, '2025-06-03 07:06:51', 'Card', 'Jane', 2);
 
 -- --------------------------------------------------------
 
@@ -438,15 +283,6 @@ CREATE TABLE `sale_item` (
   `SI_Price` decimal(10,2) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
---
--- Dumping data for table `sale_item`
---
-
-INSERT INTO `sale_item` (`SaleItemID`, `SaleID`, `ProductID`, `SI_Quantity`, `SI_Price`) VALUES
-(1, 1, 1, 2, 50.00),
-(2, 1, 2, 1, 45.00),
-(3, 2, 3, 3, 65.00);
-
 -- --------------------------------------------------------
 
 --
@@ -460,14 +296,6 @@ CREATE TABLE `suppliers` (
   `Sup_PayTerm` varchar(100) DEFAULT NULL,
   `Sup_DeSched` varchar(100) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `suppliers`
---
-
-INSERT INTO `suppliers` (`SupplierID`, `Sup_Name`, `Sup_CoInfo`, `Sup_PayTerm`, `Sup_DeSched`) VALUES
-(1, 'AgriSupplier Inc.', 'Bulk Supplier', 'Net 30', 'Weekly'),
-(2, 'FarmGoods Co.', 'Local Supplier', 'Immediate', 'Monthly');
 
 -- --------------------------------------------------------
 
@@ -504,19 +332,6 @@ CREATE TABLE `user_accounts` (
   `User_CreatedAt` timestamp NOT NULL DEFAULT current_timestamp(),
   `User_Photo` varchar(255) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `user_accounts`
---
-
-INSERT INTO `user_accounts` (`UserID`, `User_Name`, `User_Password`, `User_Role`, `User_CreatedAt`, `User_Photo`) VALUES
-(1, 'admin', 'adminpass', 1, '2025-06-03 07:06:50', 'admin.jpg'),
-(2, 'john', 'johnpass', 2, '2025-06-03 07:06:50', 'john.jpg'),
-(3, 'jane', 'janepass', 3, '2025-06-03 07:06:50', 'jane.jpg'),
-(4, 'aiannnnn', '$2y$10$eYvVDQ84QJZXVR1D84Tzh.LFs7R.LMIFbqblmqfVq2EdoOqyZOHHW', 2, '2025-06-11 17:57:14', NULL),
-(5, 'aian21', '$2y$10$3e.bJWFDbHp7ERIvES5xJeqaIYO6OGFMe0hZKh0vworm6zbHoInZG', 2, '2025-06-11 17:59:02', NULL),
-(6, 'cris', '$2y$10$/ocJ0ad2XbIvYmywh131tOfyZCxUWWuRFDC7kvpiyfd4h2lbGRNly', 2, '2025-06-12 05:07:43', 'uploads/profile_photos/684a609f00b07.jpg'),
-(7, 'criscarlo', '$2y$10$.IxTARv0mjBWyhyCE.OBX.6FJzg3PPyoI1OFsqTjt5MOxs/XxXU7K', 2, '2025-06-12 05:09:06', 'uploads/profile_photos/684a60f2b54d0.jpg');
 
 --
 -- Indexes for dumped tables
@@ -675,103 +490,103 @@ ALTER TABLE `categories`
 -- AUTO_INCREMENT for table `customers`
 --
 ALTER TABLE `customers`
-  MODIFY `CustomerID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
+  MODIFY `CustomerID` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `customer_discount_rate`
 --
 ALTER TABLE `customer_discount_rate`
-  MODIFY `CusDiscountID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `CusDiscountID` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `inventory_alerts`
 --
 ALTER TABLE `inventory_alerts`
-  MODIFY `AlertID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
+  MODIFY `AlertID` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `inventory_history`
 --
 ALTER TABLE `inventory_history`
-  MODIFY `IHID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `IHID` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `loyalty_program`
 --
 ALTER TABLE `loyalty_program`
-  MODIFY `LoyaltyID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `LoyaltyID` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `loyalty_transaction_history`
 --
 ALTER TABLE `loyalty_transaction_history`
-  MODIFY `LoTranHID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `LoTranHID` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `order_promotions`
 --
 ALTER TABLE `order_promotions`
-  MODIFY `OrderPromotionID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `OrderPromotionID` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `payment_history`
 --
 ALTER TABLE `payment_history`
-  MODIFY `PaytoryID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `PaytoryID` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `pricing_history`
 --
 ALTER TABLE `pricing_history`
-  MODIFY `HistoryID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `HistoryID` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `products`
 --
 ALTER TABLE `products`
-  MODIFY `ProductID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
+  MODIFY `ProductID` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `product_access_log`
 --
 ALTER TABLE `product_access_log`
-  MODIFY `LogID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `LogID` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `promotions`
 --
 ALTER TABLE `promotions`
-  MODIFY `PromotionID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `PromotionID` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `purchase_orders`
 --
 ALTER TABLE `purchase_orders`
-  MODIFY `Pur_OrderID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `Pur_OrderID` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `purchase_order_item`
 --
 ALTER TABLE `purchase_order_item`
-  MODIFY `Pur_OrderItemID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `Pur_OrderItemID` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `sales`
 --
 ALTER TABLE `sales`
-  MODIFY `SaleID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `SaleID` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `sale_item`
 --
 ALTER TABLE `sale_item`
-  MODIFY `SaleItemID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `SaleItemID` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `suppliers`
 --
 ALTER TABLE `suppliers`
-  MODIFY `SupplierID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `SupplierID` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `units`
@@ -783,11 +598,17 @@ ALTER TABLE `units`
 -- AUTO_INCREMENT for table `user_accounts`
 --
 ALTER TABLE `user_accounts`
-  MODIFY `UserID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `UserID` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- Constraints for dumped tables
 --
+
+--
+-- Constraints for table `customers`
+--
+ALTER TABLE `customers`
+  ADD CONSTRAINT `fk_customers_user_accounts` FOREIGN KEY (`UserID`) REFERENCES `user_accounts` (`UserID`) ON UPDATE CASCADE;
 
 --
 -- Constraints for table `customer_discount_rate`
