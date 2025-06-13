@@ -900,7 +900,7 @@ function getTotalAuditLogs($search = '') {
     }
 }
 
-    function getAvailablePromos($userID = null) {
+function getAvailablePromos($userID = null) {
     $con = $this->opencon();
     $today = date('Y-m-d H:i:s');
     $sql = "SELECT * FROM promotions 
@@ -949,7 +949,6 @@ function getTotalAuditLogs($search = '') {
     $stmt = $con->prepare("INSERT INTO promo_usage (PromotionID, UserID) VALUES (?, ?)");
     $stmt->execute([$promotionId, $userId]);
 }
-
 
 }
 ?>
