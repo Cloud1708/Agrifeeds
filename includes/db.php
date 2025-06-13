@@ -900,5 +900,56 @@ function getTotalAuditLogs($search = '') {
     }
 }
 
+    function getAvailablePromos($userID = null) {
+    $con = $this->opencon();
+    $today = date('Y-m-d H:i:s');
+    $sql = "SELECT * FROM promotions 
+        WHERE Promo_IsActive = 1 
+          AND DATE(Promo_StartDate) <= CURDATE() 
+          AND DATE(Promo_EndDate) >= CURDATE()";
+    $stmt = $con->prepare($sql);
+    $stmt->execute();
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Filter by usage limit
+    $filtered = [];
+    foreach ($promos as $promo) {
+        if (empty($promo['UsageLimit']) || $promo['UsageLimit'] == 0) {
+            $filtered[] = $promo; // Unlimited usage
+            continue;
+        }
+        $used = $this->getPromoUsageCount($promo['PromotionID']);
+        if ($used < $promo['UsageLimit']) {
+            $filtered[] = $promo;
+        }
+    }
+    return $filtered;
+}
+
+     function getPromoByCode($code) {
+    $con = $this->opencon();
+    $sql = "SELECT * FROM promotions 
+        WHERE Promo_IsActive = 1 
+          AND DATE(Promo_StartDate) <= CURDATE() 
+          AND DATE(Promo_EndDate) >= CURDATE()";
+    $stmt = $con->prepare($sql);
+    $stmt->execute();
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+    function getPromoUsageCount($promotionId) {
+    $con = $this->opencon();
+    $stmt = $con->prepare("SELECT COUNT(*) FROM promo_usage WHERE PromotionID = ?");
+    $stmt->execute([$promotionId]);
+    return (int)$stmt->fetchColumn();
+}
+
+    function logPromoUsage($promotionId, $userId) {
+    $con = $this->opencon();
+    $stmt = $con->prepare("INSERT INTO promo_usage (PromotionID, UserID) VALUES (?, ?)");
+    $stmt->execute([$promotionId, $userId]);
+}
+
+
 }
 ?>

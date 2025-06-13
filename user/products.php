@@ -14,6 +14,14 @@ session_start();
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['payment_method'])) {
     // Ensure no output before JSON response
     ob_clean();
+
+    $promoCode = isset($_POST['promo_code']) ? $_POST['promo_code'] : '';
+    if ($promoCode) {
+        $promo = $con->getPromoByCode($promoCode);
+        if ($promo && isset($promo['PromotionID'])) {
+            $con->logPromoUsage($promo['PromotionID'], $_SESSION['user_id']);
+        }
+    }
     
     try {
         if (!isset($_SESSION['cart']) || empty($_SESSION['cart'])) {
@@ -52,6 +60,12 @@ $customerInfo = $con->getCustomerInfo($userID);
  
 // Get all available products
 $products = $con->getAllProducts();
+
+// Fetch available promos (assuming you have a method for this)
+$promos = [];
+if (method_exists($con, 'getAvailablePromos')) {
+    $promos = $con->getAvailablePromos($userID); // Adjust as needed
+}
  
 // --- CART LOGIC (SESSION BASED) ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'], $_POST['quantity'])) {
@@ -401,11 +415,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_from_cart'])) 
                 </select>
               </div>
               <div class="mb-3 position-relative">
-                <label class="form-label fw-bold">Promo Code:</label>
-                <input type="text" class="form-control" id="promoCodeInput" name="promo_code" autocomplete="off" placeholder="Enter promo code">
-                <div id="promoSuggestions" class="list-group position-absolute" style="z-index: 1000;"></div>
-              </div>
-            </div>
+    <label class="form-label fw-bold">Promo Code:</label>
+    <?php if (!empty($promos)): ?>
+        <select class="form-select" name="promo_code" id="promoCodeSelect">
+            <option value="">-- Select Promo Code --</option>
+            <?php foreach ($promos as $promo): ?>
+                <option value="<?php echo htmlspecialchars($promo['Prom_Code']); ?>">
+                    <?php echo htmlspecialchars($promo['Prom_Code'] . ' - ' . $promo['Promo_Description']); ?>
+                </option>
+            <?php endforeach; ?>
+        </select>
+    <?php else: ?>
+        <input type="text" class="form-control" id="promoCodeInput" name="promo_code" placeholder="No available promos" disabled>
+    <?php endif; ?>
+</div>
             <div class="modal-footer">
               <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
               <button type="submit" class="btn btn-success">Confirm Purchase</button>
@@ -659,50 +682,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_from_cart'])) 
         });
     });
 
-    // Promo code autocomplete
-    document.addEventListener('DOMContentLoaded', function() {
-        const promoInput = document.getElementById('promoCodeInput');
-        const suggestions = document.getElementById('promoSuggestions');
-        if (promoInput) {
-            promoInput.addEventListener('input', function() {
-                const query = promoInput.value.trim();
-                if (query.length === 0) {
-                    suggestions.innerHTML = '';
-                    suggestions.style.display = 'none';
-                    return;
-                }
-                fetch('../promotions.php?search=' + encodeURIComponent(query))
-                    .then(res => res.json())
-                    .then(data => {
-                        suggestions.innerHTML = '';
-                        if (Array.isArray(data) && data.length > 0) {
-                            data.forEach(promo => {
-                                const item = document.createElement('button');
-                                item.type = 'button';
-                                item.className = 'list-group-item list-group-item-action';
-                                item.textContent = promo.code + ' - ' + promo.description;
-                                item.onclick = function() {
-                                    promoInput.value = promo.code;
-                                    suggestions.innerHTML = '';
-                                    suggestions.style.display = 'none';
-                                };
-                                suggestions.appendChild(item);
-                            });
-                            suggestions.style.display = 'block';
-                        } else {
-                            suggestions.style.display = 'none';
-                        }
-                    });
-            });
-            // Hide suggestions when clicking outside
-            document.addEventListener('click', function(e) {
-                if (!promoInput.contains(e.target) && !suggestions.contains(e.target)) {
-                    suggestions.innerHTML = '';
-                    suggestions.style.display = 'none';
-                }
-            });
-        }
-    });
 
     document.addEventListener('DOMContentLoaded', function() {
         // Check if we should show the cart modal
