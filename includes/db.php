@@ -1304,13 +1304,16 @@ function getAvailablePromos($userID = null) {
         SELECT 
             s.SaleID, 
             s.Sale_Date, 
-            a.User_Name AS SalePerson, 
             s.Sale_Per, 
+            s.CustomerID, 
             CONCAT(c.Cust_FN, ' ', c.Cust_LN) AS CustomerName, 
+            p.Prom_Code AS PromotionName,
             s.Sale_Status
         FROM Sales s
         LEFT JOIN USER_ACCOUNTS a ON s.Sale_Per = a.UserID
         LEFT JOIN Customers c ON s.CustomerID = c.CustomerID
+        LEFT JOIN Order_Promotions op ON s.SaleID = op.SaleID
+        LEFT JOIN promotions p ON op.PromotionID = p.PromotionID
         ORDER BY s.SaleID DESC
     ");
     $stmt->execute();

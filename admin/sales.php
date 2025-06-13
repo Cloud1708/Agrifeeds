@@ -157,7 +157,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mark_completed'], $_P
     <td><?php echo $sale['Sale_Date']; ?></td>
     <td><?php echo htmlspecialchars($sale['Sale_Per']); // This is the admin ID ?></td>
     <td><?php echo htmlspecialchars($sale['CustomerName']); ?></td>
-    <td><?php echo !empty($sale['PromotionName']) ? htmlspecialchars($sale['PromotionName']) : '-'; ?></td>
+    <td>
+<?php echo !empty($sale['PromotionName']) ? htmlspecialchars($sale['PromotionName']) : '-'; ?>
+</td>
     <td><?php echo isset($sale['Sale_Status']) ? htmlspecialchars($sale['Sale_Status']) : '-'; ?></td>
     <td>
     <?php if (isset($sale['Sale_Status']) && $sale['Sale_Status'] === 'Pending'): ?>
