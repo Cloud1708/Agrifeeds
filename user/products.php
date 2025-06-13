@@ -110,46 +110,61 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['payment_method'])) {
     ob_clean();
 
     $promoCode = isset($_POST['promo_code']) ? $_POST['promo_code'] : '';
+    $promoDiscount = 0;
+    $promoLabel = '';
+
+    // Compute cart total
+    $total = 0;
+    foreach ($_SESSION['cart'] as $item) {
+        $total += $item['price'] * $item['quantity'];
+    }
+
+    // Apply customer discount (loyalty)
+    $discountRate = isset($customerInfo['Cust_DiscRate']) ? floatval($customerInfo['Cust_DiscRate']) : 0;
+    $discountAmount = $discountRate > 0 ? $total * ($discountRate / 100) : 0;
+    $totalAfterCustomerDiscount = $total - $discountAmount;
+
+    // Apply promo code if provided and valid
     if ($promoCode) {
-        $promo = $con->getPromoByCode($promoCode);
-        if ($promo && isset($promo['PromotionID'])) {
-            $con->logPromoUsage($promo['PromotionID'], $_SESSION['user_id']);
+        $allPromos = $con->getAvailablePromos($userID);
+        $selectedPromo = null;
+        foreach ($allPromos as $promo) {
+            if (strcasecmp($promo['Prom_Code'], $promoCode) == 0) {
+                $selectedPromo = $promo;
+                break;
+            }
+        }
+        if ($selectedPromo) {
+            if (strcasecmp($selectedPromo['Promo_DiscountType'], "Percentage") == 0) {
+                $promoDiscount = $totalAfterCustomerDiscount * (floatval($selectedPromo['Promo_DiscAmnt']) / 100);
+                $promoLabel = $selectedPromo['Prom_Code'] . ' (-' . floatval($selectedPromo['Promo_DiscAmnt']) . '%)';
+            } else {
+                $promoDiscount = min(floatval($selectedPromo['Promo_DiscAmnt']), $totalAfterCustomerDiscount);
+                $promoLabel = $selectedPromo['Prom_Code'] . ' (-₱' . number_format($selectedPromo['Promo_DiscAmnt'], 2) . ')';
+            }
+            $con->logPromoUsage($selectedPromo['PromotionID'], $_SESSION['user_id']);
         }
     }
 
-    try {
-        if (!isset($_SESSION['cart']) || empty($_SESSION['cart'])) {
-            echo json_encode(['success' => false, 'message' => 'Your cart is empty']);
-            exit();
-        }
+    // Final total after both customer and promo discounts
+    $finalTotal = $totalAfterCustomerDiscount - $promoDiscount;
 
-        // Process the order
-        $total = 0;
-        foreach ($_SESSION['cart'] as $item) {
-            $total += $item['price'] * $item['quantity'];
-        }
+    // Clear the cart after successful order
+    $_SESSION['cart'] = [];
 
-        // Apply customer discount
-        $discountRate = isset($customerInfo['Cust_DiscRate']) ? floatval($customerInfo['Cust_DiscRate']) : 0;
-        $discountAmount = $discountRate > 0 ? $total * ($discountRate / 100) : 0;
-        $finalTotal = $total - $discountAmount;
-
-        // Clear the cart after successful order
-        $_SESSION['cart'] = [];
-
-        // Return success response
-        echo json_encode([
-            'success' => true,
-            'message' => 'Order placed successfully',
-            'discount' => $discountAmount,
-            'discount_rate' => $discountRate,
-            'final_total' => $finalTotal
-        ]);
-        exit();
-    } catch (Exception $e) {
-        echo json_encode(['success' => false, 'message' => 'An error occurred: ' . $e->getMessage()]);
-        exit();
-    }
+    // Return success response with breakdown
+    echo json_encode([
+        'success' => true,
+        'message' => 'Order placed successfully',
+        'original_total' => $total,
+        'customer_discount_rate' => $discountRate,
+        'customer_discount_amount' => $discountAmount,
+        'promo_code' => $promoCode,
+        'promo_label' => $promoLabel,
+        'promo_discount' => $promoDiscount,
+        'final_total' => $finalTotal
+    ]);
+    exit();
 }
 ?>
 <!DOCTYPE html>
@@ -377,7 +392,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['payment_method'])) {
             <div class="text-end fw-bold fs-5">
                 Subtotal: ₱<?php echo number_format($total, 2); ?><br>
                 <?php if ($discountRate > 0): ?>
-                    Discount (<?php echo $discountRate; ?>%): -₱<?php echo number_format($discountAmount, 2); ?><br>
+                    Customer Discount (<?php echo $discountRate; ?>%): -₱<?php echo number_format($discountAmount, 2); ?><br>
                     <span class="text-success">Total after Discount: ₱<?php echo number_format($finalTotal, 2); ?></span>
                 <?php else: ?>
                     <span>Total: ₱<?php echo number_format($total, 2); ?></span>
@@ -441,38 +456,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['payment_method'])) {
                 </select>
               </div>
               <div class="mb-3 position-relative">
-    <label class="form-label fw-bold">Promo Code:</label>
-    <?php if (!empty($promos)): ?>
-        <select class="form-select" name="promo_code" id="promoCodeSelect">
-            <option value="">-- Select Promo Code --</option>
-            <?php foreach ($promos as $promo): ?>
-                <option value="<?php echo htmlspecialchars($promo['Prom_Code']); ?>">
-                    <?php echo htmlspecialchars($promo['Prom_Code']); ?>
-                </option>
-            <?php endforeach; ?>
-        </select>
-    <?php else: ?>
-        <input type="text" class="form-control" id="promoCodeInput" name="promo_code" placeholder="No available promos" disabled>
-    <?php endif; ?>
-</div>
-              <?php
-                // Compute again for checkout modal
-                $total = 0;
-                foreach ($_SESSION['cart'] as $item) {
-                    $total += $item['price'] * $item['quantity'];
-                }
-                $discountRate = isset($customerInfo['Cust_DiscRate']) ? floatval($customerInfo['Cust_DiscRate']) : 0;
-                $discountAmount = $discountRate > 0 ? $total * ($discountRate / 100) : 0;
-                $finalTotal = $total - $discountAmount;
-              ?>
-              <div class="mb-3 text-end fw-bold fs-5">
-                Subtotal: ₱<?php echo number_format($total, 2); ?><br>
-                <?php if ($discountRate > 0): ?>
-                    Discount (<?php echo $discountRate; ?>%): -₱<?php echo number_format($discountAmount, 2); ?><br>
-                    <span class="text-success">Total after Discount: ₱<?php echo number_format($finalTotal, 2); ?></span>
+                <label class="form-label fw-bold">Promo Code:</label>
+                <?php if (!empty($promos)): ?>
+                    <select class="form-select" name="promo_code" id="promoCodeSelect">
+                        <option value="">-- Select Promo Code --</option>
+                        <?php foreach ($promos as $promo): ?>
+                            <option value="<?php echo htmlspecialchars($promo['Prom_Code']); ?>">
+                                <?php echo htmlspecialchars($promo['Prom_Code'] . ' - ' . $promo['Promo_Description']); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
                 <?php else: ?>
-                    <span>Total: ₱<?php echo number_format($total, 2); ?></span>
+                    <input type="text" class="form-control" id="promoCodeInput" name="promo_code" placeholder="No available promos" disabled>
                 <?php endif; ?>
+              </div>
+              <div id="checkoutDiscountBreakdown" class="mb-3 text-end fw-bold fs-5">
+                <!-- Discount breakdown will be updated by JS -->
               </div>
             </div>
             <div class="modal-footer">
@@ -728,7 +727,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['payment_method'])) {
         });
     });
 
-
     document.addEventListener('DOMContentLoaded', function() {
         // Check if we should show the cart modal
         const urlParams = new URLSearchParams(window.location.search);
@@ -741,6 +739,63 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['payment_method'])) {
             const newUrl = window.location.pathname + window.location.search.replace(/[?&]show_cart=1/, '');
             window.history.replaceState({}, '', newUrl);
         }
+    });
+
+    // Live update of discount and total in checkout modal when promo code is selected
+    document.addEventListener("DOMContentLoaded", function() {
+        var promoSelect = document.getElementById('promoCodeSelect');
+        if (!promoSelect) return;
+        promoSelect.addEventListener('change', function() {
+            updateDiscountDisplay();
+        });
+
+        function updateDiscountDisplay() {
+            var subtotal = 0;
+            <?php if (!empty($_SESSION['cart'])): ?>
+                <?php foreach ($_SESSION['cart'] as $item): ?>
+                    subtotal += <?php echo $item['price'] * $item['quantity']; ?>;
+                <?php endforeach; ?>
+            <?php endif; ?>
+
+            var discountRate = <?php echo isset($customerInfo['Cust_DiscRate']) ? floatval($customerInfo['Cust_DiscRate']) : 0; ?>;
+            var customerDiscount = subtotal * (discountRate / 100);
+            var totalAfterCustomerDiscount = subtotal - customerDiscount;
+
+            var promos = {};
+            <?php foreach ($promos as $promo): ?>
+                promos["<?php echo addslashes($promo['Prom_Code']); ?>"] = {
+                    type: "<?php echo addslashes($promo['Promo_DiscountType']); ?>",
+                    amount: <?php echo floatval($promo['Promo_DiscAmnt']); ?>,
+                    label: "<?php echo addslashes($promo['Prom_Code'] . (strcasecmp($promo['Promo_DiscountType'], 'Percentage') == 0 ? ' (-' . floatval($promo['Promo_DiscAmnt']) . '%)' : ' (-₱' . number_format($promo['Promo_DiscAmnt'], 2) . ')')); ?>"
+                };
+            <?php endforeach; ?>
+
+            var selectedPromoCode = promoSelect.value;
+            var promoDiscount = 0;
+            var promoLabel = '';
+            if (promos[selectedPromoCode]) {
+                if (promos[selectedPromoCode].type.toLowerCase() === "percentage") {
+                    promoDiscount = totalAfterCustomerDiscount * (promos[selectedPromoCode].amount / 100);
+                } else {
+                    promoDiscount = Math.min(promos[selectedPromoCode].amount, totalAfterCustomerDiscount);
+                }
+                promoLabel = promos[selectedPromoCode].label;
+            }
+            var finalTotal = totalAfterCustomerDiscount - promoDiscount;
+
+            // Update the DOM
+            var discountBox = document.getElementById('checkoutDiscountBreakdown');
+            if (discountBox) {
+                discountBox.innerHTML =
+                    'Subtotal: ₱' + subtotal.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}) + '<br>' +
+                    (discountRate > 0 ? 'Customer Discount (' + discountRate + '%): -₱' + customerDiscount.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}) + '<br>' : '') +
+                    (promoDiscount > 0 ? 'Promo Discount' + (promoLabel ? ' (' + promoLabel + ')' : '') + ': -₱' + promoDiscount.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}) + '<br>' : '') +
+                    '<span class="text-success">Total after Discounts: ₱' + finalTotal.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}) + '</span>';
+            }
+        }
+
+        // Initial display
+        updateDiscountDisplay();
     });
     </script>
 </body>
