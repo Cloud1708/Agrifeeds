@@ -455,21 +455,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['payment_method'])) {
                   <option value="card">Card</option>
                 </select>
               </div>
-              <div class="mb-3 position-relative">
-                <label class="form-label fw-bold">Promo Code:</label>
-                <?php if (!empty($promos)): ?>
-                    <select class="form-select" name="promo_code" id="promoCodeSelect">
-                        <option value="">-- Select Promo Code --</option>
-                        <?php foreach ($promos as $promo): ?>
-                            <option value="<?php echo htmlspecialchars($promo['Prom_Code']); ?>">
-                                <?php echo htmlspecialchars($promo['Prom_Code'] . ' - ' . $promo['Promo_Description']); ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                <?php else: ?>
-                    <input type="text" class="form-control" id="promoCodeInput" name="promo_code" placeholder="No available promos" disabled>
-                <?php endif; ?>
-              </div>
+             <div class="mb-3 position-relative">
+    <label class="form-label fw-bold">Promo Code:</label>
+    <?php if (!empty($promos)): ?>
+        <select class="form-select" name="promo_code" id="promoCodeSelect">
+            <option value="">-- Select Promo Code --</option>
+            <?php foreach ($promos as $promo): ?>
+                <option value="<?php echo htmlspecialchars($promo['Prom_Code']); ?>">
+    <?php
+        echo htmlspecialchars($promo['Prom_Code']);
+        if (strtolower($promo['Promo_DiscountType']) === 'percentage') {
+            echo ' (' . floatval($promo['Promo_DiscAmnt']) . '%)';
+        } else {
+            echo ' (₱' . number_format($promo['Promo_DiscAmnt'], 2) . ')';
+        }
+    ?>
+</option>
+            <?php endforeach; ?>
+        </select>
+    <?php else: ?>
+        <input type="text" class="form-control" id="promoCodeInput" name="promo_code" placeholder="No available promos" disabled>
+    <?php endif; ?>
+</div>
               <div id="checkoutDiscountBreakdown" class="mb-3 text-end fw-bold fs-5">
                 <!-- Discount breakdown will be updated by JS -->
               </div>
