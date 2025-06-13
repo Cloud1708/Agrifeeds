@@ -3,6 +3,12 @@
 require_once('../includes/db.php');
 $con = new database();
 
+// Get all suppliers for the dropdowns
+$suppliers = $con->viewSuppliers();
+
+// Get all products for the dropdown
+$products = $con->getAllProducts();
+
 // Only this line is needed:
 $purchaseOrders = $con->getPurchaseOrders();
 ?>
@@ -17,6 +23,8 @@ $purchaseOrders = $con->getPurchaseOrders();
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- SweetAlert2 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
     <!-- Custom CSS -->
     <link href="../css/custom.css" rel="stylesheet">
     <link href="../css/sidebar.css" rel="stylesheet">
@@ -49,17 +57,18 @@ $purchaseOrders = $con->getPurchaseOrders();
             <div class="col-md-3">
                 <select class="form-select" id="supplierFilter">
                     <option value="">All Suppliers</option>
-                    <!-- Will be populated from Suppliers table -->
+                    <?php foreach ($suppliers as $supplier): ?>
+                        <option value="<?php echo htmlspecialchars($supplier['SupplierID']); ?>">
+                            <?php echo htmlspecialchars($supplier['Sup_Name']); ?>
+                        </option>
+                    <?php endforeach; ?>
                 </select>
             </div>
             <div class="col-md-3">
                 <select class="form-select" id="statusFilter">
                     <option value="all">All Status</option>
-                    <option value="Draft">Draft</option>
-                    <option value="Pending">Pending</option>
-                    <option value="Approved">Approved</option>
-                    <option value="Received">Received</option>
-                    <option value="Cancelled">Cancelled</option>
+                    <option value="Waiting">Waiting</option>
+                    <option value="Delivered">Delivered</option>
                 </select>
             </div>
             <div class="col-md-3">
@@ -82,26 +91,69 @@ $purchaseOrders = $con->getPurchaseOrders();
                         <th>Supplier</th>
                         <th>Date</th>
                         <th>Items</th>
+                        <th>Stock Details</th>
                         <th>Status</th>
                         <th>Total</th>
-                        <th>Action</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
-                <tbody id="poTableBody">
+                <tbody>
                     <?php foreach ($purchaseOrders as $po): ?>
                     <tr>
-                        <td><?php echo htmlspecialchars($po['Pur_OrderID']); ?></td>
-                        <td><?php echo htmlspecialchars($po['Sup_Name']); ?>
-                            <span class="text-muted small">(ID: <?php echo $po['SupplierID']; ?>)</span>
-                        </td>
-                        <td><?php echo htmlspecialchars($po['PO_Order_Date']); ?></td>
-                        <td><!-- Items column blank --></td>
-                        <td><?php echo htmlspecialchars($po['PO_Order_Stat']); ?></td>
-                        <td><?php echo isset($po['PO_Total_Amount']) ? '₱' . number_format($po['PO_Total_Amount'], 2) : ''; ?></td>
+                        <td><?php echo $po['Pur_OrderID']; ?></td>
                         <td>
-                            <button class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#viewPOModal" data-po-id="<?php echo htmlspecialchars($po['Pur_OrderID']); ?>">
-                                <i class="bi bi-eye"></i> View
-                            </button>
+                            <strong><?php echo $po['Sup_Name']; ?></strong><br>
+                            <small class="text-muted"><?php echo $po['Sup_CoInfo']; ?></small>
+                        </td>
+                        <td><?php echo $po['PO_Order_Date']; ?></td>
+                        <td>
+                            <?php 
+                            if ($po['items_list']) {
+                                $items = explode(', ', $po['items_list']);
+                                foreach ($items as $item) {
+                                    echo '<div class="mb-1">' . $item . '</div>';
+                                }
+                            }
+                            ?>
+                        </td>
+                        <td>
+                            <?php 
+                            if ($po['items_list']) {
+                                $items = explode(', ', $po['items_list']);
+                                foreach ($items as $item) {
+                                    $itemName = explode(' (', $item)[0];
+                                    $currentStock = $po['current_stock'][$itemName] ?? 0;
+                                    echo '<div class="mb-1">';
+                                    echo '<strong>' . $itemName . ':</strong> ';
+                                    echo '<span class="badge bg-info">' . $currentStock . ' in stock</span>';
+                                    echo '</div>';
+                                }
+                            }
+                            ?>
+                        </td>
+                        <td>
+                            <?php if ($po['PO_Order_Stat'] == 'Delivered'): ?>
+                                <span class="badge bg-success">Delivered</span>
+                            <?php else: ?>
+                                <span class="badge bg-warning">Waiting</span>
+                            <?php endif; ?>
+                        </td>
+                        <td>
+                            <div class="d-flex flex-column">
+                                <span class="fw-bold">₱<?php echo number_format($po['PO_Total_Amount'], 2); ?></span>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-primary btn-sm d-flex align-items-center" data-bs-toggle="modal" data-bs-target="#viewPOModal" data-po-id="<?= $po['Pur_OrderID'] ?>">
+                                    <i class="bi bi-eye me-1"></i> View
+                                </button>
+                                <?php if ($po['PO_Order_Stat'] === 'Waiting'): ?>
+                                    <button class="btn btn-success btn-sm d-flex align-items-center mark-delivered" data-po-id="<?= $po['Pur_OrderID'] ?>">
+                                        <i class="bi bi-check-circle me-1"></i> Mark as Delivered
+                                    </button>
+                                <?php endif; ?>
+                            </div>
                         </td>
                     </tr>
                     <?php endforeach; ?>
@@ -125,7 +177,11 @@ $purchaseOrders = $con->getPurchaseOrders();
                                 <label for="supplierSelect" class="form-label">Supplier</label>
                                 <select class="form-select" id="supplierSelect" required>
                                     <option value="">Select Supplier</option>
-                                    <!-- Will be populated from Suppliers table -->
+                                    <?php foreach ($suppliers as $supplier): ?>
+                                        <option value="<?php echo htmlspecialchars($supplier['SupplierID']); ?>">
+                                            <?php echo htmlspecialchars($supplier['Sup_Name']); ?>
+                                        </option>
+                                    <?php endforeach; ?>
                                 </select>
                             </div>
                             <div class="col-md-6">
@@ -142,7 +198,13 @@ $purchaseOrders = $con->getPurchaseOrders();
                                     <div class="col-md-4">
                                         <select class="form-select product-select" required>
                                             <option value="">Select Product</option>
-                                            <!-- Will be populated from Products table -->
+                                            <?php foreach ($products as $product): ?>
+                                                <option value="<?php echo htmlspecialchars($product['ProductID']); ?>" 
+                                                        data-price="<?php echo htmlspecialchars($product['Prod_Price']); ?>">
+                                                    <?php echo htmlspecialchars($product['Prod_Name']); ?> 
+                                                    (₱<?php echo number_format($product['Prod_Price'], 2); ?>)
+                                                </option>
+                                            <?php endforeach; ?>
                                         </select>
                                     </div>
                                     <div class="col-md-2">
@@ -171,10 +233,6 @@ $purchaseOrders = $con->getPurchaseOrders();
 
                         <div class="row mb-3">
                             <div class="col-md-6">
-                                <label for="expectedDelivery" class="form-label">Expected Delivery Date</label>
-                                <input type="date" class="form-control" id="expectedDelivery" required>
-                            </div>
-                            <div class="col-md-6">
                                 <label for="paymentTerms" class="form-label">Payment Terms</label>
                                 <select class="form-select" id="paymentTerms" required>
                                     <option value="Immediate">Immediate</option>
@@ -191,17 +249,7 @@ $purchaseOrders = $con->getPurchaseOrders();
                         </div>
 
                         <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="shippingCost" class="form-label">Shipping Cost</label>
-                                    <div class="input-group">
-                                        <span class="input-group-text">₱</span>
-                                        <input type="number" class="form-control" id="shippingCost" 
-                                               step="0.01" min="0" value="0">
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
+                            <div class="col-md-12">
                                 <div class="mb-3">
                                     <label for="totalAmount" class="form-label">Total Amount</label>
                                     <div class="input-group">
@@ -223,17 +271,17 @@ $purchaseOrders = $con->getPurchaseOrders();
     </div>
 
     <!-- View Purchase Order Modal -->
-    <div class="modal fade" id="viewPOModal" tabindex="-1" aria-labelledby="viewPOModalLabel" aria-hidden="true">
+    <div class="modal fade" id="viewPOModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="viewPOModalLabel">Purchase Order Details</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <h5 class="modal-title">Purchase Order Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <div class="row mb-4">
                         <div class="col-md-6">
-                            <h6>Purchase Order Information</h6>
+                            <h6 class="mb-3">Purchase Order Information</h6>
                             <table class="table table-sm">
                                 <tr>
                                     <th>PO Number:</th>
@@ -247,13 +295,17 @@ $purchaseOrders = $con->getPurchaseOrders();
                                     <th>Status:</th>
                                     <td id="viewPOStatus"></td>
                                 </tr>
+                                <tr>
+                                    <th>Payment Terms:</th>
+                                    <td id="viewPOPaymentTerms"></td>
+                                </tr>
                             </table>
                         </div>
                         <div class="col-md-6">
-                            <h6>Supplier Information</h6>
+                            <h6 class="mb-3">Supplier Information</h6>
                             <table class="table table-sm">
                                 <tr>
-                                    <th>Supplier:</th>
+                                    <th>Name:</th>
                                     <td id="viewPOSupplier"></td>
                                 </tr>
                                 <tr>
@@ -261,47 +313,49 @@ $purchaseOrders = $con->getPurchaseOrders();
                                     <td id="viewPOSupplierContact"></td>
                                 </tr>
                                 <tr>
-                                    <th>Payment Terms:</th>
-                                    <td id="viewPOPaymentTerms"></td>
+                                    <th>Delivery Schedule:</th>
+                                    <td id="viewPOSupplierDelivery"></td>
                                 </tr>
                             </table>
                         </div>
                     </div>
 
-                    <h6>Order Items</h6>
+                    <h6 class="mb-3">Order Items</h6>
                     <div class="table-responsive">
                         <table class="table table-sm">
                             <thead>
                                 <tr>
-                                    <th>Product</th>
+                                    <th>Item</th>
                                     <th>Quantity</th>
                                     <th>Unit Price</th>
-                                    <th>Subtotal</th>
+                                    <th>Total</th>
+                                    <th>Current Stock</th>
                                 </tr>
                             </thead>
-                            <tbody id="viewPOItems">
-                            </tbody>
-                            <tfoot>
-                                <tr>
-                                    <th colspan="3" class="text-end">Shipping Cost:</th>
-                                    <td id="viewPOShippingCost"></td>
-                                </tr>
-                                <tr>
-                                    <th colspan="3" class="text-end">Total Amount:</th>
-                                    <td id="viewPOTotal"></td>
-                                </tr>
-                            </tfoot>
+                            <tbody id="viewPOItems"></tbody>
                         </table>
                     </div>
 
                     <div class="row mt-4">
                         <div class="col-md-6">
-                            <h6>Expected Delivery</h6>
-                            <p id="viewPOExpectedDelivery"></p>
+                            <h6 class="mb-3">Notes</h6>
+                            <p id="viewPONotes" class="text-muted"></p>
                         </div>
                         <div class="col-md-6">
-                            <h6>Notes</h6>
-                            <p id="viewPONotes"></p>
+                            <h6 class="mb-3">Cost Summary</h6>
+                            <table class="table table-sm">
+                                <tr>
+                                    <th>Total Amount:</th>
+                                    <td id="viewPOTotal"></td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+
+                    <h6 class="mb-3 mt-4">Inventory History</h6>
+                    <div id="viewPOInventoryHistory" class="border rounded p-3" style="max-height: 300px; overflow-y: auto;">
+                        <div class="list-group">
+                            <!-- Inventory history items will be inserted here -->
                         </div>
                     </div>
                 </div>
@@ -314,43 +368,346 @@ $purchaseOrders = $con->getPurchaseOrders();
 
     <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- SweetAlert2 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <!-- Pass PHP PO data to JS -->
     <script>
         const purchaseOrders = <?php echo json_encode($purchaseOrders); ?>;
     </script>
     <script>
     document.addEventListener('DOMContentLoaded', function() {
+        console.log('DOM Content Loaded');
+        console.log('Purchase Orders:', purchaseOrders);
+
+        // Handle product selection and price calculation
+        function setupProductRow(row) {
+            const productSelect = row.querySelector('.product-select');
+            const quantityInput = row.querySelector('.quantity-input');
+            const priceInput = row.querySelector('.price-input');
+            const subtotalInput = row.querySelector('.subtotal-input');
+
+            function updateSubtotal() {
+                const quantity = parseFloat(quantityInput.value) || 0;
+                const price = parseFloat(priceInput.value) || 0;
+                subtotalInput.value = (quantity * price).toFixed(2);
+                updateTotalAmount();
+            }
+
+            productSelect.addEventListener('change', function() {
+                const selectedOption = this.options[this.selectedIndex];
+                const price = selectedOption.getAttribute('data-price');
+                priceInput.value = price;
+                updateSubtotal();
+            });
+
+            quantityInput.addEventListener('input', updateSubtotal);
+            priceInput.addEventListener('input', updateSubtotal);
+        }
+
+        // Setup initial product row
+        setupProductRow(document.querySelector('.product-item'));
+
+        // Add new product row
+        document.getElementById('addProductBtn').addEventListener('click', function() {
+            const productList = document.getElementById('productList');
+            const newRow = document.querySelector('.product-item').cloneNode(true);
+            
+            // Clear values
+            newRow.querySelector('.product-select').value = '';
+            newRow.querySelector('.quantity-input').value = '';
+            newRow.querySelector('.price-input').value = '';
+            newRow.querySelector('.subtotal-input').value = '';
+            
+            productList.appendChild(newRow);
+            setupProductRow(newRow);
+        });
+
+        // Remove product row
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('.remove-product')) {
+                const productList = document.getElementById('productList');
+                if (productList.children.length > 1) {
+                    e.target.closest('.product-item').remove();
+                    updateTotalAmount();
+                }
+            }
+        });
+
+        // Update total amount
+        function updateTotalAmount() {
+            const subtotals = Array.from(document.querySelectorAll('.subtotal-input'))
+                .map(input => parseFloat(input.value) || 0);
+            const total = subtotals.reduce((sum, subtotal) => sum + subtotal, 0);
+            document.getElementById('totalAmount').value = total.toFixed(2);
+        }
+
+        // Save Purchase Order
+        document.getElementById('savePOBtn').addEventListener('click', function() {
+            const form = document.getElementById('newPOForm');
+            const supplierId = document.getElementById('supplierSelect').value;
+            const orderDate = document.getElementById('poDate').value;
+            const totalAmount = document.getElementById('totalAmount').value;
+
+            // Collect items
+            const items = [];
+            document.querySelectorAll('.product-item').forEach(row => {
+                const productSelect = row.querySelector('.product-select');
+                const quantityInput = row.querySelector('.quantity-input');
+                const priceInput = row.querySelector('.price-input');
+
+                if (productSelect.value && quantityInput.value && priceInput.value) {
+                    items.push({
+                        product_id: productSelect.value,
+                        quantity: quantityInput.value,
+                        price: priceInput.value
+                    });
+                }
+            });
+
+            // Validate form
+            if (!supplierId || !orderDate || items.length === 0) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Validation Error',
+                    text: 'Please fill in all required fields and add at least one product.'
+                });
+                return;
+            }
+
+            // Send data to server
+            const requestData = {
+                supplier_id: supplierId,
+                order_date: orderDate,
+                total_amount: totalAmount,
+                items: items
+            };
+
+            console.log('Sending request:', requestData);
+
+            fetch('purchase_orders/save.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(requestData)
+            })
+            .then(async response => {
+                console.log('Response status:', response.status);
+                const text = await response.text();
+                console.log('Raw response:', text);
+                
+                if (!text) {
+                    throw new Error('Server returned empty response');
+                }
+                
+                try {
+                    return JSON.parse(text);
+                } catch (e) {
+                    console.error('Failed to parse JSON:', e);
+                    throw new Error('Server returned invalid JSON: ' + text);
+                }
+            })
+            .then(data => {
+                console.log('Parsed response:', data);
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Success',
+                        text: 'Purchase order has been saved successfully!'
+                    }).then(() => {
+                        // Close modal and refresh page
+                        const modal = bootstrap.Modal.getInstance(document.getElementById('newPOModal'));
+                        modal.hide();
+                        window.location.reload();
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: data.message || 'Failed to save purchase order.',
+                        footer: data.error_details || ''
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'An error occurred while saving the purchase order.',
+                    footer: error.toString()
+                });
+            });
+        });
+
+        // View PO Modal
         document.querySelectorAll('button[data-bs-target="#viewPOModal"]').forEach(btn => {
             btn.addEventListener('click', function() {
                 const poId = this.getAttribute('data-po-id');
                 const po = purchaseOrders.find(p => p.Pur_OrderID == poId);
                 if (!po) return;
 
+                // Basic PO Information
                 document.getElementById('viewPONumber').textContent = po.Pur_OrderID ?? '';
                 document.getElementById('viewPODate').textContent = po.PO_Order_Date ?? '';
                 document.getElementById('viewPOStatus').textContent = po.PO_Order_Stat ?? '';
                 document.getElementById('viewPOSupplier').textContent = po.Sup_Name ?? '';
-                document.getElementById('viewPOSupplierContact').textContent = po.Sup_Contact ?? '';
-                document.getElementById('viewPOPaymentTerms').textContent = po.PO_Payment_Terms ?? '';
-                document.getElementById('viewPOExpectedDelivery').textContent = po.PO_Expected_Delivery ?? '';
-                document.getElementById('viewPONotes').textContent = po.PO_Notes ?? '';
-                document.getElementById('viewPOShippingCost').textContent = po.PO_Shipping_Cost ?? '';
-                document.getElementById('viewPOTotal').textContent = po.PO_Total_Amount ?? '';
                 document.getElementById('viewPOSupplierContact').textContent = po.Sup_CoInfo ?? '';
-                document.getElementById('viewPOPaymentTerms').textContent = po.Sup_PayTerm ?? '';
-                // Items (if you have items in your $purchaseOrders, otherwise leave blank)
+                document.getElementById('viewPOSupplierDelivery').textContent = po.Sup_DeSched ?? '';
+                document.getElementById('viewPOPaymentTerms').textContent = po.PO_Payment_Terms ?? '';
+                document.getElementById('viewPONotes').textContent = po.PO_Notes ?? '';
+                document.getElementById('viewPOTotal').textContent = po.PO_Total_Amount ? '₱' + parseFloat(po.PO_Total_Amount).toFixed(2) : '₱0.00';
+                
+                // Items with current stock
                 let itemsHtml = '';
-                if (po.items && Array.isArray(po.items)) {
-                    po.items.forEach(item => {
+                if (po.items_list) {
+                    const items = po.items_list.split(', ');
+                    items.forEach(item => {
+                        const [itemName, itemDetails] = item.split(' (');
+                        const quantity = itemDetails ? itemDetails.replace(')', '') : '';
+                        const currentStock = po.current_stock?.[itemName] || 0;
+                        const unitPrice = po.item_prices?.[itemName] || 0;
+                        const total = parseFloat(quantity) * parseFloat(unitPrice);
+                        
                         itemsHtml += `<tr>
-                            <td>${item.product_name ?? ''}</td>
-                            <td>${item.quantity ?? ''}</td>
-                            <td>${item.unit_price ?? ''}</td>
-                            <td>${item.subtotal ?? ''}</td>
+                            <td>${itemName}</td>
+                            <td>${quantity}</td>
+                            <td>₱${parseFloat(unitPrice).toFixed(2)}</td>
+                            <td>₱${total.toFixed(2)}</td>
+                            <td>
+                                <span class="badge bg-${currentStock > 0 ? 'success' : 'danger'}">
+                                    ${currentStock} in stock
+                                </span>
+                            </td>
                         </tr>`;
                     });
                 }
                 document.getElementById('viewPOItems').innerHTML = itemsHtml;
+
+                // Inventory History
+                if (po.inventory_history && po.inventory_history.length > 0) {
+                    let historyHtml = '';
+                    po.inventory_history.forEach(history => {
+                        const changeDate = new Date(history.change_date).toLocaleString();
+                        const changeColor = history.quantity_change > 0 ? 'success' : 'danger';
+                        const changePrefix = history.quantity_change > 0 ? '+' : '';
+                        
+                        historyHtml += `
+                            <div class="list-group-item list-group-item-action">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">${history.product_name}</h6>
+                                    <small class="text-muted">${changeDate}</small>
+                                </div>
+                                <p class="mb-1">
+                                    <span class="badge bg-${changeColor}">
+                                        ${changePrefix}${history.quantity_change}
+                                    </span>
+                                    <span class="ms-2">
+                                        New Stock Level: ${history.new_stock_level}
+                                    </span>
+                                </p>
+                                <small class="text-muted">${history.description}</small>
+                            </div>`;
+                    });
+                    document.getElementById('viewPOInventoryHistory').innerHTML = historyHtml;
+                } else {
+                    document.getElementById('viewPOInventoryHistory').innerHTML = `
+                        <div class="alert alert-info mb-0">
+                            <i class="bi bi-info-circle"></i>
+                            No inventory history available for this purchase order.
+                        </div>`;
+                }
+            });
+        });
+
+        // Handle Mark as Delivered button clicks
+        const markDeliveredButtons = document.querySelectorAll('.mark-delivered');
+        console.log('Mark Delivered Buttons:', markDeliveredButtons.length);
+
+        markDeliveredButtons.forEach(button => {
+            console.log('Setting up button for PO:', button.getAttribute('data-po-id'));
+            button.addEventListener('click', function() {
+                const poId = this.getAttribute('data-po-id');
+                console.log('Mark as Delivered clicked for PO:', poId);
+                
+                Swal.fire({
+                    title: 'Mark as Delivered?',
+                    html: `
+                        <div class="alert alert-warning">
+                            <i class="bi bi-exclamation-triangle-fill"></i>
+                            <strong>Warning:</strong> This action will:
+                            <ul class="text-start mt-2">
+                                <li>Update the purchase order status to "Delivered"</li>
+                                <li>Add the ordered quantities to the current stock of each product</li>
+                                <li>This action cannot be undone</li>
+                            </ul>
+                        </div>
+                    `,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#28a745',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: 'Yes, mark as delivered',
+                    cancelButtonText: 'Cancel'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        console.log('User confirmed delivery for PO:', poId);
+                        // Send request to mark as delivered
+                        fetch('purchase_orders/mark_delivered.php', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                po_id: poId
+                            })
+                        })
+                        .then(async response => {
+                            console.log('Response status:', response.status);
+                            const text = await response.text();
+                            console.log('Raw response:', text);
+                            
+                            if (!text) {
+                                throw new Error('Server returned empty response');
+                            }
+                            
+                            try {
+                                return JSON.parse(text);
+                            } catch (e) {
+                                console.error('Failed to parse JSON:', e);
+                                throw new Error('Server returned invalid JSON: ' + text);
+                            }
+                        })
+                        .then(data => {
+                            console.log('Parsed response:', data);
+                            if (data.success) {
+                                Swal.fire({
+                                    title: 'Success!',
+                                    text: data.message || 'Purchase order has been marked as delivered and stock has been updated.',
+                                    icon: 'success'
+                                }).then(() => {
+                                    window.location.reload();
+                                });
+                            } else {
+                                Swal.fire({
+                                    title: 'Error!',
+                                    text: data.message || 'Failed to mark purchase order as delivered.',
+                                    icon: 'error',
+                                    footer: data.error_details || ''
+                                });
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            Swal.fire({
+                                title: 'Error!',
+                                text: 'An error occurred while processing your request.',
+                                icon: 'error',
+                                footer: error.toString()
+                            });
+                        });
+                    }
+                });
             });
         });
     });
