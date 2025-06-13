@@ -534,12 +534,97 @@ function viewInventoryHistory() {
 
 function getPurchaseOrders() {
     $con = $this->opencon();
-    $stmt = $con->prepare("SELECT po.*, s.Sup_Name, s.Sup_CoInfo, s.Sup_PayTerm
+    $stmt = $con->prepare("
+        SELECT 
+            po.*,
+            s.Sup_Name,
+            s.Sup_CoInfo,
+            s.Sup_PayTerm,
+            s.Sup_DeSched,
+            GROUP_CONCAT(
+                CONCAT(
+                    p.Prod_Name, ' (',
+                    poi.Pur_OIQuantity, ' x ₱',
+                    poi.Pur_OIPrice, ')'
+                ) SEPARATOR ', '
+            ) as items_list,
+            GROUP_CONCAT(
+                CONCAT(
+                    p.Prod_Name, ':', poi.Pur_OIPrice
+                ) SEPARATOR ','
+            ) as item_prices,
+            COUNT(poi.Pur_OrderItemID) as total_items,
+            SUM(poi.Pur_OIQuantity * poi.Pur_OIPrice) as total_amount
         FROM purchase_orders po
         JOIN suppliers s ON po.SupplierID = s.SupplierID
-        ORDER BY po.Pur_OrderID DESC");
+        LEFT JOIN purchase_order_item poi ON po.Pur_OrderID = poi.Pur_OrderID
+        LEFT JOIN products p ON poi.ProductID = p.ProductID
+        GROUP BY po.Pur_OrderID
+        ORDER BY po.Pur_OrderID DESC
+    ");
     $stmt->execute();
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Add current stock levels and inventory history for each order
+    foreach ($orders as &$order) {
+        // Parse item prices
+        $itemPrices = [];
+        if ($order['item_prices']) {
+            foreach (explode(',', $order['item_prices']) as $price) {
+                list($name, $price) = explode(':', $price);
+                $itemPrices[$name] = $price;
+            }
+        }
+        $order['item_prices'] = $itemPrices;
+
+        // Get current stock levels
+        $currentStock = [];
+        if ($order['items_list']) {
+            $items = explode(', ', $order['items_list']);
+            foreach ($items as $item) {
+                $itemName = explode(' (', $item)[0];
+                $stmt = $con->prepare("SELECT Prod_Stock FROM products WHERE Prod_Name = ?");
+                $stmt->execute([$itemName]);
+                $currentStock[$itemName] = $stmt->fetchColumn() ?: 0;
+            }
+        }
+        $order['current_stock'] = $currentStock;
+
+        // Get inventory history
+        $inventoryHistory = [];
+        if ($order['items_list']) {
+            $items = explode(', ', $order['items_list']);
+            foreach ($items as $item) {
+                $itemName = explode(' (', $item)[0];
+                $stmt = $con->prepare("
+                    SELECT 
+                        p.Prod_Name as product_name,
+                        ih.IH_QtyChange as quantity_change,
+                        ih.IH_NewStckLvl as new_stock_level,
+                        ih.IH_ChangeDate as change_date
+                    FROM inventory_history ih
+                    JOIN products p ON ih.ProductID = p.ProductID
+                    WHERE p.Prod_Name = ?
+                    ORDER BY ih.IH_ChangeDate DESC
+                    LIMIT 5
+                ");
+                $stmt->execute([$itemName]);
+                $history = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                if ($history) {
+                    // Add description based on quantity change
+                    foreach ($history as &$entry) {
+                        $entry['description'] = $entry['quantity_change'] > 0 
+                            ? "Stock added from Purchase Order #" . $order['Pur_OrderID']
+                            : "Stock reduced from sales";
+                    }
+                    $inventoryHistory = array_merge($inventoryHistory, $history);
+                }
+            }
+        }
+        $order['inventory_history'] = $inventoryHistory;
+    }
+
+    return $orders;
 }
 
 function viewInventoryAlerts() {
@@ -598,24 +683,44 @@ function updateCustomer($id, $firstName, $lastName, $contactInfo, $discountRate,
     }
 }
 
-public function addPurchaseOrder($supplierId, $orderDate, $expectedDelivery, $paymentTerms, $notes, $shippingCost, $totalAmount, $items = []) {
-    $con = $this->opencon();
+public function addPurchaseOrder($supplierId, $orderDate, $paymentTerms, $notes, $shippingCost, $totalAmount, $items = []) {
     try {
+        $con = $this->opencon();
         $con->beginTransaction();
+
+        // Debug log
+        error_log("Adding purchase order with data: " . print_r([
+            'supplierId' => $supplierId,
+            'orderDate' => $orderDate,
+            'paymentTerms' => $paymentTerms,
+            'notes' => $notes,
+            'shippingCost' => $shippingCost,
+            'totalAmount' => $totalAmount,
+            'items' => $items
+        ], true));
 
         // Insert into purchase_orders
         $stmt = $con->prepare("INSERT INTO purchase_orders 
-            (SupplierID, PO_Order_Date, PO_Expected_Delivery, PO_Payment_Terms, PO_Notes, PO_Shipping_Cost, PO_Total_Amount, PO_Order_Stat)
-            VALUES (?, ?, ?, ?, ?, ?, ?, 'Draft')");
-        $stmt->execute([$supplierId, $orderDate, $expectedDelivery, $paymentTerms, $notes, $shippingCost, $totalAmount]);
+            (SupplierID, PO_Order_Date, PO_Order_Stat, PO_Total_Amount, PO_Shipping_Cost, PO_Payment_Terms, PO_Notes)
+            VALUES (?, ?, 'Waiting', ?, ?, ?, ?)");
+        
+        $stmt->execute([
+            $supplierId,
+            $orderDate,
+            $totalAmount,
+            $shippingCost ?? 0,
+            $paymentTerms,
+            $notes
+        ]);
+
         $poId = $con->lastInsertId();
 
-        // Insert items into purchase_order_items
-        $itemStmt = $con->prepare("INSERT INTO purchase_order_items 
-            (Pur_OrderID, ProductID, Pur_OIQuantity, Pur_OIPrice)
-            VALUES (?, ?, ?, ?)");
+        // Insert items
         foreach ($items as $item) {
-            $itemStmt->execute([
+            $stmt = $con->prepare("INSERT INTO purchase_order_item 
+                (Pur_OrderID, ProductID, Pur_OIQuantity, Pur_OIPrice)
+                VALUES (?, ?, ?, ?)");
+            $stmt->execute([
                 $poId,
                 $item['product_id'],
                 $item['quantity'],
@@ -624,10 +729,11 @@ public function addPurchaseOrder($supplierId, $orderDate, $expectedDelivery, $pa
         }
 
         $con->commit();
-        return $poId;
+        return ['success' => true, 'po_id' => $poId];
     } catch (PDOException $e) {
-        $con->rollBack();
-        return false;
+        if (isset($con)) $con->rollBack();
+        error_log("Error adding purchase order: " . $e->getMessage());
+        return ['success' => false, 'message' => 'Failed to add purchase order: ' . $e->getMessage()];
     }
 }
 
@@ -950,5 +1056,262 @@ function getAvailablePromos($userID = null) {
     $stmt->execute([$promotionId, $userId]);
 }
 
+public function updatePurchaseOrderStatus($poId, $newStatus) {
+    try {
+        $con = $this->opencon();
+        $con->beginTransaction();
+
+        // Update purchase order status
+        $stmt = $con->prepare("UPDATE purchase_orders SET PO_Order_Stat = ? WHERE Pur_OrderID = ?");
+        $stmt->execute([$newStatus, $poId]);
+
+        // If status is 'Received', update stock levels
+        if ($newStatus === 'Received') {
+            // Get purchase order items
+            $stmt = $con->prepare("
+                SELECT ProductID, Pur_OIQuantity 
+                FROM purchase_order_item 
+                WHERE Pur_OrderID = ?
+            ");
+            $stmt->execute([$poId]);
+            $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            // Update stock for each item
+            foreach ($items as $item) {
+                // Get current stock
+                $stmt = $con->prepare("SELECT Prod_Stock FROM products WHERE ProductID = ?");
+                $stmt->execute([$item['ProductID']]);
+                $currentStock = $stmt->fetchColumn();
+
+                // Calculate new stock level
+                $newStock = $currentStock + $item['Pur_OIQuantity'];
+
+                // Update stock
+                $stmt = $con->prepare("UPDATE products SET Prod_Stock = ? WHERE ProductID = ?");
+                $stmt->execute([$newStock, $item['ProductID']]);
+
+                // Add to inventory history
+                $stmt = $con->prepare("
+                    INSERT INTO inventory_history 
+                    (ProductID, IH_QtyChange, IH_NewStckLvl, IH_ChangeDate) 
+                    VALUES (?, ?, ?, NOW())
+                ");
+                $stmt->execute([
+                    $item['ProductID'],
+                    $item['Pur_OIQuantity'],
+                    $newStock
+                ]);
+            }
+
+            // Log the action
+            if (isset($_SESSION['user_id'])) {
+                $this->addAuditLog(
+                    $_SESSION['user_id'],
+                    'RECEIVE_PURCHASE_ORDER',
+                    "Received purchase order #$poId and updated stock levels"
+                );
+            }
+        }
+
+        $con->commit();
+        return true;
+    } catch (PDOException $e) {
+        if (isset($con)) $con->rollBack();
+        return false;
+    }
+}
+
+    public function getPurchaseOrderItems($poId) {
+        try {
+            $con = $this->opencon();
+            $stmt = $con->prepare("SELECT * FROM purchase_order_item WHERE Pur_OrderID = ?");
+            $stmt->execute([$poId]);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log("Error in getPurchaseOrderItems: " . $e->getMessage());
+            throw new Exception("Failed to get purchase order items: " . $e->getMessage());
+        }
+    }
+
+    public function getProductStock($productId) {
+        try {
+            $con = $this->opencon();
+            $stmt = $con->prepare("SELECT Prod_Stock FROM products WHERE ProductID = ?");
+            $stmt->execute([$productId]);
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            return $result ? $result['Prod_Stock'] : 0;
+        } catch (PDOException $e) {
+            error_log("Error in getProductStock: " . $e->getMessage());
+            throw new Exception("Failed to get product stock: " . $e->getMessage());
+        }
+    }
+
+    public function logInventoryChange($productId, $quantityChange, $newStockLevel, $description) {
+        try {
+            $con = $this->opencon();
+            $stmt = $con->prepare("INSERT INTO inventory_history 
+                (ProductID, IH_QtyChange, IH_NewStckLvl, IH_ChangeDate) 
+                VALUES (?, ?, ?, NOW())");
+            $result = $stmt->execute([$productId, $quantityChange, $newStockLevel]);
+            if (!$result) {
+                throw new PDOException("Failed to log inventory change");
+            }
+            return true;
+        } catch (PDOException $e) {
+            error_log("Error in logInventoryChange: " . $e->getMessage());
+            throw new Exception("Failed to log inventory change: " . $e->getMessage());
+        }
+    }
+
+    public function savePurchaseOrder($data) {
+        try {
+            $con = $this->opencon();
+            $con->beginTransaction();
+
+            // Debug log
+            error_log("Saving purchase order with data: " . print_r($data, true));
+
+            // Insert into purchase_orders
+            $stmt = $con->prepare("INSERT INTO purchase_orders 
+                (SupplierID, PO_Order_Date, PO_Order_Stat, PO_Total_Amount)
+                VALUES (?, ?, 'Waiting', ?)");
+            
+            $stmt->execute([
+                $data['supplier_id'],
+                $data['order_date'],
+                $data['total_amount']
+            ]);
+
+            $poId = $con->lastInsertId();
+
+            // Insert items
+            foreach ($data['items'] as $item) {
+                $stmt = $con->prepare("INSERT INTO purchase_order_item 
+                    (Pur_OrderID, ProductID, Pur_OIQuantity, Pur_OIPrice)
+                    VALUES (?, ?, ?, ?)");
+                $stmt->execute([
+                    $poId,
+                    $item['product_id'],
+                    $item['quantity'],
+                    $item['price']
+                ]);
+            }
+
+            $con->commit();
+            return ['success' => true, 'po_id' => $poId];
+        } catch (PDOException $e) {
+            if (isset($con)) $con->rollBack();
+            error_log("Error saving purchase order: " . $e->getMessage());
+            return ['success' => false, 'message' => 'Failed to save purchase order: ' . $e->getMessage()];
+        }
+    }
+
+    public function markPurchaseOrderDelivered($poId) {
+        try {
+            $con = $this->opencon();
+            $con->beginTransaction();
+
+            // Get purchase order items
+            $items = $this->getPurchaseOrderItems($poId);
+            
+            // Update stock for each item
+            foreach ($items as $item) {
+                $productId = $item['ProductID'];
+                $quantity = $item['Pur_OIQuantity'];
+                
+                // Get current stock
+                $currentStock = $this->getProductStock($productId);
+                $newStock = $currentStock + $quantity;
+                
+                // Update stock
+                $this->updateProductStock($productId, $newStock);
+                
+                // Log inventory change
+                $this->logInventoryChange(
+                    $productId,
+                    $quantity,
+                    $newStock,
+                    "Stock added from Purchase Order #$poId"
+                );
+            }
+
+            // Update purchase order status
+            $this->updatePurchaseOrderStatus($poId, 'Delivered');
+
+            $con->commit();
+            return [
+                'success' => true,
+                'message' => 'Purchase order has been marked as delivered and stock has been updated successfully.'
+            ];
+
+        } catch (Exception $e) {
+            if (isset($con)) {
+                $con->rollBack();
+            }
+            error_log("Error in markPurchaseOrderDelivered: " . $e->getMessage());
+            throw new Exception("Failed to mark purchase order as delivered: " . $e->getMessage());
+        }
+    }
+
+}
+
+// Handle direct method calls from JavaScript
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SERVER['HTTP_CONTENT_TYPE']) && strpos($_SERVER['HTTP_CONTENT_TYPE'], 'application/json') !== false) {
+    // Prevent any output before JSON response
+    ob_clean();
+    
+    // Set JSON header
+    header('Content-Type: application/json');
+    
+    try {
+        // Get JSON data from request body
+        $json = file_get_contents('php://input');
+        $data = json_decode($json, true);
+
+        // Log the incoming request
+        error_log("Incoming request data: " . print_r($data, true));
+
+        if (!$data || !isset($data['method'])) {
+            throw new Exception('Invalid request data: Missing method name or invalid JSON');
+        }
+
+        $con = new database();
+        $method = $data['method'];
+        $params = isset($data['data']) ? $data['data'] : [];
+
+        // Log the method and parameters
+        error_log("Calling method: " . $method);
+        error_log("Parameters: " . print_r($params, true));
+
+        // Check if method exists
+        if (!method_exists($con, $method)) {
+            throw new Exception("Method '$method' does not exist");
+        }
+
+        // Call the method
+        $result = call_user_func_array([$con, $method], [$params]);
+
+        // Log the result
+        error_log("Method result: " . print_r($result, true));
+
+        // Ensure result is an array
+        if (!is_array($result)) {
+            $result = ['success' => true, 'data' => $result];
+        }
+
+        // Return the result
+        echo json_encode($result);
+
+    } catch (Exception $e) {
+        error_log("Error in db.php: " . $e->getMessage());
+        error_log("Stack trace: " . $e->getTraceAsString());
+        
+        echo json_encode([
+            'success' => false,
+            'message' => $e->getMessage(),
+            'error_details' => $e->getMessage()
+        ]);
+    }
+    exit;
 }
 ?>
