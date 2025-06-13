@@ -441,20 +441,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['payment_method'])) {
                 </select>
               </div>
               <div class="mb-3 position-relative">
-                <label class="form-label fw-bold">Promo Code:</label>
-                <?php if (!empty($promos)): ?>
-                    <select class="form-select" name="promo_code" id="promoCodeSelect">
-                        <option value="">-- Select Promo Code --</option>
-                        <?php foreach ($promos as $promo): ?>
-                            <option value="<?php echo htmlspecialchars($promo['Prom_Code']); ?>">
-                                <?php echo htmlspecialchars($promo['Prom_Code'] . ' - ' . $promo['Promo_Description']); ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                <?php else: ?>
-                    <input type="text" class="form-control" id="promoCodeInput" name="promo_code" placeholder="No available promos" disabled>
-                <?php endif; ?>
-              </div>
+    <label class="form-label fw-bold">Promo Code:</label>
+    <?php if (!empty($promos)): ?>
+        <select class="form-select" name="promo_code" id="promoCodeSelect">
+            <option value="">-- Select Promo Code --</option>
+            <?php foreach ($promos as $promo): ?>
+                <option value="<?php echo htmlspecialchars($promo['Prom_Code']); ?>">
+                    <?php echo htmlspecialchars($promo['Prom_Code']); ?>
+                </option>
+            <?php endforeach; ?>
+        </select>
+    <?php else: ?>
+        <input type="text" class="form-control" id="promoCodeInput" name="promo_code" placeholder="No available promos" disabled>
+    <?php endif; ?>
+</div>
               <?php
                 // Compute again for checkout modal
                 $total = 0;
