@@ -3,77 +3,31 @@
 error_reporting(0);
 ini_set('display_errors', 0);
 
-// Start output buffering
 ob_start();
-
 require_once('../includes/db.php');
 $con = new database();
 session_start();
 
-// Handle checkout process
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['payment_method'])) {
-    // Ensure no output before JSON response
-    ob_clean();
-
-    $promoCode = isset($_POST['promo_code']) ? $_POST['promo_code'] : '';
-    if ($promoCode) {
-        $promo = $con->getPromoByCode($promoCode);
-        if ($promo && isset($promo['PromotionID'])) {
-            $con->logPromoUsage($promo['PromotionID'], $_SESSION['user_id']);
-        }
-    }
-    
-    try {
-        if (!isset($_SESSION['cart']) || empty($_SESSION['cart'])) {
-            echo json_encode(['success' => false, 'message' => 'Your cart is empty']);
-            exit();
-        }
-
-        // Process the order
-        $total = 0;
-        foreach ($_SESSION['cart'] as $item) {
-            $total += $item['price'] * $item['quantity'];
-        }
-
-        // Clear the cart after successful order
-        $_SESSION['cart'] = [];
-        
-        // Return success response
-        echo json_encode(['success' => true, 'message' => 'Order placed successfully']);
-        exit();
-    } catch (Exception $e) {
-        echo json_encode(['success' => false, 'message' => 'An error occurred: ' . $e->getMessage()]);
-        exit();
-    }
-}
- 
 // Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
     header('Location: ../index.php');
     exit();
 }
- 
-// Get user information
+
 $userID = $_SESSION['user_id'];
 $userInfo = $con->getUserInfo($userID);
 $customerInfo = $con->getCustomerInfo($userID);
- 
-// Get all available products
 $products = $con->getAllProducts();
 
-// Fetch available promos (assuming you have a method for this)
 $promos = [];
 if (method_exists($con, 'getAvailablePromos')) {
-    $promos = $con->getAvailablePromos($userID); // Adjust as needed
+    $promos = $con->getAvailablePromos($userID);
 }
- 
+
 // --- CART LOGIC (SESSION BASED) ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'], $_POST['quantity'])) {
-    // Ensure no output before JSON response
     ob_clean();
-    
     try {
-        // Fetch product info from DB using product_id
         $prod = $con->getProductById($_POST['product_id']);
         if ($prod) {
             $cartItem = [
@@ -83,7 +37,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'], $_POST[
                 'image' => $prod['Prod_Image'],
                 'quantity' => (int)$_POST['quantity']
             ];
-            // Add or update cart
             if (!isset($_SESSION['cart'])) $_SESSION['cart'] = [];
             $found = false;
             foreach ($_SESSION['cart'] as &$item) {
@@ -96,8 +49,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'], $_POST[
             if (!$found) {
                 $_SESSION['cart'][] = $cartItem;
             }
-            
-            // AJAX response for add to cart
             if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
                 header('Content-Type: application/json');
                 echo json_encode(['success' => true]);
@@ -120,7 +71,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'], $_POST[
         }
     }
 }
- 
+
 // Remove from cart
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_from_cart'])) {
     foreach ($_SESSION['cart'] as $k => $item) {
@@ -129,9 +80,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_from_cart'])) 
             break;
         }
     }
-    // Re-index array
     $_SESSION['cart'] = array_values($_SESSION['cart']);
-    // AJAX response for remove from cart
     if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
         header('Content-Type: application/json');
         echo json_encode(['success' => true]);
@@ -140,8 +89,96 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_from_cart'])) 
     header("Location: products.php");
     exit();
 }
+
+// Handle checkout process (CONFIRM PURCHASE)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['payment_method'])) {
+    ob_clean();
+
+    $promoCode = isset($_POST['promo_code']) ? $_POST['promo_code'] : '';
+    $promoDiscount = 0;
+    $promoLabel = '';
+
+    $total = 0;
+    foreach ($_SESSION['cart'] as $item) {
+        $total += $item['price'] * $item['quantity'];
+    }
+
+    $discountRate = isset($customerInfo['Cust_DiscRate']) ? floatval($customerInfo['Cust_DiscRate']) : 0;
+    $discountAmount = $discountRate > 0 ? $total * ($discountRate / 100) : 0;
+    $totalAfterCustomerDiscount = $total - $discountAmount;
+
+    if ($promoCode) {
+        $allPromos = $con->getAvailablePromos($userID);
+        $selectedPromo = null;
+        foreach ($allPromos as $promo) {
+            if (strcasecmp($promo['Prom_Code'], $promoCode) == 0) {
+                $selectedPromo = $promo;
+                break;
+            }
+        }
+        if ($selectedPromo) {
+            if (strcasecmp($selectedPromo['Promo_DiscountType'], "Percentage") == 0) {
+                $promoDiscount = $totalAfterCustomerDiscount * (floatval($selectedPromo['Promo_DiscAmnt']) / 100);
+                $promoLabel = $selectedPromo['Prom_Code'] . ' (-' . floatval($selectedPromo['Promo_DiscAmnt']) . '%)';
+            } else {
+                $promoDiscount = min(floatval($selectedPromo['Promo_DiscAmnt']), $totalAfterCustomerDiscount);
+                $promoLabel = $selectedPromo['Prom_Code'] . ' (-₱' . number_format($selectedPromo['Promo_DiscAmnt'], 2) . ')';
+            }
+            $con->logPromoUsage($selectedPromo['PromotionID'], $_SESSION['user_id']);
+        }
+    }
+
+    $finalTotal = $totalAfterCustomerDiscount - $promoDiscount;
+
+    // --- DATABASE INSERTION FOR PAYMENT HISTORY ---
+    // 1. Insert into Sales table (no Sale_Status)
+    $conn = $con->opencon();
+    try {
+        $conn->beginTransaction();
+
+        // Insert sale
+        $saleStmt = $conn->prepare("INSERT INTO Sales (CustomerID, Sale_Date, Sale_Method) VALUES (?, NOW(), ?)");
+        $saleStmt->execute([$customerInfo['CustomerID'], $_POST['payment_method']]);
+        $saleID = $conn->lastInsertId();
+
+        // Insert sale items
+        foreach ($_SESSION['cart'] as $item) {
+            $itemStmt = $conn->prepare("INSERT INTO Sale_Item (SaleID, ProductID, SI_Quantity, SI_Price) VALUES (?, ?, ?, ?)");
+            $itemStmt->execute([$saleID, $item['id'], $item['quantity'], $item['price']]);
+        }
+
+        // Insert payment history
+        $payStmt = $conn->prepare("INSERT INTO Payment_History (SaleID, PT_PayAmount, PT_PayDate, PT_PayMethod) VALUES (?, ?, NOW(), ?)");
+        $payStmt->execute([$saleID, $finalTotal, $_POST['payment_method']]);
+
+        $conn->commit();
+
+        // Clear the cart after successful order
+        $_SESSION['cart'] = [];
+
+        echo json_encode([
+            'success' => true,
+            'message' => 'Order placed successfully',
+            'original_total' => $total,
+            'customer_discount_rate' => $discountRate,
+            'customer_discount_amount' => $discountAmount,
+            'promo_code' => $promoCode,
+            'promo_label' => $promoLabel,
+            'promo_discount' => $promoDiscount,
+            'final_total' => $finalTotal
+        ]);
+        exit();
+    } catch (Exception $e) {
+        $conn->rollBack();
+        echo json_encode([
+            'success' => false,
+            'message' => 'Failed to complete purchase: ' . $e->getMessage()
+        ]);
+        exit();
+    }
+}
 ?>
- 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -166,7 +203,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_from_cart'])) 
     </style>
 </head>
 <body>
- 
+
     <!-- Sidebar -->
     <div class="sidebar">
         <a href="dashboard.php" class="sidebar-brand">AgriFeeds</a>
@@ -209,7 +246,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_from_cart'])) 
             </ul>
         </div>
     </div>
- 
+
     <!-- Main Content -->
     <div class="main-content">
         <div class="d-flex justify-content-between align-items-center mb-4">
@@ -235,7 +272,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_from_cart'])) 
                 </select>
             </div>
         </div>
- 
+
         <!-- Products Grid -->
         <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4" id="productsGrid">
             <?php foreach ($products as $product): ?>
@@ -307,7 +344,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_from_cart'])) 
             <?php endforeach; ?>
         </div>
     </div>
- 
+
     <!-- Cart Modal -->
     <div class="modal fade" id="cartModal" tabindex="-1" aria-labelledby="cartModalLabel" aria-hidden="true">
       <div class="modal-dialog modal-lg">
@@ -317,7 +354,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_from_cart'])) 
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
-            <?php if (!empty($_SESSION['cart'])): $total = 0; ?>
+            <?php if (!empty($_SESSION['cart'])): 
+              $total = 0;
+              foreach ($_SESSION['cart'] as $item) {
+                  $subtotal = $item['price'] * $item['quantity'];
+                  $total += $subtotal;
+              }
+              $discountRate = isset($customerInfo['Cust_DiscRate']) ? floatval($customerInfo['Cust_DiscRate']) : 0;
+              $discountAmount = $discountRate > 0 ? $total * ($discountRate / 100) : 0;
+              $finalTotal = $total - $discountAmount;
+            ?>
             <div class="table-responsive">
               <table class="table align-middle">
                 <thead>
@@ -333,7 +379,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_from_cart'])) 
                 <tbody>
                   <?php foreach ($_SESSION['cart'] as $item):
                     $subtotal = $item['price'] * $item['quantity'];
-                    $total += $subtotal;
                   ?>
                   <tr>
                     <td>
@@ -356,7 +401,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_from_cart'])) 
                 </tbody>
               </table>
             </div>
-            <div class="text-end fw-bold fs-5">Total: ₱<?php echo number_format($total, 2); ?></div>
+            <div class="text-end fw-bold fs-5">
+                Subtotal: ₱<?php echo number_format($total, 2); ?><br>
+                <?php if ($discountRate > 0): ?>
+                    Customer Discount (<?php echo $discountRate; ?>%): -₱<?php echo number_format($discountAmount, 2); ?><br>
+                    <span class="text-success">Total after Discount: ₱<?php echo number_format($finalTotal, 2); ?></span>
+                <?php else: ?>
+                    <span>Total: ₱<?php echo number_format($total, 2); ?></span>
+                <?php endif; ?>
+            </div>
             <?php else: ?>
               <div class="text-center text-muted py-4">
                 <i class="bi bi-cart-x" style="font-size:2rem;"></i><br>
@@ -375,7 +428,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_from_cart'])) 
         </div>
       </div>
     </div>
- 
+
     <!-- Checkout Modal -->
     <div class="modal fade" id="checkoutModal" tabindex="-1" aria-labelledby="checkoutModalLabel" aria-hidden="true">
       <div class="modal-dialog modal-lg">
@@ -414,21 +467,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_from_cart'])) 
                   <option value="card">Card</option>
                 </select>
               </div>
-              <div class="mb-3 position-relative">
+             <div class="mb-3 position-relative">
     <label class="form-label fw-bold">Promo Code:</label>
     <?php if (!empty($promos)): ?>
         <select class="form-select" name="promo_code" id="promoCodeSelect">
             <option value="">-- Select Promo Code --</option>
             <?php foreach ($promos as $promo): ?>
                 <option value="<?php echo htmlspecialchars($promo['Prom_Code']); ?>">
-                    <?php echo htmlspecialchars($promo['Prom_Code'] . ' - ' . $promo['Promo_Description']); ?>
-                </option>
+    <?php
+        echo htmlspecialchars($promo['Prom_Code']);
+        if (strtolower($promo['Promo_DiscountType']) === 'percentage') {
+            echo ' (' . floatval($promo['Promo_DiscAmnt']) . '%)';
+        } else {
+            echo ' (₱' . number_format($promo['Promo_DiscAmnt'], 2) . ')';
+        }
+    ?>
+</option>
             <?php endforeach; ?>
         </select>
     <?php else: ?>
         <input type="text" class="form-control" id="promoCodeInput" name="promo_code" placeholder="No available promos" disabled>
     <?php endif; ?>
 </div>
+              <div id="checkoutDiscountBreakdown" class="mb-3 text-end fw-bold fs-5">
+                <!-- Discount breakdown will be updated by JS -->
+              </div>
+            </div>
             <div class="modal-footer">
               <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
               <button type="submit" class="btn btn-success">Confirm Purchase</button>
@@ -437,7 +501,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_from_cart'])) 
         </div>
       </div>
     </div>
- 
+
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <!-- SweetAlert2 -->
@@ -682,7 +746,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_from_cart'])) 
         });
     });
 
-
     document.addEventListener('DOMContentLoaded', function() {
         // Check if we should show the cart modal
         const urlParams = new URLSearchParams(window.location.search);
@@ -695,6 +758,63 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_from_cart'])) 
             const newUrl = window.location.pathname + window.location.search.replace(/[?&]show_cart=1/, '');
             window.history.replaceState({}, '', newUrl);
         }
+    });
+
+    // Live update of discount and total in checkout modal when promo code is selected
+    document.addEventListener("DOMContentLoaded", function() {
+        var promoSelect = document.getElementById('promoCodeSelect');
+        if (!promoSelect) return;
+        promoSelect.addEventListener('change', function() {
+            updateDiscountDisplay();
+        });
+
+        function updateDiscountDisplay() {
+            var subtotal = 0;
+            <?php if (!empty($_SESSION['cart'])): ?>
+                <?php foreach ($_SESSION['cart'] as $item): ?>
+                    subtotal += <?php echo $item['price'] * $item['quantity']; ?>;
+                <?php endforeach; ?>
+            <?php endif; ?>
+
+            var discountRate = <?php echo isset($customerInfo['Cust_DiscRate']) ? floatval($customerInfo['Cust_DiscRate']) : 0; ?>;
+            var customerDiscount = subtotal * (discountRate / 100);
+            var totalAfterCustomerDiscount = subtotal - customerDiscount;
+
+            var promos = {};
+            <?php foreach ($promos as $promo): ?>
+                promos["<?php echo addslashes($promo['Prom_Code']); ?>"] = {
+                    type: "<?php echo addslashes($promo['Promo_DiscountType']); ?>",
+                    amount: <?php echo floatval($promo['Promo_DiscAmnt']); ?>,
+                    label: "<?php echo addslashes($promo['Prom_Code'] . (strcasecmp($promo['Promo_DiscountType'], 'Percentage') == 0 ? ' (-' . floatval($promo['Promo_DiscAmnt']) . '%)' : ' (-₱' . number_format($promo['Promo_DiscAmnt'], 2) . ')')); ?>"
+                };
+            <?php endforeach; ?>
+
+            var selectedPromoCode = promoSelect.value;
+            var promoDiscount = 0;
+            var promoLabel = '';
+            if (promos[selectedPromoCode]) {
+                if (promos[selectedPromoCode].type.toLowerCase() === "percentage") {
+                    promoDiscount = totalAfterCustomerDiscount * (promos[selectedPromoCode].amount / 100);
+                } else {
+                    promoDiscount = Math.min(promos[selectedPromoCode].amount, totalAfterCustomerDiscount);
+                }
+                promoLabel = promos[selectedPromoCode].label;
+            }
+            var finalTotal = totalAfterCustomerDiscount - promoDiscount;
+
+            // Update the DOM
+            var discountBox = document.getElementById('checkoutDiscountBreakdown');
+            if (discountBox) {
+                discountBox.innerHTML =
+                    'Subtotal: ₱' + subtotal.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}) + '<br>' +
+                    (discountRate > 0 ? 'Customer Discount (' + discountRate + '%): -₱' + customerDiscount.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}) + '<br>' : '') +
+                    (promoDiscount > 0 ? 'Promo Discount' + (promoLabel ? ' (' + promoLabel + ')' : '') + ': -₱' + promoDiscount.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}) + '<br>' : '') +
+                    '<span class="text-success">Total after Discounts: ₱' + finalTotal.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}) + '</span>';
+            }
+        }
+
+        // Initial display
+        updateDiscountDisplay();
     });
     </script>
 </body>

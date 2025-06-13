@@ -817,6 +817,8 @@ function getRecentOrders($userID, $limit = 5) {
             (SELECT COUNT(*) FROM Sale_Item WHERE SaleID = s.SaleID) as item_count,
             (SELECT SUM(SI_Quantity * SI_Price) FROM Sale_Item WHERE SaleID = s.SaleID) as Order_Total
             -- Removed s.Sale_Method as Order_Status
+            (SELECT SUM(SI_Quantity * SI_Price) FROM Sale_Item WHERE SaleID = s.SaleID) as Order_Total
+            -- Removed s.Sale_Method as Order_Status
         FROM Sales s
         JOIN Customers c ON s.CustomerID = c.CustomerID
         WHERE c.UserID = ?
@@ -1051,115 +1053,113 @@ function getAvailablePromos($userID = null) {
 }
 
     function logPromoUsage($promotionId, $userId) {
-    $con = $this->opencon();
-    $stmt = $con->prepare("INSERT INTO promo_usage (PromotionID, UserID) VALUES (?, ?)");
-    $stmt->execute([$promotionId, $userId]);
-}
-
-public function createSale($customerId, $paymentMethod, $cartItems, $promoCode = '', $promoDiscount = 0) {
-    try {
         $con = $this->opencon();
-        $con->beginTransaction();
+        $stmt = $con->prepare("INSERT INTO promo_usage (PromotionID, UserID) VALUES (?, ?)");
+        $stmt->execute([$promotionId, $userId]);
+    }
 
-        // Insert into Sales table (match your columns)
-        $stmt = $con->prepare("INSERT INTO Sales (CustomerID, Sale_Date, Sale_Per) VALUES (?, NOW(), ?)");
-        $stmt->execute([$customerId, $paymentMethod]);
-        $saleId = $con->lastInsertId();
-
-        // Insert each item into Sale_Item table
-        $itemStmt = $con->prepare("INSERT INTO Sale_Item (SaleID, ProductID, SI_Quantity, SI_Price) VALUES (?, ?, ?, ?)");
-        foreach ($cartItems as $item) {
-            $itemStmt->execute([$saleId, $item['id'], $item['quantity'], $item['price']]);
+    public function addInventoryHistory($productId, $qtyChange, $newStockLevel) {
+        try {
+            $con = $this->opencon();
+            $stmt = $con->prepare("INSERT INTO inventory_history 
+                (ProductID, IH_QtyChange, IH_NewStckLvl, IH_ChangeDate) 
+                VALUES (?, ?, ?, NOW())");
+            return $stmt->execute([$productId, $qtyChange, $newStockLevel]);
+        } catch (PDOException $e) {
+            error_log("Error adding inventory history: " . $e->getMessage());
+            return false;
         }
-
-        $con->commit();
-        return $saleId;
-    } catch (PDOException $e) {
-        if (isset($con)) $con->rollBack();
-        error_log("createSale error: " . $e->getMessage());
-        return false;
     }
-}
 
+    public function createSale($customerId, $paymentMethod, $cartItems, $promoCode = '', $promoDiscount = 0) {
+        try {
+            $con = $this->opencon();
+            $con->beginTransaction();
 
-function addInventoryHistory($productId, $qtyChange, $newStockLevel) {
-    try {
-        $con = $this->opencon();
-        $stmt = $con->prepare("INSERT INTO inventory_history 
-            (ProductID, IH_QtyChange, IH_NewStckLvl, IH_ChangeDate) 
-            VALUES (?, ?, ?, NOW())");
-        return $stmt->execute([$productId, $qtyChange, $newStockLevel]);
-    } catch (PDOException $e) {
-        error_log("Error adding inventory history: " . $e->getMessage());
-        return false;
+            // Insert into Sales table (match your columns)
+            $stmt = $con->prepare("INSERT INTO Sales (CustomerID, Sale_Date, Sale_Per) VALUES (?, NOW(), ?)");
+            $stmt->execute([$customerId, $paymentMethod]);
+            $saleId = $con->lastInsertId();
+
+            // Insert each item into Sale_Item table
+            $itemStmt = $con->prepare("INSERT INTO Sale_Item (SaleID, ProductID, SI_Quantity, SI_Price) VALUES (?, ?, ?, ?)");
+            foreach ($cartItems as $item) {
+                $itemStmt->execute([$saleId, $item['id'], $item['quantity'], $item['price']]);
+            }
+
+            $con->commit();
+            return $saleId;
+        } catch (PDOException $e) {
+            if (isset($con)) $con->rollBack();
+            error_log("createSale error: " . $e->getMessage());
+            return false;
+        }
     }
-}
 
+    public function updatePurchaseOrderStatus($poId, $newStatus) {
+        try {
+            $con = $this->opencon();
+            $con->beginTransaction();
 
-public function updatePurchaseOrderStatus($poId, $newStatus) {
-    try {
-        $con = $this->opencon();
-        $con->beginTransaction();
+            // Update purchase order status
+            $stmt = $con->prepare("UPDATE purchase_orders SET PO_Order_Stat = ? WHERE Pur_OrderID = ?");
+            $stmt->execute([$newStatus, $poId]);
 
-        // Update purchase order status
-        $stmt = $con->prepare("UPDATE purchase_orders SET PO_Order_Stat = ? WHERE Pur_OrderID = ?");
-        $stmt->execute([$newStatus, $poId]);
-
-        // If status is 'Received', update stock levels
-        if ($newStatus === 'Received') {
-            // Get purchase order items
-            $stmt = $con->prepare("
-                SELECT ProductID, Pur_OIQuantity 
-                FROM purchase_order_item 
-                WHERE Pur_OrderID = ?
-            ");
-            $stmt->execute([$poId]);
-            $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-            // Update stock for each item
-            foreach ($items as $item) {
-                // Get current stock
-                $stmt = $con->prepare("SELECT Prod_Stock FROM products WHERE ProductID = ?");
-                $stmt->execute([$item['ProductID']]);
-                $currentStock = $stmt->fetchColumn();
-
-                // Calculate new stock level
-                $newStock = $currentStock + $item['Pur_OIQuantity'];
-
-                // Update stock
-                $stmt = $con->prepare("UPDATE products SET Prod_Stock = ? WHERE ProductID = ?");
-                $stmt->execute([$newStock, $item['ProductID']]);
-
-                // Add to inventory history
+            // If status is 'Received', update stock levels
+            if ($newStatus === 'Received') {
+                // Get purchase order items
                 $stmt = $con->prepare("
-                    INSERT INTO inventory_history 
-                    (ProductID, IH_QtyChange, IH_NewStckLvl, IH_ChangeDate) 
-                    VALUES (?, ?, ?, NOW())
+                    SELECT ProductID, Pur_OIQuantity 
+                    FROM purchase_order_item 
+                    WHERE Pur_OrderID = ?
                 ");
-                $stmt->execute([
-                    $item['ProductID'],
-                    $item['Pur_OIQuantity'],
-                    $newStock
-                ]);
+                $stmt->execute([$poId]);
+                $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+                // Update stock for each item
+                foreach ($items as $item) {
+                    // Get current stock
+                    $stmt = $con->prepare("SELECT Prod_Stock FROM products WHERE ProductID = ?");
+                    $stmt->execute([$item['ProductID']]);
+                    $currentStock = $stmt->fetchColumn();
+
+                    // Calculate new stock level
+                    $newStock = $currentStock + $item['Pur_OIQuantity'];
+
+                    // Update stock
+                    $stmt = $con->prepare("UPDATE products SET Prod_Stock = ? WHERE ProductID = ?");
+                    $stmt->execute([$newStock, $item['ProductID']]);
+
+                    // Add to inventory history
+                    $stmt = $con->prepare("
+                        INSERT INTO inventory_history 
+                        (ProductID, IH_QtyChange, IH_NewStckLvl, IH_ChangeDate) 
+                        VALUES (?, ?, ?, NOW())
+                    ");
+                    $stmt->execute([
+                        $item['ProductID'],
+                        $item['Pur_OIQuantity'],
+                        $newStock
+                    ]);
+                }
+
+                // Log the action
+                if (isset($_SESSION['user_id'])) {
+                    $this->addAuditLog(
+                        $_SESSION['user_id'],
+                        'RECEIVE_PURCHASE_ORDER',
+                        "Received purchase order #$poId and updated stock levels"
+                    );
+                }
             }
 
-            // Log the action
-            if (isset($_SESSION['user_id'])) {
-                $this->addAuditLog(
-                    $_SESSION['user_id'],
-                    'RECEIVE_PURCHASE_ORDER',
-                    "Received purchase order #$poId and updated stock levels"
-                );
-            }
+            $con->commit();
+            return true;
+        } catch (PDOException $e) {
+            if (isset($con)) $con->rollBack();
+            return false;
         }
-
-        $con->commit();
-        return true;
-    } catch (PDOException $e) {
-        if (isset($con)) $con->rollBack();
-        return false;
     }
-}
 
     public function getPurchaseOrderItems($poId) {
         try {
