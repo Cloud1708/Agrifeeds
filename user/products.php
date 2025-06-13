@@ -149,21 +149,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['payment_method'])) {
     // Final total after both customer and promo discounts
     $finalTotal = $totalAfterCustomerDiscount - $promoDiscount;
 
-    // Clear the cart after successful order
-    $_SESSION['cart'] = [];
+    // Create sale record
+    $saleId = $con->createSale(
+        $customerInfo['CustomerID'],
+        $_POST['payment_method'],
+        $_SESSION['cart'],
+        $promoCode,
+        $promoDiscount
+    );
 
-    // Return success response with breakdown
-    echo json_encode([
-        'success' => true,
-        'message' => 'Order placed successfully',
-        'original_total' => $total,
-        'customer_discount_rate' => $discountRate,
-        'customer_discount_amount' => $discountAmount,
-        'promo_code' => $promoCode,
-        'promo_label' => $promoLabel,
-        'promo_discount' => $promoDiscount,
-        'final_total' => $finalTotal
-    ]);
+    if ($saleId) {
+        // Clear the cart after successful order
+        $_SESSION['cart'] = [];
+
+        // Return success response with breakdown
+        echo json_encode([
+            'success' => true,
+            'message' => 'Order placed successfully',
+            'sale_id' => $saleId,
+            'original_total' => $total,
+            'customer_discount_rate' => $discountRate,
+            'customer_discount_amount' => $discountAmount,
+            'promo_code' => $promoCode,
+            'promo_label' => $promoLabel,
+            'promo_discount' => $promoDiscount,
+            'final_total' => $finalTotal
+        ]);
+    } else {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Failed to create sale record. Please try again.'
+        ]);
+    }
     exit();
 }
 ?>
