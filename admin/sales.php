@@ -25,7 +25,6 @@
                 <button class="btn btn-info me-2" data-bs-toggle="modal" data-bs-target="#paymentHistoryModal">
                     <i class="bi bi-credit-card"></i> Payment History
                 </button>
-                <!-- Replace New Sale button with Sale_Item view button -->
                 <button class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#saleItemViewModal">
                     <i class="bi bi-eye"></i> View Sale_Item
                 </button>
@@ -120,7 +119,7 @@
             </table>
         </div>
     </div>
- 
+
     <!-- Sale_Item View Modal -->
     <div class="modal fade" id="saleItemViewModal" tabindex="-1" aria-labelledby="saleItemViewModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-xl">
@@ -144,10 +143,8 @@
                             </thead>
                             <tbody id="saleItemTableBody">
                                 <?php
-                                // This PHP block should be replaced with actual DB connection and query logic
                                 include_once '../includes/db.php';
                                 $db = new database();
-                                // Join Sale_Item with Products to get the product name instead of ProductID
                                 $con = $db->opencon();
                                 $stmt = $con->prepare("SELECT si.SaleItemID, si.SaleID, p.Prod_Name AS ProductName, si.SI_Quantity, si.SI_Price FROM Sale_Item si JOIN Products p ON si.ProductID = p.ProductID");
                                 $stmt->execute();
@@ -207,76 +204,99 @@
     </div>
  
     <!-- Payment History Modal -->
-    <div class="modal fade" id="paymentHistoryModal" tabindex="-1" aria-labelledby="paymentHistoryModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-xl">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="paymentHistoryModalLabel">Payment History</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <!-- Payment History Filters -->
-                    <div class="row mb-3">
-                        <div class="col-md-3">
-                            <div class="input-group">
-                                <span class="input-group-text">
-                                    <i class="bi bi-search"></i>
-                                </span>
-                                <input type="text" class="form-control" id="paymentSearch"
-                                       placeholder="Search payments..." aria-label="Search payments">
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <select class="form-select" id="paymentMethodFilter">
-                                <option value="">All Payment Methods</option>
-                                <option value="credit_card">Credit Card</option>
-                                <option value="cash">Cash</option>
-                                <option value="bank_transfer">Bank Transfer</option>
-                            </select>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <input type="date" class="form-control" id="paymentStartDate" placeholder="Start Date">
-                                </div>
-                                <div class="col-md-6">
-                                    <input type="date" class="form-control" id="paymentEndDate" placeholder="End Date">
-                                </div>
-                            </div>
-                        </div>
+<div class="modal fade" id="paymentHistoryModal" tabindex="-1" aria-labelledby="paymentHistoryModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="paymentHistoryModalLabel">Payment History</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+
+                <!-- Date Sort/Filter Inputs -->
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label for="paymentStartDate" class="form-label">Start Date</label>
+                        <input type="date" class="form-control" id="paymentStartDate" placeholder="mm/dd/yyyy"> <!-- ![image1](image1) -->
                     </div>
- 
-                    <!-- Payment History Table -->
-                    <div class="table-responsive">
-                        <table class="table table-striped table-hover">
-                            <thead>
-                                <tr>
-                                    <th>Payment ID</th>
-                                    <th>Sale ID</th>
-                                    <th>Amount</th>
-                                    <th>Date</th>
-                                    <th>Method</th>
-                                    <th>Customer</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="paymentHistoryTableBody">
-                                <!-- Payment history will be populated here -->
-                            </tbody>
-                        </table>
+                    <div class="col-md-4">
+                        <label for="paymentEndDate" class="form-label">End Date</label>
+                        <input type="date" class="form-control" id="paymentEndDate" placeholder="mm/dd/yyyy">
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <button type="button" class="btn btn-primary w-100" onclick="filterPaymentHistory()">Filter by Date</button>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+
+                <!-- Payment_History Table -->
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>PaytoryID</th>
+                                <th>SaleID</th>
+                                <th>PT_PayAmount</th>
+                                <th>PT_PayDate</th>
+                                <th>PT_PayMethod</th>
+                            </tr>
+                        </thead>
+                        <tbody id="paymentHistoryTableBody">
+                            <?php
+                            include_once '../includes/db.php';
+                            $db = new database();
+                            $con = $db->opencon();
+                            $stmt = $con->prepare("SELECT PaytoryID, SaleID, PT_PayAmount, PT_PayDate, PT_PayMethod FROM Payment_History ORDER BY PT_PayDate DESC");
+                            $stmt->execute();
+                            $paymentHistory = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                            foreach ($paymentHistory as $payment) {
+                                echo "<tr>";
+                                echo "<td>{$payment['PaytoryID']}</td>";
+                                echo "<td>{$payment['SaleID']}</td>";
+                                echo "<td>{$payment['PT_PayAmount']}</td>";
+                                echo "<td>{$payment['PT_PayDate']}</td>";
+                                echo "<td>{$payment['PT_PayMethod']}</td>";
+                                echo "</tr>";
+                            }
+                            ?>
+                        </tbody>
+                    </table>
                 </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
             </div>
         </div>
     </div>
+</div>
+
  
     <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <!-- Custom JS -->
-   
     <script src="../js/scripts.js"></script>
+    <script>
+// JS client-side filtering for Payment_History, works with the pre-rendered table above
+function filterPaymentHistory() {
+    var start = document.getElementById('paymentStartDate').value;
+    var end = document.getElementById('paymentEndDate').value;
+    var rows = document.querySelectorAll('#paymentHistoryTableBody tr');
+
+    rows.forEach(function(row) {
+        var dateCell = row.children[3];
+        if (!dateCell) return;
+        var dateVal = dateCell.textContent.trim();
+        // Accepts 'YYYY-MM-DD' or 'YYYY-MM-DD HH:MM:SS'
+        var dateOnly = dateVal.split(' ')[0];
+        if (!start && !end) {
+            row.style.display = '';
+            return;
+        }
+        var show = true;
+        if (start && dateOnly < start) show = false;
+        if (end && dateOnly > end) show = false;
+        row.style.display = show ? '' : 'none';
+    });
+}
+</script>
 </body>
 </html>

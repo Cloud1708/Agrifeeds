@@ -3,9 +3,7 @@
 error_reporting(0);
 ini_set('display_errors', 0);
 
-// Start output buffering
 ob_start();
-
 require_once('../includes/db.php');
 $con = new database();
 session_start();
@@ -16,27 +14,20 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-// Get user information
 $userID = $_SESSION['user_id'];
 $userInfo = $con->getUserInfo($userID);
 $customerInfo = $con->getCustomerInfo($userID);
-
-// Get all available products
 $products = $con->getAllProducts();
 
-// Fetch available promos (assuming you have a method for this)
 $promos = [];
 if (method_exists($con, 'getAvailablePromos')) {
-    $promos = $con->getAvailablePromos($userID); // Adjust as needed
+    $promos = $con->getAvailablePromos($userID);
 }
 
 // --- CART LOGIC (SESSION BASED) ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'], $_POST['quantity'])) {
-    // Ensure no output before JSON response
     ob_clean();
-
     try {
-        // Fetch product info from DB using product_id
         $prod = $con->getProductById($_POST['product_id']);
         if ($prod) {
             $cartItem = [
@@ -46,7 +37,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'], $_POST[
                 'image' => $prod['Prod_Image'],
                 'quantity' => (int)$_POST['quantity']
             ];
-            // Add or update cart
             if (!isset($_SESSION['cart'])) $_SESSION['cart'] = [];
             $found = false;
             foreach ($_SESSION['cart'] as &$item) {
@@ -59,8 +49,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'], $_POST[
             if (!$found) {
                 $_SESSION['cart'][] = $cartItem;
             }
-
-            // AJAX response for add to cart
             if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
                 header('Content-Type: application/json');
                 echo json_encode(['success' => true]);
@@ -92,9 +80,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_from_cart'])) 
             break;
         }
     }
-    // Re-index array
     $_SESSION['cart'] = array_values($_SESSION['cart']);
-    // AJAX response for remove from cart
     if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
         header('Content-Type: application/json');
         echo json_encode(['success' => true]);
@@ -104,27 +90,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_from_cart'])) 
     exit();
 }
 
-// Handle checkout process
+// Handle checkout process (CONFIRM PURCHASE)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['payment_method'])) {
-    // Ensure no output before JSON response
     ob_clean();
 
     $promoCode = isset($_POST['promo_code']) ? $_POST['promo_code'] : '';
     $promoDiscount = 0;
     $promoLabel = '';
 
-    // Compute cart total
     $total = 0;
     foreach ($_SESSION['cart'] as $item) {
         $total += $item['price'] * $item['quantity'];
     }
 
-    // Apply customer discount (loyalty)
     $discountRate = isset($customerInfo['Cust_DiscRate']) ? floatval($customerInfo['Cust_DiscRate']) : 0;
     $discountAmount = $discountRate > 0 ? $total * ($discountRate / 100) : 0;
     $totalAfterCustomerDiscount = $total - $discountAmount;
 
-    // Apply promo code if provided and valid
     if ($promoCode) {
         $allPromos = $con->getAvailablePromos($userID);
         $selectedPromo = null;
@@ -146,27 +128,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['payment_method'])) {
         }
     }
 
-    // Final total after both customer and promo discounts
     $finalTotal = $totalAfterCustomerDiscount - $promoDiscount;
 
-    // Create sale record
-    $saleId = $con->createSale(
-        $customerInfo['CustomerID'],
-        $_POST['payment_method'],
-        $_SESSION['cart'],
-        $promoCode,
-        $promoDiscount
-    );
+    // --- DATABASE INSERTION FOR PAYMENT HISTORY ---
+    // 1. Insert into Sales table (no Sale_Status)
+    $conn = $con->opencon();
+    try {
+        $conn->beginTransaction();
 
-    if ($saleId) {
+        // Insert sale
+        $saleStmt = $conn->prepare("INSERT INTO Sales (CustomerID, Sale_Date, Sale_Method) VALUES (?, NOW(), ?)");
+        $saleStmt->execute([$customerInfo['CustomerID'], $_POST['payment_method']]);
+        $saleID = $conn->lastInsertId();
+
+        // Insert sale items
+        foreach ($_SESSION['cart'] as $item) {
+            $itemStmt = $conn->prepare("INSERT INTO Sale_Item (SaleID, ProductID, SI_Quantity, SI_Price) VALUES (?, ?, ?, ?)");
+            $itemStmt->execute([$saleID, $item['id'], $item['quantity'], $item['price']]);
+        }
+
+        // Insert payment history
+        $payStmt = $conn->prepare("INSERT INTO Payment_History (SaleID, PT_PayAmount, PT_PayDate, PT_PayMethod) VALUES (?, ?, NOW(), ?)");
+        $payStmt->execute([$saleID, $finalTotal, $_POST['payment_method']]);
+
+        $conn->commit();
+
         // Clear the cart after successful order
         $_SESSION['cart'] = [];
 
-        // Return success response with breakdown
         echo json_encode([
             'success' => true,
             'message' => 'Order placed successfully',
-            'sale_id' => $saleId,
             'original_total' => $total,
             'customer_discount_rate' => $discountRate,
             'customer_discount_amount' => $discountAmount,
@@ -175,15 +167,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['payment_method'])) {
             'promo_discount' => $promoDiscount,
             'final_total' => $finalTotal
         ]);
-    } else {
+        exit();
+    } catch (Exception $e) {
+        $conn->rollBack();
         echo json_encode([
             'success' => false,
-            'message' => 'Failed to create sale record. Please try again.'
+            'message' => 'Failed to complete purchase: ' . $e->getMessage()
         ]);
+        exit();
     }
-    exit();
 }
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
