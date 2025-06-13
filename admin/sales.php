@@ -1,3 +1,38 @@
+<?php
+
+session_start();
+ 
+require_once('../includes/db.php');
+$con = new database();
+$conn = $con->opencon();
+$sweetAlertConfig = "";
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mark_completed'], $_POST['sale_id'])) {
+    $saleId = intval($_POST['sale_id']);
+
+    // 1. I-update ang Sale_Status lang (alisin ang IsCompleted)
+    $stmt = $conn->prepare("UPDATE Sales SET Sale_Status = 'Completed' WHERE SaleID = ?");
+    $stmt->execute([$saleId]);
+
+    // 2. Kuhanin ang total amount ng sale
+    $totalStmt = $conn->prepare("SELECT SUM(SI_Quantity * SI_Price) as total FROM Sale_Item WHERE SaleID = ?");
+    $totalStmt->execute([$saleId]);
+    $total = $totalStmt->fetchColumn();
+
+    // 3. Mag-insert sa Payment_History (cash)
+    $payStmt = $conn->prepare("INSERT INTO Payment_History (SaleID, PT_PayAmount, PT_PayDate, PT_PayMethod) VALUES (?, ?, NOW(), ?)");
+    $payStmt->execute([$saleId, $total, 'cash']);
+
+    // Redirect para di ma-resubmit
+    header("Location: sales.php");
+    exit();
+}
+
+
+
+?>
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -105,7 +140,6 @@
                     <tr>
                         <th>Sale ID</th>
                         <th>Sale Date</th>
-                        <th>Sale Method</th>
                         <th>Sale Person</th>
                         <th>Customer</th>
                         <th>Promotion</th>
@@ -114,7 +148,31 @@
                     </tr>
                 </thead>
                 <tbody id="salesTableBody">
-                    <!-- Table content will be populated by JavaScript -->
+<?php
+    $data = $con->viewSales();
+    foreach ($data as $sale) {
+?>
+<tr>
+    <td><?php echo $sale['SaleID']; ?></td>
+    <td><?php echo $sale['Sale_Date']; ?></td>
+    <td><?php echo htmlspecialchars($sale['Sale_Per']); // This is the admin ID ?></td>
+    <td><?php echo htmlspecialchars($sale['CustomerName']); ?></td>
+    <td><?php echo !empty($sale['PromotionName']) ? htmlspecialchars($sale['PromotionName']) : '-'; ?></td>
+    <td><?php echo isset($sale['Sale_Status']) ? htmlspecialchars($sale['Sale_Status']) : '-'; ?></td>
+    <td>
+    <?php if (isset($sale['Sale_Status']) && $sale['Sale_Status'] === 'Pending'): ?>
+        <form method="POST" action="sales.php" style="display:inline;">
+            <input type="hidden" name="sale_id" value="<?php echo $sale['SaleID']; ?>">
+            <button type="submit" name="mark_completed" class="btn btn-success btn-sm" title="Mark as Completed">
+                <i class="bi bi-check-lg"></i>
+            </button>
+        </form>
+    <?php elseif (isset($sale['Sale_Status']) && $sale['Sale_Status'] === 'Completed'): ?>
+        <span class="badge bg-success">Completed</span>
+    <?php endif; ?>
+    </td>
+</tr>
+<?php } ?>
                 </tbody>
             </table>
         </div>
@@ -217,7 +275,7 @@
                 <div class="row mb-3">
                     <div class="col-md-4">
                         <label for="paymentStartDate" class="form-label">Start Date</label>
-                        <input type="date" class="form-control" id="paymentStartDate" placeholder="mm/dd/yyyy"> <!-- ![image1](image1) -->
+                        <input type="date" class="form-control" id="paymentStartDate" placeholder="mm/dd/yyyy">
                     </div>
                     <div class="col-md-4">
                         <label for="paymentEndDate" class="form-label">End Date</label>

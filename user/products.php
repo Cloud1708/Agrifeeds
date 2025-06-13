@@ -133,49 +133,64 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['payment_method'])) {
     // --- DATABASE INSERTION FOR PAYMENT HISTORY ---
     // 1. Insert into Sales table (no Sale_Status)
     $conn = $con->opencon();
-    try {
-        $conn->beginTransaction();
+try {
+    $conn->beginTransaction();
 
-        // Insert sale
-        $saleStmt = $conn->prepare("INSERT INTO Sales (CustomerID, Sale_Date, Sale_Method) VALUES (?, NOW(), ?)");
-        $saleStmt->execute([$customerInfo['CustomerID'], $_POST['payment_method']]);
-        $saleID = $conn->lastInsertId();
+    // Insert sale
+    if (strtolower($_POST['payment_method']) === 'card') {
+    $saleStmt = $conn->prepare("INSERT INTO Sales (CustomerID, Sale_Date, Sale_Status) VALUES (?, NOW(), 'Completed')");
+    $saleStmt->execute([$customerInfo['CustomerID']]);
+} else {
+    // cash
+    $saleStmt = $conn->prepare("INSERT INTO Sales (CustomerID, Sale_Date, Sale_Status) VALUES (?, NOW(), 'Pending')");
+    $saleStmt->execute([$customerInfo['CustomerID']]);
+}
+$saleID = $conn->lastInsertId();
 
-        // Insert sale items
-        foreach ($_SESSION['cart'] as $item) {
-            $itemStmt = $conn->prepare("INSERT INTO Sale_Item (SaleID, ProductID, SI_Quantity, SI_Price) VALUES (?, ?, ?, ?)");
-            $itemStmt->execute([$saleID, $item['id'], $item['quantity'], $item['price']]);
-        }
+    // Insert sale items
+    foreach ($_SESSION['cart'] as $item) {
+    $itemStmt = $conn->prepare("INSERT INTO Sale_Item (SaleID, ProductID, SI_Quantity, SI_Price) VALUES (?, ?, ?, ?)");
+    $itemStmt->execute([$saleID, $item['id'], $item['quantity'], $item['price']]);
+}
 
-        // Insert payment history
-        $payStmt = $conn->prepare("INSERT INTO Payment_History (SaleID, PT_PayAmount, PT_PayDate, PT_PayMethod) VALUES (?, ?, NOW(), ?)");
-        $payStmt->execute([$saleID, $finalTotal, $_POST['payment_method']]);
+    // Insert payment history ONLY if payment method is card
+if (strtolower($_POST['payment_method']) === 'card') {
+    $payStmt = $conn->prepare("INSERT INTO Payment_History (SaleID, PT_PayAmount, PT_PayDate, PT_PayMethod) VALUES (?, ?, NOW(), ?)");
+    $payStmt->execute([$saleID, $finalTotal, $_POST['payment_method']]);
+}
 
-        $conn->commit();
-
-        // Clear the cart after successful order
-        $_SESSION['cart'] = [];
-
-        echo json_encode([
-            'success' => true,
-            'message' => 'Order placed successfully',
-            'original_total' => $total,
-            'customer_discount_rate' => $discountRate,
-            'customer_discount_amount' => $discountAmount,
-            'promo_code' => $promoCode,
-            'promo_label' => $promoLabel,
-            'promo_discount' => $promoDiscount,
-            'final_total' => $finalTotal
-        ]);
-        exit();
-    } catch (Exception $e) {
-        $conn->rollBack();
-        echo json_encode([
-            'success' => false,
-            'message' => 'Failed to complete purchase: ' . $e->getMessage()
-        ]);
-        exit();
+    // --- INSERT INTO Order_Promotions IF PROMO USED ---
+    if ($promoCode && $selectedPromo) {
+        $promoID = $selectedPromo['PromotionID'];
+        $orderPromoStmt = $conn->prepare("INSERT INTO Order_Promotions (SaleID, PromotionID, OrderP_DiscntApplied, OrderP_AppliedDate) VALUES (?, ?, ?, NOW())");
+        $orderPromoStmt->execute([$saleID, $promoID, $promoDiscount]);
     }
+
+    $conn->commit();
+
+    // Clear the cart after successful order
+    $_SESSION['cart'] = [];
+
+    echo json_encode([
+        'success' => true,
+        'message' => 'Order placed successfully',
+        'original_total' => $total,
+        'customer_discount_rate' => $discountRate,
+        'customer_discount_amount' => $discountAmount,
+        'promo_code' => $promoCode,
+        'promo_label' => $promoLabel,
+        'promo_discount' => $promoDiscount,
+        'final_total' => $finalTotal
+    ]);
+    exit();
+} catch (Exception $e) {
+    $conn->rollBack();
+    echo json_encode([
+        'success' => false,
+        'message' => 'Failed to complete purchase: ' . $e->getMessage()
+    ]);
+    exit();
+}
 }
 ?>
 
