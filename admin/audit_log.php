@@ -121,6 +121,7 @@ $current_page_activities = array_slice($activities, $offset, $items_per_page);
     <link href="../css/custom.css" rel="stylesheet">
     <link href="../css/sidebar.css" rel="stylesheet">
     <link href="../css/audit_log.css" rel="stylesheet">
+    <link href="../css/components.css" rel="stylesheet">
     <!-- Google Fonts: Poppins -->
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>

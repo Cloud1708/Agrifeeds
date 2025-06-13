@@ -21,6 +21,16 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_customer' && isset($_GET[
     echo json_encode($customer);
     exit();
 }
+
+// Handle username check request
+if (isset($_GET['action']) && $_GET['action'] === 'check_username' && isset($_GET['username'])) {
+    $username = $_GET['username'];
+    $exists = $con->checkUsernameExists($username);
+    
+    header('Content-Type: application/json');
+    echo json_encode(['exists' => $exists]);
+    exit();
+}
  
 // Handle sales history request
 if (isset($_GET['action']) && $_GET['action'] === 'get_sales_history' && isset($_GET['id'])) {
@@ -77,36 +87,77 @@ if (isset($_SESSION['sweetAlertConfig'])) {
  
 // Handle Add Customer
 if (isset($_POST['add'])) {
+    $username = $_POST['username'];
+    $password = $_POST['password'];
+    $confirmPassword = $_POST['confirmPassword'];
     $firstName = $_POST['Cust_FN'];
     $lastName = $_POST['Cust_LN'];
     $contactInfo = $_POST['Cust_CoInfo'];
-    $discountRate = $_POST['discountRate'];
     $enrollLoyalty = isset($_POST['enroll_loyalty']) ? true : false;
- 
-    $custID = $con->addCustomer($firstName, $lastName, $contactInfo, $discountRate, $enrollLoyalty);
- 
-    if ($custID) {
+
+    // Validate passwords match
+    if ($password !== $confirmPassword) {
+        $_SESSION['sweetAlertConfig'] = "
+        <script>
+        Swal.fire({
+            icon: 'error',
+            title: 'Password Mismatch',
+            text: 'The passwords do not match!',
+            confirmButtonText: 'OK'
+        });
+        </script>";
+        header("Location: " . $_SERVER['PHP_SELF']);
+        exit();
+    }
+
+    // Check if username already exists
+    if ($con->checkUsernameExists($username)) {
+        $_SESSION['sweetAlertConfig'] = "
+        <script>
+        Swal.fire({
+            icon: 'error',
+            title: 'Username Exists',
+            text: 'This username is already taken!',
+            confirmButtonText: 'OK'
+        });
+        </script>";
+        header("Location: " . $_SERVER['PHP_SELF']);
+        exit();
+    }
+
+    // Register the user first
+    $userID = $con->registerUser($username, $password, 'customer', null, $firstName, $lastName, $contactInfo);
+
+    if ($userID) {
+        // Get the customer ID from the newly created user
+        $stmt = $con->opencon()->prepare("SELECT CustomerID FROM customers WHERE UserID = ?");
+        $stmt->execute([$userID]);
+        $customerID = $stmt->fetchColumn();
+
         // Update tier if enrolled in loyalty
         if ($enrollLoyalty) {
-            $con->updateMemberTier($custID);
+            $con->updateMemberTier($customerID);
         }
+
         $_SESSION['sweetAlertConfig'] = "
         <script>
         Swal.fire({
             icon: 'success',
             title: 'Customer Added Successfully',
-            text: 'A new customer has been added!',
+            text: 'A new customer account has been created!',
             confirmButtonText: 'Continue'
-         });
+        });
         </script>";
     } else {
-        $_SESSION['sweetAlertConfig'] = "<script>
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Something went wrong',
-                    text: 'Please try again.'
-                });
-            </script>";
+        $_SESSION['sweetAlertConfig'] = "
+        <script>
+        Swal.fire({
+            icon: 'error',
+            title: 'Something went wrong',
+            text: 'Failed to create customer account. Please try again.',
+            confirmButtonText: 'OK'
+        });
+        </script>";
     }
     header("Location: " . $_SERVER['PHP_SELF']);
     exit();
@@ -347,6 +398,23 @@ foreach ($customers as $customer) {
                 </div>
                 <div class="modal-body">
                     <form id="addCustomerForm" method="POST">
+                        <!-- User Account Section -->
+                        <h6 class="mb-3">User Account Information</h6>
+                        <div class="mb-3">
+                            <label for="username" class="form-label">Username</label>
+                            <input type="text" class="form-control" id="username" name="username" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Password</label>
+                            <input type="password" class="form-control" id="password" name="password" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="confirmPassword" class="form-label">Confirm Password</label>
+                            <input type="password" class="form-control" id="confirmPassword" name="confirmPassword" required>
+                        </div>
+
+                        <!-- Customer Details Section -->
+                        <h6 class="mb-3 mt-4">Customer Details</h6>
                         <div class="mb-3">
                             <label for="firstName" class="form-label">First Name</label>
                             <input type="text" class="form-control" id="firstName" name="Cust_FN" required>
@@ -358,10 +426,6 @@ foreach ($customers as $customer) {
                         <div class="mb-3">
                             <label for="contactInfo" class="form-label">Contact Information</label>
                             <input type="text" class="form-control" id="contactInfo" name="Cust_CoInfo" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="discountRate" class="form-label">Discount Rate (%)</label>
-                            <input type="number" class="form-control" id="discountRate" name="discountRate" step="0.01" min="0" max="100">
                         </div>
                         <div class="mb-3">
                             <div class="form-check">
@@ -406,11 +470,6 @@ foreach ($customers as $customer) {
                             <label for="editContactInfo" class="form-label">Contact Information</label>
                             <input type="text" class="form-control" id="editContactInfo" name="Cust_CoInfo" required
                                 value="<?php echo isset($editCustomerData['Cust_CoInfo']) ? htmlspecialchars($editCustomerData['Cust_CoInfo']) : ''; ?>">
-                        </div>
-                        <div class="mb-3">
-                            <label for="editDiscountRate" class="form-label">Discount Rate (%)</label>
-                            <input type="number" class="form-control" id="editDiscountRate" name="discountRate" step="0.01" min="0" max="100"
-                                value="<?php echo isset($editCustomerData['Cust_DiscRate']) ? htmlspecialchars($editCustomerData['Cust_DiscRate']) : ''; ?>">
                         </div>
                         <div class="mb-3">
                             <div class="form-check">
@@ -520,146 +579,6 @@ foreach ($customers as $customer) {
         </div>
     </div>
  
-    <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const searchInput = document.getElementById('customerSearch');
-        const loyaltyFilter = document.getElementById('loyaltyFilter');
-        const tableRows = document.querySelectorAll('tbody tr');
- 
-        function filterTable() {
-            const searchValue = searchInput.value.toLowerCase();
-            const loyaltyValue = loyaltyFilter.value;
- 
-            tableRows.forEach(row => {
-                const name = row.children[1].textContent.toLowerCase();
-                const loyalty = row.children[3].textContent.toLowerCase();
- 
-                // Check search match
-                const matchesSearch = name.includes(searchValue);
- 
-                // Check loyalty filter match
-                let matchesLoyalty = false;
-                if (loyaltyValue === 'all') {
-                    matchesLoyalty = true;
-                } else if (loyaltyValue === 'none') {
-                    matchesLoyalty = loyalty.includes('none');
-                } else if (loyaltyValue === 'bronze') {
-                    matchesLoyalty = loyalty.includes('bronze');
-                } else {
-                    matchesLoyalty = loyalty.includes(loyaltyValue);
-                }
- 
-                if (matchesSearch && matchesLoyalty) {
-                    row.style.display = '';
-                } else {
-                    row.style.display = 'none';
-                }
-            });
-        }
- 
-        searchInput.addEventListener('input', filterTable);
-        loyaltyFilter.addEventListener('change', filterTable);
-    });
- 
-    // View Customer Functionality
-    function viewCustomer(customerId) {
-        // Fetch customer details
-        fetch(`customers.php?action=get_customer&id=${customerId}`)
-            .then(response => response.json())
-            .then(data => {
-                // Update customer information
-                document.getElementById('viewCustomerId').textContent = data.CustomerID;
-                document.getElementById('viewCustomerName').textContent = data.Cust_FN + ' ' + data.Cust_LN;
-                document.getElementById('viewCustomerContact').textContent = data.Cust_CoInfo;
-                document.getElementById('viewCustomerDiscount').textContent = data.Cust_DiscRate + '%';
-               
-                // Update loyalty information
-                const tier = data.LP_MbspTier || 'None';
-                const badgeClass = tier === 'Gold' ? 'bg-warning text-dark' :
-                                 tier === 'Silver' ? 'bg-secondary' :
-                                 tier === 'Bronze' ? 'bg-dark text-light' :
-                                 'bg-light text-dark';
-                document.getElementById('viewCustomerLoyalty').innerHTML =
-                    `<span class="badge ${badgeClass}">${tier}</span>`;
-               
-                document.getElementById('viewCustomerPoints').textContent =
-                    data.LP_PtsBalance ? number_format(data.LP_PtsBalance) : '0';
-                document.getElementById('viewCustomerLastUpdate').textContent =
-                    data.LP_LastUpdt ? new Date(data.LP_LastUpdt).toLocaleDateString() : 'N/A';
- 
-                // Fetch sales history
-                fetch(`customers.php?action=get_sales_history&id=${customerId}`)
-                    .then(response => response.json())
-                    .then(sales => {
-                        const tbody = document.querySelector('#salesHistoryTable tbody');
-                        tbody.innerHTML = '';
-                       
-                        if (sales.length === 0) {
-                            tbody.innerHTML = '<tr><td colspan="5" class="text-center">No sales history found</td></tr>';
-                            return;
-                        }
- 
-                        sales.forEach(sale => {
-                            const row = document.createElement('tr');
-                            row.innerHTML = `
-                                <td>${sale.SaleID}</td>
-                                <td>${new Date(sale.Sale_Date).toLocaleDateString()}</td>
-                                <td>${sale.items}</td>
-                                <td>₱${number_format(sale.Sale_Total, 2)}</td>
-                                <td><span class="badge ${sale.Sale_Status === 'Completed' ? 'bg-success' : 'bg-warning'}">${sale.Sale_Status}</span></td>
-                            `;
-                            tbody.appendChild(row);
-                        });
-                    });
- 
-                // Fetch discount history
-                fetch(`customers.php?action=get_discount_history&id=${customerId}`)
-                    .then(response => response.json())
-                    .then(discounts => {
-                        const tbody = document.querySelector('#discountHistoryTable tbody');
-                        tbody.innerHTML = '';
-                       
-                        if (discounts.length === 0) {
-                            tbody.innerHTML = '<tr><td colspan="6" class="text-center">No discount history found</td></tr>';
-                            return;
-                        }
- 
-                        discounts.forEach(discount => {
-                            const row = document.createElement('tr');
-                            row.innerHTML = `
-                                <td>${discount.SaleID}</td>
-                                <td>${new Date(discount.Sale_Date).toLocaleDateString()}</td>
-                                <td>₱${number_format(discount.original_total, 2)}</td>
-                                <td>${number_format(discount.discount_rate, 0)}%</td>
-                                <td>₱${number_format(discount.discount_amount, 2)}</td>
-                                <td>₱${number_format(discount.discounted_total, 2)}</td>
-                            `;
-                            tbody.appendChild(row);
-                        });
-                    });
- 
-                // Show the modal
-                new bootstrap.Modal(document.getElementById('viewCustomerModal')).show();
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'Failed to load customer data'
-                });
-            });
-    }
- 
-    // Helper function for number formatting
-    function number_format(number, decimals = 0) {
-        return Number(number).toLocaleString('en-US', {
-            minimumFractionDigits: decimals,
-            maximumFractionDigits: decimals
-        });
-    }
-    </script>
- 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <?php echo $sweetAlertConfig; ?>
@@ -670,5 +589,73 @@ foreach ($customers as $customer) {
         editModal.show();
     </script>
     <?php endif; ?>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const usernameInput = document.getElementById('username');
+        const passwordInput = document.getElementById('password');
+        const confirmPasswordInput = document.getElementById('confirmPassword');
+        const addCustomerForm = document.getElementById('addCustomerForm');
+        let usernameTimeout;
+
+        // Username availability check
+        usernameInput.addEventListener('input', function() {
+            clearTimeout(usernameTimeout);
+            const username = this.value.trim();
+            
+            if (username.length < 3) {
+                this.setCustomValidity('Username must be at least 3 characters long');
+                return;
+            }
+
+            usernameTimeout = setTimeout(() => {
+                fetch('../AJAX/check_username.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: 'username=' + encodeURIComponent(username)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.exists) {
+                        this.setCustomValidity('This username is already taken');
+                    } else {
+                        this.setCustomValidity('');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error checking username:', error);
+                });
+            }, 500);
+        });
+
+        // Password match validation
+        confirmPasswordInput.addEventListener('input', function() {
+            if (this.value !== passwordInput.value) {
+                this.setCustomValidity('Passwords do not match');
+            } else {
+                this.setCustomValidity('');
+            }
+        });
+
+        passwordInput.addEventListener('input', function() {
+            if (confirmPasswordInput.value && this.value !== confirmPasswordInput.value) {
+                confirmPasswordInput.setCustomValidity('Passwords do not match');
+            } else {
+                confirmPasswordInput.setCustomValidity('');
+            }
+        });
+
+        // Form submission validation
+        addCustomerForm.addEventListener('submit', function(e) {
+            if (!this.checkValidity()) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            this.classList.add('was-validated');
+        });
+    });
+    </script>
 </body>
 </html>
