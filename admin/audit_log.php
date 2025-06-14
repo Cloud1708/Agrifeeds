@@ -23,58 +23,53 @@ $activities = [];
 // Get product history
 $products = $con->viewProducts();
 foreach ($products as $product) {
+    // For product creation
     $user = $con->getUserById($product['UserID']);
     $userName = $user ? $user['User_Name'] : 'Unknown User';
     
-    // Product creation
     $activities[] = [
         'date' => $product['Prod_Created_at'],
         'text' => '<strong>' . htmlspecialchars($userName) . '</strong> added product <strong>"' . htmlspecialchars($product['Prod_Name']) . '"</strong>',
         'type' => 'product_add'
     ];
     
-    // Product updates
-    if ($product['Prod_Updated_at'] != $product['Prod_Created_at']) {
-        $activities[] = [
-            'date' => $product['Prod_Updated_at'],
-            'text' => '<strong>' . htmlspecialchars($userName) . '</strong> updated product <strong>"' . htmlspecialchars($product['Prod_Name']) . '"</strong>',
-            'type' => 'product_update'
-        ];
+    // Get product access logs
+    $accessLogs = $con->getProductAccessLogs($product['ProductID']);
+    foreach ($accessLogs as $log) {
+        if (strpos($log['Pal_Action'], 'Updated product:') === 0) {
+            $activities[] = [
+                'date' => $log['Pal_TimeStamp'],
+                'text' => '<strong>' . htmlspecialchars($log['User_Name']) . '</strong> ' . htmlspecialchars($log['Pal_Action']) . ' <strong>"' . htmlspecialchars($product['Prod_Name']) . '"</strong>',
+                'type' => 'product_update'
+            ];
+        }
     }
 }
 
 // Get pricing history
 $pricingHistory = $con->viewPricingHistory();
 foreach ($pricingHistory as $price) {
-    $product = $con->getProductById($price['ProductID']);
-    if ($product) {
-        $user = $con->getUserById($product['UserID']);
-        $userName = $user ? $user['User_Name'] : 'Unknown User';
-        
-        $activities[] = [
-            'date' => $price['PH_ChangeDate'],
-            'text' => '<strong>' . htmlspecialchars($userName) . '</strong> updated price for <strong>"' . htmlspecialchars($product['Prod_Name']) . '"</strong> from <strong>₱' . 
-                     number_format($price['PH_OldPrice'], 2) . '</strong> to <strong>₱' . number_format($price['PH_NewPrice'], 2) . '</strong>',
-            'type' => 'price_update'
-        ];
-    }
+    $userName = $price['User_Name'] ?? 'Unknown User';
+    
+    $activities[] = [
+        'date' => $price['PH_ChangeDate'],
+        'text' => '<strong>' . htmlspecialchars($userName) . '</strong> updated price for <strong>"' . htmlspecialchars($price['Prod_Name']) . '"</strong> from <strong>₱' . 
+                 number_format($price['PH_OldPrice'], 2) . '</strong> to <strong>₱' . number_format($price['PH_NewPrice'], 2) . '</strong>',
+        'type' => 'price_update'
+    ];
 }
 
 // Get inventory history
 $inventoryHistory = $con->viewInventoryHistory();
 foreach ($inventoryHistory as $inventory) {
-    $product = $con->getProductById($inventory['ProductID']);
-    if ($product) {
-        $user = $con->getUserById($product['UserID']);
-        $userName = $user ? $user['User_Name'] : 'Unknown User';
-        
-        $activities[] = [
-            'date' => $inventory['IH_ChangeDate'],
-            'text' => '<strong>' . htmlspecialchars($userName) . '</strong> changed stock level for <strong>"' . htmlspecialchars($product['Prod_Name']) . '"</strong> to <strong>' . 
-                     $inventory['IH_NewStckLvl'] . ' units</strong>',
-            'type' => 'stock_update'
-        ];
-    }
+    $userName = $inventory['User_Name'] ?? 'Unknown User';
+    
+    $activities[] = [
+        'date' => $inventory['IH_ChangeDate'],
+        'text' => '<strong>' . htmlspecialchars($userName) . '</strong> changed stock level for <strong>"' . htmlspecialchars($inventory['Prod_Name']) . '"</strong> to <strong>' . 
+                 $inventory['IH_NewStckLvl'] . ' units</strong>',
+        'type' => 'stock_update'
+    ];
 }
 
 // Sort activities by date (newest first)
