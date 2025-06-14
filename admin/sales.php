@@ -5,7 +5,7 @@ session_start();
 require_once('../includes/db.php');
 $con = new database();
 $conn = $con->opencon();
-$sweetAlertConfig = "";
+$sweetAlertConfig = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mark_completed'], $_POST['sale_id'])) {
     $saleId = intval($_POST['sale_id']);
@@ -23,12 +23,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mark_completed'], $_P
     $payStmt = $conn->prepare("INSERT INTO Payment_History (SaleID, PT_PayAmount, PT_PayDate, PT_PayMethod) VALUES (?, ?, NOW(), ?)");
     $payStmt->execute([$saleId, $total, 'cash']);
 
+    // Store success message in session
+    $_SESSION['sweet_alert'] = [
+        'title' => 'Success!',
+        'text' => "Sale #$saleId has been marked as completed.",
+        'icon' => 'success'
+    ];
+
     // Redirect para di ma-resubmit
     header("Location: sales.php");
     exit();
 }
 
-
+// Get and clear any stored alert message
+if (isset($_SESSION['sweet_alert'])) {
+    $alert = $_SESSION['sweet_alert'];
+    $sweetAlertConfig = "
+        Swal.fire({
+            title: '{$alert['title']}',
+            text: '{$alert['text']}',
+            icon: '{$alert['icon']}',
+            confirmButtonText: 'OK'
+        });
+    ";
+    unset($_SESSION['sweet_alert']);
+}
 
 ?>
 
@@ -48,6 +67,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mark_completed'], $_P
     <link href="../css/sidebar.css" rel="stylesheet">
     <!-- Google Fonts: Poppins -->
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Add SweetAlert2 CSS and JS -->
+    <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body>
     <?php include '../includes/sidebar.php'; ?>
@@ -163,9 +185,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mark_completed'], $_P
     <td><?php echo isset($sale['Sale_Status']) ? htmlspecialchars($sale['Sale_Status']) : '-'; ?></td>
     <td>
     <?php if (isset($sale['Sale_Status']) && $sale['Sale_Status'] === 'Pending'): ?>
-        <form method="POST" action="sales.php" style="display:inline;">
+        <form method="POST" action="sales.php" style="display:inline;" id="completeForm_<?php echo $sale['SaleID']; ?>">
             <input type="hidden" name="sale_id" value="<?php echo $sale['SaleID']; ?>">
-            <button type="submit" name="mark_completed" class="btn btn-success btn-sm" title="Mark as Completed">
+            <input type="hidden" name="mark_completed" value="1">
+            <button type="button" onclick="confirmComplete(<?php echo $sale['SaleID']; ?>)" class="btn btn-success btn-sm" title="Mark as Completed">
                 <i class="bi bi-check-lg"></i>
             </button>
         </form>
@@ -179,6 +202,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mark_completed'], $_P
             </table>
         </div>
     </div>
+
+    <!-- Add this before the other modals -->
+    <script>
+    function confirmComplete(saleId) {
+        Swal.fire({
+            title: 'Are you sure?',
+            text: "Do you want to mark Sale #" + saleId + " as completed?",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Yes, mark as completed!',
+            cancelButtonText: 'Cancel'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // Add a loading state
+                Swal.fire({
+                    title: 'Processing...',
+                    text: 'Please wait while we update the sale status.',
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+                // Submit the form
+                document.getElementById('completeForm_' + saleId).submit();
+            }
+        });
+    }
+    </script>
 
     <!-- Sale_Item View Modal -->
     <div class="modal fade" id="saleItemViewModal" tabindex="-1" aria-labelledby="saleItemViewModalLabel" aria-hidden="true">
@@ -332,31 +385,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mark_completed'], $_P
  
     <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <!-- Custom JS -->
     <script src="../js/scripts.js"></script>
     <script>
-// JS client-side filtering for Payment_History, works with the pre-rendered table above
-function filterPaymentHistory() {
-    var start = document.getElementById('paymentStartDate').value;
-    var end = document.getElementById('paymentEndDate').value;
-    var rows = document.querySelectorAll('#paymentHistoryTableBody tr');
+    // JS client-side filtering for Payment_History, works with the pre-rendered table above
+    function filterPaymentHistory() {
+        var start = document.getElementById('paymentStartDate').value;
+        var end = document.getElementById('paymentEndDate').value;
+        var rows = document.querySelectorAll('#paymentHistoryTableBody tr');
 
-    rows.forEach(function(row) {
-        var dateCell = row.children[3];
-        if (!dateCell) return;
-        var dateVal = dateCell.textContent.trim();
-        // Accepts 'YYYY-MM-DD' or 'YYYY-MM-DD HH:MM:SS'
-        var dateOnly = dateVal.split(' ')[0];
-        if (!start && !end) {
-            row.style.display = '';
-            return;
-        }
-        var show = true;
-        if (start && dateOnly < start) show = false;
-        if (end && dateOnly > end) show = false;
-        row.style.display = show ? '' : 'none';
-    });
-}
-</script>
+        rows.forEach(function(row) {
+            var dateCell = row.children[3];
+            if (!dateCell) return;
+            var dateVal = dateCell.textContent.trim();
+            // Accepts 'YYYY-MM-DD' or 'YYYY-MM-DD HH:MM:SS'
+            var dateOnly = dateVal.split(' ')[0];
+            if (!start && !end) {
+                row.style.display = '';
+                return;
+            }
+            var show = true;
+            if (start && dateOnly < start) show = false;
+            if (end && dateOnly > end) show = false;
+            row.style.display = show ? '' : 'none';
+        });
+    }
+    </script>
+    <?php if (!empty($sweetAlertConfig)): ?>
+    <script>
+        <?php echo $sweetAlertConfig; ?>
+    </script>
+    <?php endif; ?>
 </body>
 </html>
