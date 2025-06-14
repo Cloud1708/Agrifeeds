@@ -55,20 +55,13 @@ class database{
 
     function viewProducts() {
         $con = $this->opencon();
-        return $con->query("
-            SELECT p.*, u.User_Name as Updated_By_Name 
-            FROM products p 
-            LEFT JOIN USER_ACCOUNTS u ON p.Updated_By = u.UserID
-        ")->fetchAll();
+        return $con->query("SELECT * FROM products")->fetchAll();
     }
 
 function updateProduct($name, $category, $description, $price, $stock, $id){
     try {
         $con = $this->opencon();
         $con->beginTransaction();
-
-        // Get the current user ID from session
-        $userId = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
 
         // Fetch the old product details before updating
         $stmt = $con->prepare("SELECT Prod_Name, Prod_Cat, Prod_Desc, Prod_Price, Prod_Stock FROM products WHERE ProductID = ?");
@@ -94,31 +87,32 @@ function updateProduct($name, $category, $description, $price, $stock, $id){
         }
 
         // Update the product
-        $query = $con->prepare("UPDATE products SET Prod_Name = ?, Prod_Cat = ?, Prod_Desc = ?, Prod_Price = ? , Prod_Stock = ?, Prod_Updated_at = NOW(), Updated_By = ? WHERE ProductID = ? ");
-        $query->execute([$name, $category, $description, $price, $stock, $userId, $id]);
+        $query = $con->prepare("UPDATE products SET Prod_Name = ?, Prod_Cat = ?, Prod_Desc = ?, Prod_Price = ? , Prod_Stock = ?, Prod_Updated_at = NOW() WHERE ProductID = ? ");
+        $query->execute([$name, $category, $description, $price, $stock, $id]);
 
         // If price changed, add to pricing history
         if ($oldProduct['Prod_Price'] != $price) {
             $changeDate = date('Y-m-d');
             $effectiveFrom = $changeDate;
             $stmt = $con->prepare("INSERT INTO pricing_history 
-                (ProductID, PH_OldPrice, PH_NewPrice, PH_ChangeDate, PH_Effective_from, UserID) 
-                VALUES (?, ?, ?, ?, ?, ?)");
-            $stmt->execute([$id, $oldProduct['Prod_Price'], $price, $changeDate, $effectiveFrom, $userId]);
+                (ProductID, PH_OldPrice, PH_NewPrice, PH_ChangeDate, PH_Effective_from) 
+                VALUES (?, ?, ?, ?, ?)");
+            $stmt->execute([$id, $oldProduct['Prod_Price'], $price, $changeDate, $effectiveFrom]);
         }
 
         // If stock changed, add to inventory history
         if ($oldProduct['Prod_Stock'] != $stock) {
             $qtyChange = $stock - $oldProduct['Prod_Stock'];
             $stmt = $con->prepare("INSERT INTO inventory_history 
-                (ProductID, IH_QtyChange, IH_NewStckLvl, IH_ChangeDate, UserID) 
-                VALUES (?, ?, ?, NOW(), ?)");
-            $stmt->execute([$id, $qtyChange, $stock, $userId]);
+                (ProductID, IH_QtyChange, IH_NewStckLvl, IH_ChangeDate) 
+                VALUES (?, ?, ?, NOW())");
+            $stmt->execute([$id, $qtyChange, $stock]);
         }
 
         // Log the changes in Product_Access_Log
         if (!empty($changes)) {
             $changeDetails = implode(', ', $changes);
+            $userId = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
             $stmt = $con->prepare("INSERT INTO Product_Access_Log (ProductID, UserID, Pal_Action, Pal_TimeStamp) VALUES (?, ?, ?, NOW())");
             $stmt->execute([$id, $userId, "Updated product: " . $changeDetails]);
         }
@@ -475,26 +469,19 @@ function updateMemberTier($customerId) {
     }
 
     function viewPricingHistory($productId = null) {
-        try {
-            $con = $this->opencon();
-            $sql = "SELECT ph.*, p.Prod_Name, u.User_Name 
-                    FROM pricing_history ph 
-                    JOIN products p ON ph.ProductID = p.ProductID
-                    LEFT JOIN USER_ACCOUNTS u ON ph.UserID = u.UserID";
-            
-            if ($productId) {
-                $sql .= " WHERE ph.ProductID = ?";
-                $stmt = $con->prepare($sql);
-                $stmt->execute([$productId]);
-            } else {
-                $stmt = $con->prepare($sql);
-                $stmt->execute();
-            }
-            
-            return $stmt->fetchAll(PDO::FETCH_ASSOC);
-        } catch (PDOException $e) {
-            return false;
+        $con = $this->opencon();
+        $sql = "SELECT ph.*, p.Prod_Name FROM pricing_history ph JOIN products p ON ph.ProductID = p.ProductID";
+        
+        if ($productId !== null) {
+            $sql .= " WHERE ph.ProductID = ?";
+            $stmt = $con->prepare($sql);
+            $stmt->execute([$productId]);
+        } else {
+            $stmt = $con->prepare($sql);
+            $stmt->execute();
         }
+        
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
     function getPricingHistoryStats() {
@@ -559,10 +546,9 @@ function updateMemberTier($customerId) {
 function viewInventoryHistory() {
     $con = $this->opencon();
     $stmt = $con->prepare("
-        SELECT ih.IHID, ih.ProductID, p.Prod_Name, u.User_Name, ih.IH_QtyChange, ih.IH_NewStckLvl, ih.IH_ChangeDate
+        SELECT ih.*, p.Prod_Name 
         FROM inventory_history ih
         JOIN products p ON ih.ProductID = p.ProductID
-        LEFT JOIN USER_ACCOUNTS u ON ih.UserID = u.UserID
         ORDER BY ih.IH_ChangeDate DESC
     ");
     $stmt->execute();
