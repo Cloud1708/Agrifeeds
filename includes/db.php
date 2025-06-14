@@ -827,15 +827,15 @@ function getRecentOrders($userID, $limit = 5) {
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-public function getUserOrders($userID) {
+    function getUserOrders($userID) {
     $con = $this->opencon();
     $stmt = $con->prepare("
         SELECT 
             s.SaleID AS OrderID,
             s.Sale_Date AS Order_Date,
-            COUNT(si.SaleItemID) AS item_count,
-            SUM(si.SI_Quantity * si.SI_Price) AS Order_Total,
-            'Completed' AS Order_Status -- Placeholder status
+            s.Sale_Status as Order_Status,
+            (SELECT COUNT(*) FROM Sale_Item WHERE SaleID = s.SaleID) as item_count,
+            (SELECT SUM(SI_Quantity * SI_Price) FROM Sale_Item WHERE SaleID = s.SaleID) as Order_Total
         FROM Sales s
         LEFT JOIN Sale_Item si ON s.SaleID = si.SaleID
         WHERE s.CustomerID = ?
