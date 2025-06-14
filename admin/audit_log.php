@@ -37,6 +37,37 @@ foreach ($products as $product) {
     $accessLogs = $con->getProductAccessLogs($product['ProductID']);
     foreach ($accessLogs as $log) {
         if (strpos($log['Pal_Action'], 'Updated product:') === 0) {
+            // Check if this is a stock change
+            if (strpos($log['Pal_Action'], 'stock from') !== false) {
+                // Extract stock information
+                preg_match('/stock from (\d+) to (\d+)/', $log['Pal_Action'], $matches);
+                if (count($matches) === 3) {
+                    $oldStock = $matches[1];
+                    $newStock = $matches[2];
+                    $activities[] = [
+                        'date' => $log['Pal_TimeStamp'],
+                        'text' => '<strong>' . htmlspecialchars($log['User_Name']) . '</strong> changed stock level for <strong>"' . htmlspecialchars($product['Prod_Name']) . '"</strong> from <strong>' . $oldStock . '</strong> to <strong>' . $newStock . ' units</strong>',
+                        'type' => 'stock_update'
+                    ];
+                    continue; // Skip adding as product_update
+                }
+            }
+            // Check if this is a price change
+            if (strpos($log['Pal_Action'], 'price from') !== false) {
+                // Extract price information
+                preg_match('/price from ₱([\d,.]+) to ₱([\d,.]+)/', $log['Pal_Action'], $matches);
+                if (count($matches) === 3) {
+                    $oldPrice = $matches[1];
+                    $newPrice = $matches[2];
+                    $activities[] = [
+                        'date' => $log['Pal_TimeStamp'],
+                        'text' => '<strong>' . htmlspecialchars($log['User_Name']) . '</strong> updated price for <strong>"' . htmlspecialchars($product['Prod_Name']) . '"</strong> from <strong>₱' . $oldPrice . '</strong> to <strong>₱' . $newPrice . '</strong>',
+                        'type' => 'price_update'
+                    ];
+                    continue; // Skip adding as product_update
+                }
+            }
+            // Handle other product updates
             $activities[] = [
                 'date' => $log['Pal_TimeStamp'],
                 'text' => '<strong>' . htmlspecialchars($log['User_Name']) . '</strong> ' . htmlspecialchars($log['Pal_Action']) . ' <strong>"' . htmlspecialchars($product['Prod_Name']) . '"</strong>',
@@ -44,32 +75,6 @@ foreach ($products as $product) {
             ];
         }
     }
-}
-
-// Get pricing history
-$pricingHistory = $con->viewPricingHistory();
-foreach ($pricingHistory as $price) {
-    $userName = $price['User_Name'] ?? 'Unknown User';
-    
-    $activities[] = [
-        'date' => $price['PH_ChangeDate'],
-        'text' => '<strong>' . htmlspecialchars($userName) . '</strong> updated price for <strong>"' . htmlspecialchars($price['Prod_Name']) . '"</strong> from <strong>₱' . 
-                 number_format($price['PH_OldPrice'], 2) . '</strong> to <strong>₱' . number_format($price['PH_NewPrice'], 2) . '</strong>',
-        'type' => 'price_update'
-    ];
-}
-
-// Get inventory history
-$inventoryHistory = $con->viewInventoryHistory();
-foreach ($inventoryHistory as $inventory) {
-    $userName = $inventory['User_Name'] ?? 'Unknown User';
-    
-    $activities[] = [
-        'date' => $inventory['IH_ChangeDate'],
-        'text' => '<strong>' . htmlspecialchars($userName) . '</strong> changed stock level for <strong>"' . htmlspecialchars($inventory['Prod_Name']) . '"</strong> to <strong>' . 
-                 $inventory['IH_NewStckLvl'] . ' units</strong>',
-        'type' => 'stock_update'
-    ];
 }
 
 // Sort activities by date (newest first)
