@@ -147,26 +147,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['payment_method'])) {
         }
         $saleID = $conn->lastInsertId();
 
-       // Insert sale items AND update stock/inventory history
+// Insert sale items
         foreach ($_SESSION['cart'] as $item) {
+            // Calculate the discounted price for this item
+            $itemTotal = $item['price'] * $item['quantity'];
+            $itemDiscountRate = $discountRate > 0 ? $discountRate / 100 : 0;
+            $itemCustomerDiscount = $itemTotal * $itemDiscountRate;
+            $itemTotalAfterCustomerDiscount = $itemTotal - $itemCustomerDiscount;
+           
+            // Apply promo discount proportionally to each item
+            $itemPromoDiscount = 0;
+            if ($promoDiscount > 0) {
+                $itemPromoDiscount = ($itemTotalAfterCustomerDiscount / $totalAfterCustomerDiscount) * $promoDiscount;
+            }
+           
+            $finalItemPrice = ($itemTotalAfterCustomerDiscount - $itemPromoDiscount) / $item['quantity'];
+           
             $itemStmt = $conn->prepare("INSERT INTO Sale_Item (SaleID, ProductID, SI_Quantity, SI_Price) VALUES (?, ?, ?, ?)");
-            $itemStmt->execute([$saleID, $item['id'], $item['quantity'], $item['price']]);
-
-            // Update product stock and log inventory history
-            $stmt = $conn->prepare("SELECT Prod_Stock FROM products WHERE ProductID = ?");
-            $stmt->execute([$item['id']]);
-            $currentStock = $stmt->fetchColumn();
-            if ($currentStock === false) $currentStock = 0;
-            $newStock = $currentStock - $item['quantity'];
-            if ($newStock < 0) $newStock = 0;
-
-            // Update stock
-            $updateStmt = $conn->prepare("UPDATE products SET Prod_Stock = ? WHERE ProductID = ?");
-            $updateStmt->execute([$newStock, $item['id']]);
-
-            // Log inventory history (negative quantity for sale, NO UserID)
-            $logStmt = $conn->prepare("INSERT INTO inventory_history (ProductID, IH_QtyChange, IH_NewStckLvl, IH_ChangeDate) VALUES (?, ?, ?, NOW())");
-            $logStmt->execute([$item['id'], -$item['quantity'], $newStock]);
+            $itemStmt->execute([$saleID, $item['id'], $item['quantity'], $finalItemPrice]);
         }
 
         // Insert payment history ONLY if payment method is card
@@ -183,6 +181,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['payment_method'])) {
         }
 
         $conn->commit();
+
+        // --- Add Loyalty Points ---
+if (isset($customerInfo['CustomerID'])) {
+    $pointsEarned = floor($finalTotal); // 1 point per ₱1 spent
+    if ($pointsEarned > 0) {
+        // Check if customer is enrolled in loyalty program
+        $stmt = $conn->prepare("SELECT COUNT(*) FROM loyalty_program WHERE CustomerID = ?");
+        $stmt->execute([$customerInfo['CustomerID']]);
+        if ($stmt->fetchColumn() > 0) {
+            // Add points
+            $stmt = $conn->prepare("UPDATE loyalty_program SET LP_PtsBalance = LP_PtsBalance + ?, LP_LastUpdt = NOW() WHERE CustomerID = ?");
+            $stmt->execute([$pointsEarned, $customerInfo['CustomerID']]);
+        }
+    }
+}
 
         // Prepare order details for response
         $orderDetails = [
