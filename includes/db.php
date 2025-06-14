@@ -1362,6 +1362,25 @@ function getAvailablePromos($userID = null) {
             return false;
         }
     }
+
+    function getUserPromoUsageCount($promotionId, $userId) {
+        $conn = $this->opencon();
+        $stmt = $conn->prepare("SELECT COUNT(*) FROM Promo_Usage WHERE PromotionID = ? AND UserID = ?");
+        $stmt->execute([$promotionId, $userId]);
+        return $stmt->fetchColumn();
+    }
+
+    function getAllPricingHistory() {
+        $conn = $this->opencon();
+        $stmt = $conn->prepare("
+            SELECT ph.*, p.Prod_Name 
+            FROM Pricing_History ph
+            JOIN Products p ON ph.ProductID = p.ProductID
+            ORDER BY ph.PH_ChangeDate DESC
+        ");
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
 }
 
 // Handle direct method calls from JavaScript
