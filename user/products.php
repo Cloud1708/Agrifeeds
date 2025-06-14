@@ -133,64 +133,74 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['payment_method'])) {
     // --- DATABASE INSERTION FOR PAYMENT HISTORY ---
     // 1. Insert into Sales table (no Sale_Status)
     $conn = $con->opencon();
-try {
-    $conn->beginTransaction();
+    try {
+        $conn->beginTransaction();
 
-    // Insert sale
-    if (strtolower($_POST['payment_method']) === 'card') {
-    $saleStmt = $conn->prepare("INSERT INTO Sales (CustomerID, Sale_Date, Sale_Status) VALUES (?, NOW(), 'Completed')");
-    $saleStmt->execute([$customerInfo['CustomerID']]);
-} else {
-    // cash
-    $saleStmt = $conn->prepare("INSERT INTO Sales (CustomerID, Sale_Date, Sale_Status) VALUES (?, NOW(), 'Pending')");
-    $saleStmt->execute([$customerInfo['CustomerID']]);
-}
-$saleID = $conn->lastInsertId();
+        // Insert sale
+        if (strtolower($_POST['payment_method']) === 'card') {
+            $saleStmt = $conn->prepare("INSERT INTO Sales (CustomerID, Sale_Date, Sale_Status) VALUES (?, NOW(), 'Completed')");
+            $saleStmt->execute([$customerInfo['CustomerID']]);
+        } else {
+            // cash
+            $saleStmt = $conn->prepare("INSERT INTO Sales (CustomerID, Sale_Date, Sale_Status) VALUES (?, NOW(), 'Pending')");
+            $saleStmt->execute([$customerInfo['CustomerID']]);
+        }
+        $saleID = $conn->lastInsertId();
 
-    // Insert sale items
-    foreach ($_SESSION['cart'] as $item) {
-    $itemStmt = $conn->prepare("INSERT INTO Sale_Item (SaleID, ProductID, SI_Quantity, SI_Price) VALUES (?, ?, ?, ?)");
-    $itemStmt->execute([$saleID, $item['id'], $item['quantity'], $item['price']]);
-}
+        // Insert sale items
+        foreach ($_SESSION['cart'] as $item) {
+            $itemStmt = $conn->prepare("INSERT INTO Sale_Item (SaleID, ProductID, SI_Quantity, SI_Price) VALUES (?, ?, ?, ?)");
+            $itemStmt->execute([$saleID, $item['id'], $item['quantity'], $item['price']]);
+        }
 
-    // Insert payment history ONLY if payment method is card
-if (strtolower($_POST['payment_method']) === 'card') {
-    $payStmt = $conn->prepare("INSERT INTO Payment_History (SaleID, PT_PayAmount, PT_PayDate, PT_PayMethod) VALUES (?, ?, NOW(), ?)");
-    $payStmt->execute([$saleID, $finalTotal, $_POST['payment_method']]);
-}
+        // Insert payment history ONLY if payment method is card
+        if (strtolower($_POST['payment_method']) === 'card') {
+            $payStmt = $conn->prepare("INSERT INTO Payment_History (SaleID, PT_PayAmount, PT_PayDate, PT_PayMethod) VALUES (?, ?, NOW(), ?)");
+            $payStmt->execute([$saleID, $finalTotal, $_POST['payment_method']]);
+        }
 
-    // --- INSERT INTO Order_Promotions IF PROMO USED ---
-    if ($promoCode && $selectedPromo) {
-        $promoID = $selectedPromo['PromotionID'];
-        $orderPromoStmt = $conn->prepare("INSERT INTO Order_Promotions (SaleID, PromotionID, OrderP_DiscntApplied, OrderP_AppliedDate) VALUES (?, ?, ?, NOW())");
-        $orderPromoStmt->execute([$saleID, $promoID, $promoDiscount]);
+        // --- INSERT INTO Order_Promotions IF PROMO USED ---
+        if ($promoCode && $selectedPromo) {
+            $promoID = $selectedPromo['PromotionID'];
+            $orderPromoStmt = $conn->prepare("INSERT INTO Order_Promotions (SaleID, PromotionID, OrderP_DiscntApplied, OrderP_AppliedDate) VALUES (?, ?, ?, NOW())");
+            $orderPromoStmt->execute([$saleID, $promoID, $promoDiscount]);
+        }
+
+        $conn->commit();
+
+        // Prepare order details for response
+        $orderDetails = [
+            'sale_id' => $saleID,
+            'items' => $_SESSION['cart'],
+            'subtotal' => $total,
+            'customer_discount_rate' => $discountRate,
+            'customer_discount_amount' => $discountAmount,
+            'promo_code' => $promoCode,
+            'promo_label' => $promoLabel,
+            'promo_discount' => $promoDiscount,
+            'final_total' => $finalTotal,
+            'payment_method' => $_POST['payment_method'],
+            'customer_name' => trim($customerInfo['Cust_FN'] . ' ' . $customerInfo['Cust_LN']),
+            'order_date' => date('Y-m-d H:i:s')
+        ];
+
+        // Clear the cart after successful order
+        $_SESSION['cart'] = [];
+
+        echo json_encode([
+            'success' => true,
+            'message' => 'Order placed successfully',
+            'order_details' => $orderDetails
+        ]);
+        exit();
+    } catch (Exception $e) {
+        $conn->rollBack();
+        echo json_encode([
+            'success' => false,
+            'message' => 'Failed to complete purchase: ' . $e->getMessage()
+        ]);
+        exit();
     }
-
-    $conn->commit();
-
-    // Clear the cart after successful order
-    $_SESSION['cart'] = [];
-
-    echo json_encode([
-        'success' => true,
-        'message' => 'Order placed successfully',
-        'original_total' => $total,
-        'customer_discount_rate' => $discountRate,
-        'customer_discount_amount' => $discountAmount,
-        'promo_code' => $promoCode,
-        'promo_label' => $promoLabel,
-        'promo_discount' => $promoDiscount,
-        'final_total' => $finalTotal
-    ]);
-    exit();
-} catch (Exception $e) {
-    $conn->rollBack();
-    echo json_encode([
-        'success' => false,
-        'message' => 'Failed to complete purchase: ' . $e->getMessage()
-    ]);
-    exit();
-}
 }
 ?>
 
@@ -517,6 +527,105 @@ if (strtolower($_POST['payment_method']) === 'card') {
       </div>
     </div>
 
+    <!-- Order Success Modal -->
+    <div class="modal fade" id="orderSuccessModal" tabindex="-1" aria-labelledby="orderSuccessModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="orderSuccessModalLabel">Order Processing</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Loading Animation -->
+                    <div id="orderProcessing" class="text-center py-5">
+                        <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <h4 class="mb-3">Processing Your Order...</h4>
+                        <div class="progress mb-3" style="height: 5px;">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                        </div>
+                        <p class="text-muted">Please wait while we process your order...</p>
+                    </div>
+
+                    <!-- Order Details -->
+                    <div id="orderDetails" style="display: none;">
+                        <div class="text-center mb-4">
+                            <i class="bi bi-check-circle-fill text-success" style="font-size: 4rem;"></i>
+                            <h4 class="mt-3">Order Placed Successfully!</h4>
+                        </div>
+                        
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h5 class="mb-0">Order Details</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <p class="mb-1"><strong>Order ID:</strong> <span id="orderId"></span></p>
+                                        <p class="mb-1"><strong>Date:</strong> <span id="orderDate"></span></p>
+                                        <p class="mb-1"><strong>Customer:</strong> <span id="customerName"></span></p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <p class="mb-1"><strong>Payment Method:</strong> <span id="paymentMethod"></span></p>
+                                        <p class="mb-1"><strong>Status:</strong> <span id="orderStatus"></span></p>
+                                    </div>
+                                </div>
+                                
+                                <h6 class="mb-3">Items Ordered:</h6>
+                                <div class="table-responsive">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>Item</th>
+                                                <th class="text-center">Quantity</th>
+                                                <th class="text-end">Price</th>
+                                                <th class="text-end">Subtotal</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="orderItems">
+                                        </tbody>
+                                        <tfoot>
+                                            <tr>
+                                                <td colspan="3" class="text-end"><strong>Subtotal:</strong></td>
+                                                <td class="text-end" id="orderSubtotal"></td>
+                                            </tr>
+                                            <tr id="customerDiscountRow" style="display: none;">
+                                                <td colspan="3" class="text-end"><strong>Customer Discount:</strong></td>
+                                                <td class="text-end" id="customerDiscount"></td>
+                                            </tr>
+                                            <tr id="promoDiscountRow" style="display: none;">
+                                                <td colspan="3" class="text-end"><strong>Promo Discount:</strong></td>
+                                                <td class="text-end" id="promoDiscount"></td>
+                                            </tr>
+                                            <tr>
+                                                <td colspan="3" class="text-end"><strong>Total:</strong></td>
+                                                <td class="text-end" id="orderTotal"></td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-warning">
+                            <h5 class="alert-heading"><i class="bi bi-exclamation-triangle-fill"></i> Important Notice</h5>
+                            <p class="mb-0">Please visit our store to complete your order. Your order will be marked as cancelled within 72 hours if not completed.</p>
+                            <hr>
+                            <p class="mb-0"><strong>Store Address:</strong><br>
+                            123 Main Street, City, Province<br>
+                            Business Hours: Monday - Saturday, 8:00 AM - 6:00 PM</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <a href="orders.php" class="btn btn-primary">View My Orders</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <!-- SweetAlert2 -->
@@ -830,6 +939,127 @@ if (strtolower($_POST['payment_method']) === 'card') {
 
         // Initial display
         updateDiscountDisplay();
+    });
+
+    document.getElementById('checkoutForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        
+        // Hide the checkout modal
+        const checkoutModal = bootstrap.Modal.getInstance(document.getElementById('checkoutModal'));
+        checkoutModal.hide();
+        
+        // Show the order success modal
+        const orderSuccessModal = new bootstrap.Modal(document.getElementById('orderSuccessModal'));
+        orderSuccessModal.show();
+        
+        // Start the loading animation with multiple steps
+        const progressBar = document.querySelector('.progress-bar');
+        const loadingText = document.querySelector('#orderProcessing h4');
+        const loadingSubtext = document.querySelector('#orderProcessing p');
+        let progress = 0;
+        let currentStep = 0;
+        
+        const loadingSteps = [
+            { message: "Processing Your Order...", subtext: "Please wait while we process your order..." },
+            { message: "Validating Payment Details...", subtext: "Checking payment information..." },
+            { message: "Confirming Order Items...", subtext: "Verifying product availability..." },
+            { message: "Applying Discounts...", subtext: "Calculating final price..." },
+            { message: "Finalizing Order...", subtext: "Almost done..." }
+        ];
+
+        const interval = setInterval(() => {
+            progress += 2;
+            progressBar.style.width = progress + '%';
+            
+            // Update loading message every 20%
+            if (progress % 20 === 0 && currentStep < loadingSteps.length) {
+                loadingText.textContent = loadingSteps[currentStep].message;
+                loadingSubtext.textContent = loadingSteps[currentStep].subtext;
+                currentStep++;
+            }
+            
+            if (progress >= 100) {
+                clearInterval(interval);
+                // Add a small delay before showing success
+                setTimeout(() => {
+                    document.getElementById('orderProcessing').style.display = 'none';
+                    document.getElementById('orderDetails').style.display = 'block';
+                }, 500);
+            }
+        }, 100);
+
+        // Submit the form
+        fetch('products.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Populate order details
+                const order = data.order_details;
+                document.getElementById('orderId').textContent = order.sale_id;
+                document.getElementById('orderDate').textContent = new Date(order.order_date).toLocaleString();
+                document.getElementById('customerName').textContent = order.customer_name;
+                document.getElementById('paymentMethod').textContent = order.payment_method.charAt(0).toUpperCase() + order.payment_method.slice(1);
+                document.getElementById('orderStatus').textContent = order.payment_method === 'card' ? 'Completed' : 'Pending';
+                
+                // Populate items
+                const itemsTable = document.getElementById('orderItems');
+                itemsTable.innerHTML = '';
+                order.items.forEach(item => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${item.name}</td>
+                        <td class="text-center">${item.quantity}</td>
+                        <td class="text-end">₱${parseFloat(item.price).toFixed(2)}</td>
+                        <td class="text-end">₱${(item.price * item.quantity).toFixed(2)}</td>
+                    `;
+                    itemsTable.appendChild(row);
+                });
+                
+                // Populate totals
+                document.getElementById('orderSubtotal').textContent = '₱' + order.subtotal.toFixed(2);
+                
+                // Show customer discount if applicable
+                if (order.customer_discount_amount > 0) {
+                    document.getElementById('customerDiscountRow').style.display = '';
+                    document.getElementById('customerDiscount').textContent = 
+                        `-₱${order.customer_discount_amount.toFixed(2)} (${order.customer_discount_rate}%)`;
+                }
+                
+                // Show promo discount if applicable
+                if (order.promo_discount > 0) {
+                    document.getElementById('promoDiscountRow').style.display = '';
+                    document.getElementById('promoDiscount').textContent = 
+                        `-₱${order.promo_discount.toFixed(2)} ${order.promo_label ? `(${order.promo_label})` : ''}`;
+                }
+                
+                document.getElementById('orderTotal').textContent = '₱' + order.final_total.toFixed(2);
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: data.message || 'Failed to process order. Please try again.',
+                    confirmButtonText: 'Close'
+                });
+                orderSuccessModal.hide();
+                // Show checkout modal again if there's an error
+                checkoutModal.show();
+            }
+        })
+        .catch(error => {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'An error occurred while processing your order. Please try again.',
+                confirmButtonText: 'Close'
+            });
+            orderSuccessModal.hide();
+            // Show checkout modal again if there's an error
+            checkoutModal.show();
+        });
     });
     </script>
 </body>
