@@ -169,7 +169,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['payment_method'])) {
         }
         $saleID = $conn->lastInsertId();
 
-// Insert sale items
+        // Insert sale items
         foreach ($_SESSION['cart'] as $item) {
             // Calculate the discounted price for this item
             $itemTotal = $item['price'] * $item['quantity'];
@@ -187,37 +187,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['payment_method'])) {
            
             $itemStmt = $conn->prepare("INSERT INTO Sale_Item (SaleID, ProductID, SI_Quantity, SI_Price) VALUES (?, ?, ?, ?)");
             $itemStmt->execute([$saleID, $item['id'], $item['quantity'], $finalItemPrice]);
+
+            // Only update stock and log inventory if payment is card (completed)
+            if (strtolower($_POST['payment_method']) === 'card') {
+                // Update product stock and log inventory history
+                $stmt = $conn->prepare("SELECT Prod_Stock FROM products WHERE ProductID = ?");
+                $stmt->execute([$item['id']]);
+                $currentStock = $stmt->fetchColumn();
+                if ($currentStock === false) $currentStock = 0;
+                $newStock = $currentStock - $item['quantity'];
+                if ($newStock < 0) $newStock = 0;
+
+                // Update stock
+                $updateStmt = $conn->prepare("UPDATE products SET Prod_Stock = ? WHERE ProductID = ?");
+                $updateStmt->execute([$newStock, $item['id']]);
+
+                // Log inventory history
+                $logStmt = $conn->prepare("INSERT INTO inventory_history (ProductID, IH_QtyChange, IH_NewStckLvl, IH_ChangeDate) VALUES (?, ?, ?, NOW())");
+                $logStmt->execute([$item['id'], -$item['quantity'], $newStock]);
+            }
         }
 
-        // Insert sale items AND update stock/inventory history
-        foreach ($_SESSION['cart'] as $item) {
-            $itemStmt = $conn->prepare("INSERT INTO Sale_Item (SaleID, ProductID, SI_Quantity, SI_Price) VALUES (?, ?, ?, ?)");
-            $itemStmt->execute([$saleID, $item['id'], $item['quantity'], $item['price']]);
- 
-            // Update product stock and log inventory history
-            $stmt = $conn->prepare("SELECT Prod_Stock FROM products WHERE ProductID = ?");
-            $stmt->execute([$item['id']]);
-            $currentStock = $stmt->fetchColumn();
-            if ($currentStock === false) $currentStock = 0;
-            $newStock = $currentStock - $item['quantity'];
-            if ($newStock < 0) $newStock = 0;
- 
-            // Update stock
-            $updateStmt = $conn->prepare("UPDATE products SET Prod_Stock = ? WHERE ProductID = ?");
-            $updateStmt->execute([$newStock, $item['id']]);
- 
-            // Log inventory history (negative quantity for sale, NO UserID)
-            $logStmt = $conn->prepare("INSERT INTO inventory_history (ProductID, IH_QtyChange, IH_NewStckLvl, IH_ChangeDate) VALUES (?, ?, ?, NOW())");
-            $logStmt->execute([$item['id'], -$item['quantity'], $newStock]);
-        }
-
-        // Insert payment history ONLY if payment method is card
+        // Insert payment history ONLY if payment method is card (completed)
         if (strtolower($_POST['payment_method']) === 'card') {
             $payStmt = $conn->prepare("INSERT INTO Payment_History (SaleID, PT_PayAmount, PT_PayDate, PT_PayMethod) VALUES (?, ?, NOW(), ?)");
             $payStmt->execute([$saleID, $finalTotal, $_POST['payment_method']]);
+
+            // Add loyalty points for completed orders
+            if (isset($customerInfo['CustomerID'])) {
+                $settings = $con->opencon()->query("SELECT min_purchase, points_per_peso FROM loyalty_settings WHERE id = 1")->fetch(PDO::FETCH_ASSOC);
+                $minPurchase = (float)$settings['min_purchase'];
+                $pointsPerPeso = (float)$settings['points_per_peso'];
+
+                if ($finalTotal >= $minPurchase) {
+                    $pointsEarned = floor($finalTotal * $pointsPerPeso);
+                    if ($pointsEarned > 0) {
+                        $stmt = $con->opencon()->prepare("UPDATE loyalty_program SET LP_PtsBalance = LP_PtsBalance + ? WHERE CustomerID = ?");
+                        $result = $stmt->execute([$pointsEarned, $customerInfo['CustomerID']]);
+                    }
+                }
+            }
         }
 
-        // --- INSERT INTO Order_Promotions IF PROMO USED ---
+        // Insert into Order_Promotions if promo used
         if ($promoCode && $selectedPromo) {
             $promoID = $selectedPromo['PromotionID'];
             $orderPromoStmt = $conn->prepare("INSERT INTO Order_Promotions (SaleID, PromotionID, OrderP_DiscntApplied, OrderP_AppliedDate) VALUES (?, ?, ?, NOW())");
@@ -225,24 +237,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['payment_method'])) {
         }
 
         $conn->commit();
-
-        // --- Add Loyalty Points ---
-if (isset($customerInfo['CustomerID'])) {
-    $settings = $con->opencon()->query("SELECT min_purchase, points_per_peso FROM loyalty_settings WHERE id = 1")->fetch(PDO::FETCH_ASSOC);
-    $minPurchase = (float)$settings['min_purchase'];
-    $pointsPerPeso = (float)$settings['points_per_peso'];
-
-    if ($finalTotal >= $minPurchase) {
-        $pointsEarned = floor($finalTotal * $pointsPerPeso);
-        if ($pointsEarned > 0) {
-            $stmt = $con->opencon()->prepare("UPDATE loyalty_program SET LP_PtsBalance = LP_PtsBalance + ? WHERE CustomerID = ?");
-            $result = $stmt->execute([$pointsEarned, $customerInfo['CustomerID']]);
-            if (!$result) {
-                var_dump($stmt->errorInfo());
-            }
-        }
-    }
-}
 
         // Prepare order details for response
         $orderDetails = [
@@ -277,10 +271,6 @@ if (isset($customerInfo['CustomerID'])) {
         ]);
         exit();
     }
-
-
-
-
 }
 ?>
 
@@ -808,8 +798,10 @@ if (isset($customerInfo['CustomerID'])) {
     // Function to update checkout modal content
     function updateCheckoutContent() {
         const checkoutItems = document.getElementById('checkoutItems');
-        if (!checkoutItems) return;
+        const checkoutDiscountBreakdown = document.getElementById('checkoutDiscountBreakdown');
+        if (!checkoutItems || !checkoutDiscountBreakdown) return;
 
+        // First update the items list
         fetch('products.php', {
             method: 'GET',
             headers: {
@@ -825,9 +817,45 @@ if (isset($customerInfo['CustomerID'])) {
             if (newCheckoutItems) {
                 checkoutItems.innerHTML = newCheckoutItems.innerHTML;
             }
+
+            // Calculate and update totals
+            let subtotal = 0;
+            const items = checkoutItems.querySelectorAll('.list-group-item');
+            items.forEach(item => {
+                const priceText = item.querySelector('span').textContent;
+                const price = parseFloat(priceText.replace('₱', '').replace(',', ''));
+                if (!isNaN(price)) {
+                    subtotal += price;
+                }
+            });
+
+            // Get customer discount rate
+            const discountRate = <?php echo isset($customerInfo['Cust_DiscRate']) ? floatval($customerInfo['Cust_DiscRate']) : 0; ?>;
+            const customerDiscount = discountRate > 0 ? subtotal * (discountRate / 100) : 0;
+            const totalAfterCustomerDiscount = subtotal - customerDiscount;
+
+            // Update the discount breakdown
+            let discountHtml = `Subtotal: ₱${subtotal.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}<br>`;
+            if (discountRate > 0) {
+                discountHtml += `Customer Discount (${discountRate}%): -₱${customerDiscount.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}<br>`;
+            }
+            discountHtml += `<span class="text-success">Total after Discount: ₱${totalAfterCustomerDiscount.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}</span>`;
+            
+            checkoutDiscountBreakdown.innerHTML = discountHtml;
+
+            // Update the discount display for promo code calculations
+            if (typeof updateDiscountDisplay === 'function') {
+                updateDiscountDisplay();
+            }
         })
         .catch(error => {
             console.error('Error updating checkout content:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Failed to update checkout information. Please try again.',
+                confirmButtonText: 'Close'
+            });
         });
     }
 
@@ -871,6 +899,12 @@ if (isset($customerInfo['CustomerID'])) {
                             // Show cart modal
                             const cartModal = new bootstrap.Modal(document.getElementById('cartModal'));
                             cartModal.show();
+                            
+                            // Add event listener for when cart modal is shown
+                            document.getElementById('cartModal').addEventListener('shown.bs.modal', function () {
+                                // Update checkout content when cart modal is shown
+                                updateCheckoutContent();
+                            });
                         } else {
                             // Refresh and redirect to products page
                             setTimeout(() => {
