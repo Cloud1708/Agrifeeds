@@ -192,18 +192,20 @@ if (isset($_GET['view'])) {
                                 <td><?php echo $order['item_count']; ?> items</td>
                                 <td>₱<?php echo number_format($order['Order_Total'], 2); ?></td>
                                 <td>
-                                    <span class="badge bg-<?php 
-                                        echo match($order['Order_Status']) {
-                                            'pending' => 'warning',
-                                            'processing' => 'info',
-                                            'completed' => 'success',
-                                            'cancelled' => 'danger',
-                                            default => 'secondary'
-                                        };
-                                    ?>">
-                                        <?php echo ucfirst($order['Order_Status']); ?>
-                                    </span>
-                                </td>
+    <?php
+        if (isset($order['Order_Status'])) {
+            if ($order['Order_Status'] === 'Pending') {
+                echo '<span class="badge bg-warning text-dark">Pending</span>';
+            } elseif ($order['Order_Status'] === 'Completed') {
+                echo '<span class="badge bg-success">Completed</span>';
+            } else {
+                echo '<span class="badge bg-secondary">' . htmlspecialchars($order['Order_Status']) . '</span>';
+            }
+        } else {
+            echo '<span class="badge bg-secondary">-</span>';
+        }
+    ?>
+</td>
                                 <td>
                                     <a href="?view=<?php echo $order['OrderID']; ?>" class="btn btn-sm btn-outline-primary">
                                         <i class="bi bi-eye"></i> View

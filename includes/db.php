@@ -814,11 +814,9 @@ function getRecentOrders($userID, $limit = 5) {
         SELECT 
             s.SaleID,
             s.Sale_Date as Order_Date,
+            s.Sale_Status as Order_Status,
             (SELECT COUNT(*) FROM Sale_Item WHERE SaleID = s.SaleID) as item_count,
             (SELECT SUM(SI_Quantity * SI_Price) FROM Sale_Item WHERE SaleID = s.SaleID) as Order_Total
-            -- Removed s.Sale_Method as Order_Status
-            (SELECT SUM(SI_Quantity * SI_Price) FROM Sale_Item WHERE SaleID = s.SaleID) as Order_Total
-            -- Removed s.Sale_Method as Order_Status
         FROM Sales s
         JOIN Customers c ON s.CustomerID = c.CustomerID
         WHERE c.UserID = ?
