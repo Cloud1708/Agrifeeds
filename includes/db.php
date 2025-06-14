@@ -468,22 +468,7 @@ function updateMemberTier($customerId) {
         }
     }
 
-    function viewPricingHistory($productId = null) {
-        $con = $this->opencon();
-        $sql = "SELECT ph.*, p.Prod_Name FROM pricing_history ph JOIN products p ON ph.ProductID = p.ProductID";
-        
-        if ($productId !== null) {
-            $sql .= " WHERE ph.ProductID = ?";
-            $stmt = $con->prepare($sql);
-            $stmt->execute([$productId]);
-        } else {
-            $stmt = $con->prepare($sql);
-            $stmt->execute();
-        }
-        
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    }
-
+    
     function getPricingHistoryStats() {
         try {
             $con = $this->opencon();

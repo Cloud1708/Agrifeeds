@@ -5,7 +5,6 @@ $db = new database();
 $sweetAlertConfig = "";
 
 // Get pricing history data
-$history = $db->viewPricingHistory();
 $stats = $db->getPricingHistoryStats();
 
 // Handle AJAX requests
@@ -98,9 +97,7 @@ if ($debug) {
     <div class="main-content">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1>Pricing History</h1>
-            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addHistoryModal">
-                <i class="bi bi-plus-lg"></i> Add History
-            </button>
+           
         </div>
 
         <!-- Summary Cards -->
