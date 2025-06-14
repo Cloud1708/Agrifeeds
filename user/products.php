@@ -169,22 +169,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['payment_method'])) {
         }
         $saleID = $conn->lastInsertId();
 
-        // Insert sale items
+// Insert sale items
         foreach ($_SESSION['cart'] as $item) {
             // Calculate the discounted price for this item
             $itemTotal = $item['price'] * $item['quantity'];
             $itemDiscountRate = $discountRate > 0 ? $discountRate / 100 : 0;
             $itemCustomerDiscount = $itemTotal * $itemDiscountRate;
             $itemTotalAfterCustomerDiscount = $itemTotal - $itemCustomerDiscount;
-            
+           
             // Apply promo discount proportionally to each item
             $itemPromoDiscount = 0;
             if ($promoDiscount > 0) {
                 $itemPromoDiscount = ($itemTotalAfterCustomerDiscount / $totalAfterCustomerDiscount) * $promoDiscount;
             }
-            
+           
             $finalItemPrice = ($itemTotalAfterCustomerDiscount - $itemPromoDiscount) / $item['quantity'];
-            
+           
             $itemStmt = $conn->prepare("INSERT INTO Sale_Item (SaleID, ProductID, SI_Quantity, SI_Price) VALUES (?, ?, ?, ?)");
             $itemStmt->execute([$saleID, $item['id'], $item['quantity'], $finalItemPrice]);
         }
@@ -203,6 +203,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['payment_method'])) {
         }
 
         $conn->commit();
+
+        // --- Add Loyalty Points ---
+if (isset($customerInfo['CustomerID'])) {
+    $pointsEarned = floor($finalTotal); // 1 point per ₱1 spent
+    if ($pointsEarned > 0) {
+        // Check if customer is enrolled in loyalty program
+        $stmt = $conn->prepare("SELECT COUNT(*) FROM loyalty_program WHERE CustomerID = ?");
+        $stmt->execute([$customerInfo['CustomerID']]);
+        if ($stmt->fetchColumn() > 0) {
+            // Add points
+            $stmt = $conn->prepare("UPDATE loyalty_program SET LP_PtsBalance = LP_PtsBalance + ?, LP_LastUpdt = NOW() WHERE CustomerID = ?");
+            $stmt->execute([$pointsEarned, $customerInfo['CustomerID']]);
+        }
+    }
+}
 
         // Prepare order details for response
         $orderDetails = [
@@ -237,6 +252,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['payment_method'])) {
         ]);
         exit();
     }
+
+
+
+
 }
 ?>
 

@@ -165,58 +165,68 @@ unset($member);
     </div>
 
     <!-- Program Settings Modal -->
-    <div class="modal fade" id="programSettingsModal" tabindex="-1" aria-labelledby="programSettingsModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="programSettingsModalLabel">Loyalty Program Settings</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="programSettingsForm">
-                        <div class="mb-4">
-                            <h6>Points Earning Rules</h6>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <label for="pointsPerPeso" class="form-label">Points per ₱1 Spent</label>
-                                    <input type="number" class="form-control" id="pointsPerPeso"
-                                           min="0" step="0.01" value="1" required>
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="minPointsEarn" class="form-label">Minimum Purchase for Points</label>
-                                    <div class="input-group">
-                                        <span class="input-group-text">₱</span>
-                                        <input type="number" class="form-control" id="minPointsEarn"
-                                               min="0" step="0.01" value="100" required>
-                                    </div>
+<div class="modal fade" id="programSettingsModal" tabindex="-1" aria-labelledby="programSettingsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="programSettingsModalLabel">Loyalty Program Settings</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="programSettingsForm">
+                    <div class="mb-4">
+                        <h6>Points Earning Rules</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label for="pointsPerPeso" class="form-label">Points per ₱1 Spent</label>
+                                <input type="number" class="form-control" id="pointsPerPeso" min="0" step="0.01" value="1" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="minPointsEarn" class="form-label">Minimum Purchase for Points</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">₱</span>
+                                    <input type="number" class="form-control" id="minPointsEarn" min="0" step="0.01" value="100" required>
                                 </div>
                             </div>
                         </div>
+                    </div>
 
-                        <div class="mb-4">
-                            <h6>Tier Requirements</h6>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <label for="silverTier" class="form-label">Silver Tier (Points)</label>
-                                    <input type="number" class="form-control" id="silverTier">
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="goldTier" class="form-label">Gold Tier (Points)</label>
-                                    <input type="number" class="form-control" id="goldTier">
-                                </div>
+                    <div class="mb-4">
+                        <h6>Tier Requirements</h6>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <label for="bronzeTier" class="form-label">Bronze Tier (Points)</label>
+                                <input type="number" class="form-control" id="bronzeTier" value="5000">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="silverTier" class="form-label">Silver Tier (Points)</label>
+                                <input type="number" class="form-control" id="silverTier" value="10000">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="goldTier" class="form-label">Gold Tier (Points)</label>
+                                <input type="number" class="form-control" id="goldTier" value="15000">
                             </div>
                         </div>
+                    </div>
 
-                        <div class="mb-4">
-                            <h6>Points Redemption</h6>
-                            <div class="row">
-                                <!-- Redemption settings here -->
-                            </div>
-                        </div>
-                    </form>
-                </div>
+                    <div class="mb-4">
+                        <h6>Points Redemption</h6>
+                        <ul>
+                            <li><strong>Gold:</strong> 15,000 points</li>
+                            <li><strong>Silver:</strong> 10,000 points</li>
+                            <li><strong>Bronze:</strong> 5,000 points</li>
+                        </ul>
+                    </div>
+                    <div class="modal-footer">
+    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+    <button type="submit" class="btn btn-primary">Save</button>
+</div>
+                </form>
             </div>
         </div>
     </div>
+</div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
