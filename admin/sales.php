@@ -11,29 +11,77 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mark_completed'], $_P
     $saleId = intval($_POST['sale_id']);
     $adminId = $_SESSION['user_id']; // Get the current admin's UserID
 
-    // 1. Update Sale_Status and set Sale_Per to the admin's UserID
-    $stmt = $conn->prepare("UPDATE Sales SET Sale_Status = 'Completed', Sale_Per = ? WHERE SaleID = ?");
-    $stmt->execute([$adminId, $saleId]);
+    try {
+        $conn->beginTransaction();
 
-    // 2. Get the total amount of the sale
-    $totalStmt = $conn->prepare("SELECT SUM(SI_Quantity * SI_Price) as total FROM Sale_Item WHERE SaleID = ?");
-    $totalStmt->execute([$saleId]);
-    $total = $totalStmt->fetchColumn();
+        // 1. Get sale items and their quantities
+        $itemsStmt = $conn->prepare("
+            SELECT si.ProductID, si.SI_Quantity, p.Prod_Stock 
+            FROM Sale_Item si
+            JOIN products p ON si.ProductID = p.ProductID
+            WHERE si.SaleID = ?
+        ");
+        $itemsStmt->execute([$saleId]);
+        $saleItems = $itemsStmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // 3. Insert into Payment_History (cash)
-    $payStmt = $conn->prepare("INSERT INTO Payment_History (SaleID, PT_PayAmount, PT_PayDate, PT_PayMethod) VALUES (?, ?, NOW(), ?)");
-    $payStmt->execute([$saleId, $total, 'cash']);
+        // 2. Update stock for each item
+        foreach ($saleItems as $item) {
+            // Calculate new stock level
+            $newStock = $item['Prod_Stock'] - $item['SI_Quantity'];
+            if ($newStock < 0) $newStock = 0;
 
-    // Store success message in session
-    $_SESSION['sweet_alert'] = [
-        'title' => 'Success!',
-        'text' => "Sale #$saleId has been marked as completed.",
-        'icon' => 'success'
-    ];
+            // Update stock
+            $updateStmt = $conn->prepare("UPDATE products SET Prod_Stock = ? WHERE ProductID = ?");
+            $updateStmt->execute([$newStock, $item['ProductID']]);
 
-    // Redirect to prevent resubmission
-    header("Location: sales.php");
-    exit();
+            // Log inventory change
+            $logStmt = $conn->prepare("
+                INSERT INTO inventory_history 
+                (ProductID, IH_QtyChange, IH_NewStckLvl, IH_ChangeDate) 
+                VALUES (?, ?, ?, NOW())
+            ");
+            $logStmt->execute([
+                $item['ProductID'],
+                -$item['SI_Quantity'],
+                $newStock
+            ]);
+        }
+
+        // 3. Update Sale_Status and set Sale_Per to the admin's UserID
+        $stmt = $conn->prepare("UPDATE Sales SET Sale_Status = 'Completed', Sale_Per = ? WHERE SaleID = ?");
+        $stmt->execute([$adminId, $saleId]);
+
+        // 4. Get the total amount of the sale
+        $totalStmt = $conn->prepare("SELECT SUM(SI_Quantity * SI_Price) as total FROM Sale_Item WHERE SaleID = ?");
+        $totalStmt->execute([$saleId]);
+        $total = $totalStmt->fetchColumn();
+
+        // 5. Insert into Payment_History (cash)
+        $payStmt = $conn->prepare("INSERT INTO Payment_History (SaleID, PT_PayAmount, PT_PayDate, PT_PayMethod) VALUES (?, ?, NOW(), 'cash')");
+        $payStmt->execute([$saleId, $total]);
+
+        $conn->commit();
+
+        // Store success message in session
+        $_SESSION['sweet_alert'] = [
+            'title' => 'Success!',
+            'text' => "Sale #$saleId has been marked as completed and stock has been updated.",
+            'icon' => 'success'
+        ];
+
+        // Redirect to prevent resubmission
+        header("Location: sales.php");
+        exit();
+    } catch (Exception $e) {
+        $conn->rollBack();
+        $_SESSION['sweet_alert'] = [
+            'title' => 'Error!',
+            'text' => "Failed to complete sale: " . $e->getMessage(),
+            'icon' => 'error'
+        ];
+        header("Location: sales.php");
+        exit();
+    }
 }
 
 // Get and clear any stored alert message
