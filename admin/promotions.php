@@ -172,12 +172,14 @@ $allPromotions = $con->viewPromotions();
                         $start = strtotime($promo['Promo_StartDate']);
                         $end = strtotime($promo['Promo_EndDate']);
                         $isActive = $promo['Promo_IsActive'];
- 
+                        $usageCount = $con->getPromoUsageCount($promo['PromotionID']);
+                        $usageLimit = $promo['UsageLimit'];
+
                         // Determine status and update database if needed
                         if ($now < $start && $isActive == 1) {
                             $status = 'Scheduled';
                             $badge = 'bg-info text-dark';
-                        } elseif ($now > $end && $isActive == 1) {
+                        } elseif (($now > $end || ($usageLimit > 0 && $usageCount >= $usageLimit)) && $isActive == 1) {
                             // Expired: set to 0 in DB if not already
                             $status = 'Expired';
                             $badge = 'bg-danger';
