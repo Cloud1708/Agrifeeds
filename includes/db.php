@@ -58,13 +58,13 @@ class database{
         return $con->query("SELECT * FROM products")->fetchAll();
     }
 
-function updateProduct($name, $category, $description, $price, $stock, $id){
+function updateProduct($name, $category, $description, $price, $stock, $id, $imagePath = null) {
     try {
         $con = $this->opencon();
         $con->beginTransaction();
 
         // Fetch the old product details before updating
-        $stmt = $con->prepare("SELECT Prod_Name, Prod_Cat, Prod_Desc, Prod_Price, Prod_Stock FROM products WHERE ProductID = ?");
+        $stmt = $con->prepare("SELECT Prod_Name, Prod_Cat, Prod_Desc, Prod_Price, Prod_Stock, Prod_Image FROM products WHERE ProductID = ?");
         $stmt->execute([$id]);
         $oldProduct = $stmt->fetch(PDO::FETCH_ASSOC);
         
@@ -85,10 +85,25 @@ function updateProduct($name, $category, $description, $price, $stock, $id){
         if ($oldProduct['Prod_Stock'] != $stock) {
             $changes[] = "stock from {$oldProduct['Prod_Stock']} to {$stock}";
         }
+        if ($imagePath !== null && $oldProduct['Prod_Image'] !== $imagePath) {
+            $changes[] = "image";
+        }
 
         // Update the product
-        $query = $con->prepare("UPDATE products SET Prod_Name = ?, Prod_Cat = ?, Prod_Desc = ?, Prod_Price = ? , Prod_Stock = ?, Prod_Updated_at = NOW() WHERE ProductID = ? ");
-        $query->execute([$name, $category, $description, $price, $stock, $id]);
+        $sql = "UPDATE products SET Prod_Name = ?, Prod_Cat = ?, Prod_Desc = ?, Prod_Price = ?, Prod_Stock = ?, Prod_Updated_at = NOW()";
+        $params = [$name, $category, $description, $price, $stock];
+        
+        // Add image path to update if provided
+        if ($imagePath !== null) {
+            $sql .= ", Prod_Image = ?";
+            $params[] = $imagePath;
+        }
+        
+        $sql .= " WHERE ProductID = ?";
+        $params[] = $id;
+        
+        $query = $con->prepare($sql);
+        $query->execute($params);
 
         // If price changed, add to pricing history
         if ($oldProduct['Prod_Price'] != $price) {
@@ -649,10 +664,25 @@ function getPurchaseOrders() {
 }
 
 function viewInventoryAlerts() {
-    $con = $this->opencon();
-    $stmt = $con->prepare("SELECT * FROM inventory_alerts ORDER BY AlertID");
-    $stmt->execute();
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    try {
+        $sql = "SELECT 
+                p.Prod_Name,
+                p.Prod_Stock as CurrentStock,
+                CASE 
+                    WHEN p.Prod_Stock <= 10 THEN 10
+                    WHEN p.Prod_Stock <= 20 THEN 20
+                    ELSE 30
+                END as Threshold
+                FROM Products p
+                WHERE p.Prod_Stock <= 30
+                ORDER BY p.Prod_Stock ASC";
+        $stmt = $this->opencon()->prepare($sql);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        error_log("Error in viewInventoryAlerts: " . $e->getMessage());
+        return [];
+    }
 }
  
    
@@ -816,41 +846,7 @@ function getCustomerInfo($userID) {
     return $stmt->fetch(PDO::FETCH_ASSOC);
 }
 
-function getTotalOrders($userID) {
-    $con = $this->opencon();
-    $stmt = $con->prepare("
-        SELECT COUNT(DISTINCT s.SaleID) as total 
-        FROM Sales s
-        JOIN Customers c ON s.CustomerID = c.CustomerID
-        WHERE c.UserID = ?
-    ");
-    $stmt->execute([$userID]);
-    $result = $stmt->fetch(PDO::FETCH_ASSOC);
-    return $result['total'] ?? 0;
-}
-
-function getRecentOrders($userID, $limit = 5) {
-    $con = $this->opencon();
-    $stmt = $con->prepare("
-        SELECT 
-            s.SaleID,
-            s.Sale_Date as Order_Date,
-            s.Sale_Status as Order_Status,
-            (SELECT COUNT(*) FROM Sale_Item WHERE SaleID = s.SaleID) as item_count,
-            (SELECT SUM(SI_Quantity * SI_Price) FROM Sale_Item WHERE SaleID = s.SaleID) as Order_Total
-        FROM Sales s
-        JOIN Customers c ON s.CustomerID = c.CustomerID
-        WHERE c.UserID = ?
-        ORDER BY s.Sale_Date DESC
-        LIMIT ?
-    ");
-    $stmt->bindValue(1, $userID, PDO::PARAM_INT);
-    $stmt->bindValue(2, $limit, PDO::PARAM_INT);
-    $stmt->execute();
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
-}
-
-    function getUserOrders($userID) {
+function getUserOrders($userID) {
     $con = $this->opencon();
     $stmt = $con->prepare("
         SELECT 
@@ -1052,7 +1048,7 @@ function getAvailablePromos($userID = null) {
           AND DATE(Promo_EndDate) >= CURDATE()";
     $stmt = $con->prepare($sql);
     $stmt->execute();
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $promos = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     // Filter by usage limit
     $filtered = [];
@@ -1415,6 +1411,147 @@ public function resetExpiredPoints($pointsExpireAfter) {
         $update->execute([$member['CustomerID']]);
     }
 }
+
+    public function getTotalSales() {
+        try {
+            $sql = "SELECT COALESCE(SUM(SI.SI_Price * SI.SI_Quantity), 0) as total_sales 
+                    FROM Sales S 
+                    JOIN Sale_Item SI ON S.SaleID = SI.SaleID 
+                    WHERE S.Sale_Date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+                    AND S.Sale_Status = 'Completed'";
+            $stmt = $this->opencon()->prepare($sql);
+            $stmt->execute();
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            return $result['total_sales'];
+        } catch (PDOException $e) {
+            error_log("Error in getTotalSales: " . $e->getMessage());
+            return 0;
+        }
+    }
+
+    public function getTotalOrders() {
+        try {
+            $sql = "SELECT COUNT(*) as total_orders 
+                    FROM Sales 
+                    WHERE Sale_Date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)";
+            $stmt = $this->opencon()->prepare($sql);
+            $stmt->execute();
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            return $result['total_orders'];
+        } catch (PDOException $e) {
+            error_log("Error in getTotalOrders: " . $e->getMessage());
+            return 0;
+        }
+    }
+
+    public function getSalesData() {
+        try {
+            $sql = "SELECT DATE(S.Sale_Date) as date, 
+                    SUM(SI.SI_Price * SI.SI_Quantity) as total_sales 
+                    FROM Sales S 
+                    JOIN Sale_Item SI ON S.SaleID = SI.SaleID 
+                    WHERE S.Sale_Date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+                    AND S.Sale_Status = 'Completed'
+                    GROUP BY DATE(S.Sale_Date) 
+                    ORDER BY date";
+            $stmt = $this->opencon()->prepare($sql);
+            $stmt->execute();
+            $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $labels = [];
+            $data = [];
+            foreach ($results as $row) {
+                $labels[] = date('M d', strtotime($row['date']));
+                $data[] = $row['total_sales'];
+            }
+
+            return [
+                'labels' => $labels,
+                'data' => $data
+            ];
+        } catch (PDOException $e) {
+            error_log("Error in getSalesData: " . $e->getMessage());
+            return ['labels' => [], 'data' => []];
+        }
+    }
+
+    public function getTopProducts() {
+        try {
+            $sql = "SELECT 
+                    P.Prod_Name,
+                    SUM(SI.SI_Quantity) as total_quantity,
+                    SUM(SI.SI_Price * SI.SI_Quantity) as total_sales
+                    FROM Products P
+                    JOIN Sale_Item SI ON P.ProductID = SI.ProductID
+                    JOIN Sales S ON SI.SaleID = S.SaleID
+                    WHERE S.Sale_Date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+                    AND S.Sale_Status = 'Completed'
+                    GROUP BY P.ProductID, P.Prod_Name
+                    ORDER BY total_sales DESC
+                    LIMIT 5";
+            $stmt = $this->opencon()->prepare($sql);
+            $stmt->execute();
+            $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $labels = [];
+            $data = [];
+            foreach ($results as $row) {
+                $labels[] = $row['Prod_Name'];
+                $data[] = $row['total_sales'];
+            }
+
+            return [
+                'labels' => $labels,
+                'data' => $data
+            ];
+        } catch (PDOException $e) {
+            error_log("Error in getTopProducts: " . $e->getMessage());
+            return ['labels' => [], 'data' => []];
+        }
+    }
+
+    public function getRecentOrders($limit = 5) {
+        try {
+            $sql = "SELECT S.SaleID, 
+                    CONCAT(C.Cust_FN, ' ', C.Cust_LN) as CustomerName,
+                    SUM(SI.SI_Price * SI.SI_Quantity) as TotalAmount,
+                    S.Sale_Method as Status
+                    FROM Sales S 
+                    JOIN Customers C ON S.CustomerID = C.CustomerID 
+                    JOIN Sale_Item SI ON S.SaleID = SI.SaleID 
+                    GROUP BY S.SaleID, C.Cust_FN, C.Cust_LN, S.Sale_Method 
+                    ORDER BY S.Sale_Date DESC 
+                    LIMIT :limit";
+            $stmt = $this->opencon()->prepare($sql);
+            $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+            $stmt->execute();
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log("Error in getRecentOrders: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    function getUserRecentOrders($userID, $limit = 5) {
+        $con = $this->opencon();
+        $stmt = $con->prepare("
+            SELECT 
+                s.SaleID,
+                s.Sale_Date as Order_Date,
+                s.Sale_Status as Order_Status,
+                (SELECT COUNT(*) FROM Sale_Item WHERE SaleID = s.SaleID) as item_count,
+                (SELECT SUM(SI_Quantity * SI_Price) FROM Sale_Item WHERE SaleID = s.SaleID) as Order_Total
+            FROM Sales s
+            JOIN Customers c ON s.CustomerID = c.CustomerID
+            WHERE c.UserID = ?
+            ORDER BY s.Sale_Date DESC
+            LIMIT ?
+        ");
+        $stmt->bindValue(1, $userID, PDO::PARAM_INT);
+        $stmt->bindValue(2, $limit, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
 
 }
 
