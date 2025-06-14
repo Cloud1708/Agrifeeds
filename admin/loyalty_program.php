@@ -48,6 +48,7 @@ unset($member);
     <link href="../css/custom.css" rel="stylesheet">
     <link href="../css/sidebar.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body>
     <?php include '../includes/sidebar.php'; ?>
@@ -275,28 +276,62 @@ unset($member);
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
  
-<script>// ...existing code...
-// In your JS
+<script>
 document.getElementById('programSettingsForm').addEventListener('submit', function(e) {
     e.preventDefault();
-    const bronze = document.getElementById('bronzeTier').value;
-    const silver = document.getElementById('silverTier').value;
-    const gold = document.getElementById('goldTier').value;
-    const minPurchase = document.getElementById('minPointsEarn').value;
-    const pointsPerPeso = document.getElementById('pointsPerPeso').value;
-    const pointsExpireAfter = document.getElementById('points_expire_after').value; // NEW
- 
-    fetch('loyalty_program.php', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-        body: `action=save_settings&bronze=${bronze}&silver=${silver}&gold=${gold}&min_purchase=${minPurchase}&points_per_peso=${pointsPerPeso}&points_expire_after=${pointsExpireAfter}`
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.success) {
-            location.reload();
-        } else {
-            alert('Failed to save settings.');
+    
+    // Show confirmation dialog
+    Swal.fire({
+        title: 'Save Program Settings?',
+        text: 'Are you sure you want to save these changes? This will affect all loyalty program members.',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Yes, save changes',
+        cancelButtonText: 'Cancel'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const bronze = document.getElementById('bronzeTier').value;
+            const silver = document.getElementById('silverTier').value;
+            const gold = document.getElementById('goldTier').value;
+            const minPurchase = document.getElementById('minPointsEarn').value;
+            const pointsPerPeso = document.getElementById('pointsPerPeso').value;
+            const pointsExpireAfter = document.getElementById('points_expire_after').value;
+
+            fetch('loyalty_program.php', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: `action=save_settings&bronze=${bronze}&silver=${silver}&gold=${gold}&min_purchase=${minPurchase}&points_per_peso=${pointsPerPeso}&points_expire_after=${pointsExpireAfter}`
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        title: 'Success!',
+                        text: 'Loyalty program settings have been updated successfully.',
+                        icon: 'success',
+                        confirmButtonColor: '#3085d6'
+                    }).then(() => {
+                        location.reload();
+                    });
+                } else {
+                    Swal.fire({
+                        title: 'Error!',
+                        text: 'Failed to save settings. Please try again.',
+                        icon: 'error',
+                        confirmButtonColor: '#3085d6'
+                    });
+                }
+            })
+            .catch(error => {
+                Swal.fire({
+                    title: 'Error!',
+                    text: 'An error occurred while saving settings. Please try again.',
+                    icon: 'error',
+                    confirmButtonColor: '#3085d6'
+                });
+            });
         }
     });
 });
