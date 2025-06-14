@@ -7,6 +7,9 @@ $sweetAlertConfig = "";
 // Get pricing history data
 $stats = $db->getPricingHistoryStats();
 
+// Get all pricing history records
+$history = $db->getAllPricingHistory();
+
 // Handle AJAX requests
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $response = ['success' => false, 'message' => ''];
