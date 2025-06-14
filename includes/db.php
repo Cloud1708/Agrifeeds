@@ -54,10 +54,12 @@ class database{
     }
 
     function viewProducts() {
-
         $con = $this->opencon();
-        return $con->query("SELECT * FROM products")->fetchAll();
-
+        return $con->query("
+            SELECT p.*, u.User_Name as Updated_By_Name 
+            FROM products p 
+            LEFT JOIN USER_ACCOUNTS u ON p.Updated_By = u.UserID
+        ")->fetchAll();
     }
 
 function updateProduct($name, $category, $description, $price, $stock, $id){
@@ -65,42 +67,68 @@ function updateProduct($name, $category, $description, $price, $stock, $id){
         $con = $this->opencon();
         $con->beginTransaction();
 
+        // Get the current user ID from session
+        $userId = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
+
         // Fetch the old product details before updating
-        $stmt = $con->prepare("SELECT Prod_Price, Prod_Stock FROM products WHERE ProductID = ?");
+        $stmt = $con->prepare("SELECT Prod_Name, Prod_Cat, Prod_Desc, Prod_Price, Prod_Stock FROM products WHERE ProductID = ?");
         $stmt->execute([$id]);
         $oldProduct = $stmt->fetch(PDO::FETCH_ASSOC);
-        $oldPrice = $oldProduct ? $oldProduct['Prod_Price'] : null;
-        $oldStock = $oldProduct ? $oldProduct['Prod_Stock'] : null;
+        
+        // Track changes
+        $changes = [];
+        if ($oldProduct['Prod_Name'] !== $name) {
+            $changes[] = "name from '{$oldProduct['Prod_Name']}' to '{$name}'";
+        }
+        if ($oldProduct['Prod_Cat'] !== $category) {
+            $changes[] = "category from '{$oldProduct['Prod_Cat']}' to '{$category}'";
+        }
+        if ($oldProduct['Prod_Desc'] !== $description) {
+            $changes[] = "description";
+        }
+        if ($oldProduct['Prod_Price'] != $price) {
+            $changes[] = "price from ₱" . number_format($oldProduct['Prod_Price'], 2) . " to ₱" . number_format($price, 2);
+        }
+        if ($oldProduct['Prod_Stock'] != $stock) {
+            $changes[] = "stock from {$oldProduct['Prod_Stock']} to {$stock}";
+        }
 
         // Update the product
-        $query = $con->prepare("UPDATE products SET Prod_Name = ?, Prod_Cat = ?, Prod_Desc = ?, Prod_Price = ? , Prod_Stock = ? WHERE ProductID = ? ");
-        $query->execute([$name, $category, $description, $price, $stock, $id]);
+        $query = $con->prepare("UPDATE products SET Prod_Name = ?, Prod_Cat = ?, Prod_Desc = ?, Prod_Price = ? , Prod_Stock = ?, Prod_Updated_at = NOW(), Updated_By = ? WHERE ProductID = ? ");
+        $query->execute([$name, $category, $description, $price, $stock, $userId, $id]);
 
         // If price changed, add to pricing history
-        if ($oldPrice !== null && $oldPrice != $price) {
+        if ($oldProduct['Prod_Price'] != $price) {
             $changeDate = date('Y-m-d');
             $effectiveFrom = $changeDate;
             $stmt = $con->prepare("INSERT INTO pricing_history 
-                (ProductID, PH_OldPrice, PH_NewPrice, PH_ChangeDate, PH_Effective_from) 
-                VALUES (?, ?, ?, ?, ?)");
-            $stmt->execute([$id, $oldPrice, $price, $changeDate, $effectiveFrom]);
+                (ProductID, PH_OldPrice, PH_NewPrice, PH_ChangeDate, PH_Effective_from, UserID) 
+                VALUES (?, ?, ?, ?, ?, ?)");
+            $stmt->execute([$id, $oldProduct['Prod_Price'], $price, $changeDate, $effectiveFrom, $userId]);
         }
 
         // If stock changed, add to inventory history
-        if ($oldStock !== null && $oldStock != $stock) {
-            $qtyChange = $stock - $oldStock;
-            $changeDate = date('Y-m-d H:i:s');
+        if ($oldProduct['Prod_Stock'] != $stock) {
+            $qtyChange = $stock - $oldProduct['Prod_Stock'];
             $stmt = $con->prepare("INSERT INTO inventory_history 
-                (ProductID, IH_QtyChange, IH_NewStckLvl, IH_ChangeDate) 
-                VALUES (?, ?, ?, ?)");
-            $stmt->execute([$id, $qtyChange, $stock, $changeDate]);
+                (ProductID, IH_QtyChange, IH_NewStckLvl, IH_ChangeDate, UserID) 
+                VALUES (?, ?, ?, NOW(), ?)");
+            $stmt->execute([$id, $qtyChange, $stock, $userId]);
+        }
+
+        // Log the changes in Product_Access_Log
+        if (!empty($changes)) {
+            $changeDetails = implode(', ', $changes);
+            $stmt = $con->prepare("INSERT INTO Product_Access_Log (ProductID, UserID, Pal_Action, Pal_TimeStamp) VALUES (?, ?, ?, NOW())");
+            $stmt->execute([$id, $userId, "Updated product: " . $changeDetails]);
         }
 
         $con->commit();
         return true;
     } catch (PDOException $e) {
-        $con->rollBack();
-        return false; 
+        if (isset($con)) $con->rollback();
+        error_log("Error updating product: " . $e->getMessage());
+        return false;
     }
 }
 
@@ -313,8 +341,11 @@ function registerUser($username, $password, $role, $photo = null, $firstName = n
             $con = $this->opencon();
             $stmt = $con->prepare("SELECT * FROM USER_ACCOUNTS WHERE UserID = ?");
             $stmt->execute([$userID]);
-            return $stmt->fetch(PDO::FETCH_ASSOC);
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+            error_log("getUserById - UserID: " . $userID . ", Result: " . print_r($user, true));
+            return $user;
         } catch (PDOException $e) {
+            error_log("getUserById error: " . $e->getMessage());
             return false;
         }
     }
@@ -417,9 +448,12 @@ function updateMemberTier($customerId) {
             $con = $this->opencon();
             $con->beginTransaction();
             
+            // Get the current user ID from session
+            $userId = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
+            
             $stmt = $con->prepare("INSERT INTO pricing_history 
-                (ProductID, PH_OldPrice, PH_NewPrice, PH_ChangeDate, PH_Effective_from, PH_Effective_to) 
-                VALUES (?, ?, ?, ?, ?, ?)");
+                (ProductID, PH_OldPrice, PH_NewPrice, PH_ChangeDate, PH_Effective_from, PH_Effective_to, UserID) 
+                VALUES (?, ?, ?, ?, ?, ?, ?)");
             
             $stmt->execute([
                 $productId, 
@@ -427,7 +461,8 @@ function updateMemberTier($customerId) {
                 $newPrice, 
                 $changeDate, 
                 $effectiveFrom, 
-                $effectiveTo
+                $effectiveTo,
+                $userId
             ]);
             
             $historyId = $con->lastInsertId();
@@ -442,9 +477,10 @@ function updateMemberTier($customerId) {
     function viewPricingHistory($productId = null) {
         try {
             $con = $this->opencon();
-            $sql = "SELECT ph.*, p.Prod_Name 
+            $sql = "SELECT ph.*, p.Prod_Name, u.User_Name 
                     FROM pricing_history ph 
-                    JOIN products p ON ph.ProductID = p.ProductID";
+                    JOIN products p ON ph.ProductID = p.ProductID
+                    LEFT JOIN USER_ACCOUNTS u ON ph.UserID = u.UserID";
             
             if ($productId) {
                 $sql .= " WHERE ph.ProductID = ?";
@@ -523,9 +559,10 @@ function updateMemberTier($customerId) {
 function viewInventoryHistory() {
     $con = $this->opencon();
     $stmt = $con->prepare("
-        SELECT ih.IHID, ih.ProductID, p.Prod_Name, ih.IH_QtyChange, ih.IH_NewStckLvl, ih.IH_ChangeDate
+        SELECT ih.IHID, ih.ProductID, p.Prod_Name, u.User_Name, ih.IH_QtyChange, ih.IH_NewStckLvl, ih.IH_ChangeDate
         FROM inventory_history ih
         JOIN products p ON ih.ProductID = p.ProductID
+        LEFT JOIN USER_ACCOUNTS u ON ih.UserID = u.UserID
         ORDER BY ih.IH_ChangeDate DESC
     ");
     $stmt->execute();
@@ -815,34 +852,33 @@ function getRecentOrders($userID, $limit = 5) {
             s.SaleID,
             s.Sale_Date as Order_Date,
             (SELECT COUNT(*) FROM Sale_Item WHERE SaleID = s.SaleID) as item_count,
-            (SELECT SUM(SI_Quantity * SI_Price) FROM Sale_Item WHERE SaleID = s.SaleID) as Order_Total
-            -- Removed s.Sale_Method as Order_Status
-            (SELECT SUM(SI_Quantity * SI_Price) FROM Sale_Item WHERE SaleID = s.SaleID) as Order_Total
-            -- Removed s.Sale_Method as Order_Status
+            (SELECT SUM(SI_Quantity * SI_Price) FROM Sale_Item WHERE SaleID = s.SaleID) as Order_Total,
+            s.Sale_Status as Order_Status
         FROM Sales s
         JOIN Customers c ON s.CustomerID = c.CustomerID
         WHERE c.UserID = ?
         ORDER BY s.Sale_Date DESC
-        LIMIT " . (int)$limit
-    );
-    $stmt->execute([$userID]);
+        LIMIT ?
+    ");
+    $stmt->bindValue(1, $userID, PDO::PARAM_INT);
+    $stmt->bindValue(2, $limit, PDO::PARAM_INT);
+    $stmt->execute();
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-public function getUserOrders($userID) {
+function getUserOrders($userID) {
     $con = $this->opencon();
     $stmt = $con->prepare("
         SELECT 
-            s.SaleID AS OrderID,
-            s.Sale_Date AS Order_Date,
-            COUNT(si.SaleItemID) AS item_count,
-            SUM(si.SI_Quantity * si.SI_Price) AS Order_Total,
-            'Completed' AS Order_Status -- Placeholder status
+            s.SaleID as OrderID,
+            s.Sale_Date as Order_Date,
+            (SELECT COUNT(*) FROM Sale_Item WHERE SaleID = s.SaleID) as item_count,
+            (SELECT SUM(SI_Quantity * SI_Price) FROM Sale_Item WHERE SaleID = s.SaleID) as Order_Total,
+            s.Sale_Status as Order_Status
         FROM Sales s
-        LEFT JOIN Sale_Item si ON s.SaleID = si.SaleID
-        WHERE s.CustomerID = ?
-        GROUP BY s.SaleID
-        ORDER BY s.SaleID DESC
+        JOIN Customers c ON s.CustomerID = c.CustomerID
+        WHERE c.UserID = ?
+        ORDER BY s.Sale_Date DESC
     ");
     $stmt->execute([$userID]);
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -851,9 +887,19 @@ public function getUserOrders($userID) {
 function getOrderDetails($saleID) {
     $con = $this->opencon();
     $stmt = $con->prepare("
-        SELECT s.*, si.*, p.Prod_Name as product_name,
-               c.Cust_Name, c.Cust_DiscRate,
-               COALESCE(op.OrderP_DiscntApplied, 0) as discount_applied
+        SELECT 
+            s.SaleID as OrderID,
+            s.Sale_Date as Order_Date,
+            s.Sale_Status as Order_Status,
+            s.Sale_Per as Payment_Method,
+            si.SI_Quantity as Quantity,
+            si.SI_Price as Price,
+            p.Prod_Name as product_name,
+            CONCAT(c.Cust_FN, ' ', c.Cust_LN) as customer_name,
+            c.Cust_DiscRate,
+            COALESCE(op.OrderP_DiscntApplied, 0) as discount_applied,
+            (si.SI_Quantity * si.SI_Price) as Subtotal,
+            (SELECT SUM(SI_Quantity * SI_Price) FROM Sale_Item WHERE SaleID = s.SaleID) as Order_Total
         FROM Sales s
         JOIN Sale_Item si ON s.SaleID = si.SaleID
         JOIN Products p ON si.ProductID = p.ProductID
@@ -1066,10 +1112,13 @@ function getAvailablePromos($userID = null) {
     public function addInventoryHistory($productId, $qtyChange, $newStockLevel) {
         try {
             $con = $this->opencon();
+            // Get the current user ID from session
+            $userId = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
+            
             $stmt = $con->prepare("INSERT INTO inventory_history 
-                (ProductID, IH_QtyChange, IH_NewStckLvl, IH_ChangeDate) 
-                VALUES (?, ?, ?, NOW())");
-            return $stmt->execute([$productId, $qtyChange, $newStockLevel]);
+                (ProductID, IH_QtyChange, IH_NewStckLvl, IH_ChangeDate, UserID) 
+                VALUES (?, ?, ?, NOW(), ?)");
+            return $stmt->execute([$productId, $qtyChange, $newStockLevel, $userId]);
         } catch (PDOException $e) {
             error_log("Error adding inventory history: " . $e->getMessage());
             return false;
@@ -1298,28 +1347,50 @@ function getAvailablePromos($userID = null) {
         }
     }
 
-    public function viewSales() {
-    $conn = $this->opencon();
-    $stmt = $conn->prepare("
-        SELECT 
-            s.SaleID, 
-            s.Sale_Date, 
-            s.Sale_Per, 
-            s.CustomerID, 
-            CONCAT(c.Cust_FN, ' ', c.Cust_LN) AS CustomerName, 
-            p.Prom_Code AS PromotionName,
-            s.Sale_Status
-        FROM Sales s
-        LEFT JOIN USER_ACCOUNTS a ON s.Sale_Per = a.UserID
-        LEFT JOIN Customers c ON s.CustomerID = c.CustomerID
-        LEFT JOIN Order_Promotions op ON s.SaleID = op.SaleID
-        LEFT JOIN promotions p ON op.PromotionID = p.PromotionID
-        ORDER BY s.SaleID DESC
-    ");
-    $stmt->execute();
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
-}
 
+    public function viewSales() {
+        $conn = $this->opencon();
+        $stmt = $conn->prepare("
+            SELECT 
+                s.SaleID, 
+                s.Sale_Date, 
+                s.Sale_Per, 
+                s.CustomerID, 
+                CONCAT(c.Cust_FN, ' ', c.Cust_LN) AS CustomerName, 
+                p.Prom_Code AS PromotionName,
+                s.Sale_Status
+            FROM Sales s
+            LEFT JOIN USER_ACCOUNTS a ON s.Sale_Per = a.UserID
+            LEFT JOIN Customers c ON s.CustomerID = c.CustomerID
+            LEFT JOIN Order_Promotions op ON s.SaleID = op.SaleID
+            LEFT JOIN promotions p ON op.PromotionID = p.PromotionID
+            ORDER BY s.SaleID DESC
+        ");
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+    
+    function getProductAccessLogs($productId = null) {
+        try {
+            $con = $this->opencon();
+            $sql = "SELECT pal.*, u.User_Name 
+                    FROM Product_Access_Log pal 
+                    LEFT JOIN USER_ACCOUNTS u ON pal.UserID = u.UserID";
+            
+            if ($productId) {
+                $sql .= " WHERE pal.ProductID = ?";
+                $stmt = $con->prepare($sql);
+                $stmt->execute([$productId]);
+            } else {
+                $stmt = $con->prepare($sql);
+                $stmt->execute();
+            }
+            
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            return false;
+        }
+    }
 }
 
 // Handle direct method calls from JavaScript
@@ -1381,6 +1452,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SERVER['HTTP_CONTENT_TYPE']
     }
     exit;
 }
-
-
 ?>
