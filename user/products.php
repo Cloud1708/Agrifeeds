@@ -189,6 +189,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['payment_method'])) {
             $itemStmt->execute([$saleID, $item['id'], $item['quantity'], $finalItemPrice]);
         }
 
+        // Insert sale items AND update stock/inventory history
+        foreach ($_SESSION['cart'] as $item) {
+            $itemStmt = $conn->prepare("INSERT INTO Sale_Item (SaleID, ProductID, SI_Quantity, SI_Price) VALUES (?, ?, ?, ?)");
+            $itemStmt->execute([$saleID, $item['id'], $item['quantity'], $item['price']]);
+ 
+            // Update product stock and log inventory history
+            $stmt = $conn->prepare("SELECT Prod_Stock FROM products WHERE ProductID = ?");
+            $stmt->execute([$item['id']]);
+            $currentStock = $stmt->fetchColumn();
+            if ($currentStock === false) $currentStock = 0;
+            $newStock = $currentStock - $item['quantity'];
+            if ($newStock < 0) $newStock = 0;
+ 
+            // Update stock
+            $updateStmt = $conn->prepare("UPDATE products SET Prod_Stock = ? WHERE ProductID = ?");
+            $updateStmt->execute([$newStock, $item['id']]);
+ 
+            // Log inventory history (negative quantity for sale, NO UserID)
+            $logStmt = $conn->prepare("INSERT INTO inventory_history (ProductID, IH_QtyChange, IH_NewStckLvl, IH_ChangeDate) VALUES (?, ?, ?, NOW())");
+            $logStmt->execute([$item['id'], -$item['quantity'], $newStock]);
+        }
+
         // Insert payment history ONLY if payment method is card
         if (strtolower($_POST['payment_method']) === 'card') {
             $payStmt = $conn->prepare("INSERT INTO Payment_History (SaleID, PT_PayAmount, PT_PayDate, PT_PayMethod) VALUES (?, ?, NOW(), ?)");
@@ -206,15 +228,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['payment_method'])) {
 
         // --- Add Loyalty Points ---
 if (isset($customerInfo['CustomerID'])) {
-    $pointsEarned = floor($finalTotal); // 1 point per ₱1 spent
-    if ($pointsEarned > 0) {
-        // Check if customer is enrolled in loyalty program
-        $stmt = $conn->prepare("SELECT COUNT(*) FROM loyalty_program WHERE CustomerID = ?");
-        $stmt->execute([$customerInfo['CustomerID']]);
-        if ($stmt->fetchColumn() > 0) {
-            // Add points
-            $stmt = $conn->prepare("UPDATE loyalty_program SET LP_PtsBalance = LP_PtsBalance + ?, LP_LastUpdt = NOW() WHERE CustomerID = ?");
-            $stmt->execute([$pointsEarned, $customerInfo['CustomerID']]);
+    $settings = $con->opencon()->query("SELECT min_purchase, points_per_peso FROM loyalty_settings WHERE id = 1")->fetch(PDO::FETCH_ASSOC);
+    $minPurchase = (float)$settings['min_purchase'];
+    $pointsPerPeso = (float)$settings['points_per_peso'];
+
+    if ($finalTotal >= $minPurchase) {
+        $pointsEarned = floor($finalTotal * $pointsPerPeso);
+        if ($pointsEarned > 0) {
+            $stmt = $con->opencon()->prepare("UPDATE loyalty_program SET LP_PtsBalance = LP_PtsBalance + ? WHERE CustomerID = ?");
+            $result = $stmt->execute([$pointsEarned, $customerInfo['CustomerID']]);
+            if (!$result) {
+                var_dump($stmt->errorInfo());
+            }
         }
     }
 }

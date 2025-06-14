@@ -405,21 +405,34 @@ function registerUser($username, $password, $role, $photo = null, $firstName = n
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-function updateMemberTier($customerId) {
+public function updateMemberTier($customerId) {
     $con = $this->opencon();
+
     // Get current points
     $stmt = $con->prepare("SELECT LP_PtsBalance FROM loyalty_program WHERE CustomerID = ?");
     $stmt->execute([$customerId]);
     $points = (int)$stmt->fetchColumn();
 
-    // Determine tier and discount rate
-    if ($points >= 15000) {
+    // Fetch tier thresholds from settings (no fixed defaults)
+    $settings = $con->query("SELECT bronze, silver, gold FROM loyalty_settings WHERE id = 1")->fetch(PDO::FETCH_ASSOC);
+
+    if (!$settings) {
+        // Optionally, handle error if settings are missing
+        return;
+    }
+
+    $bronze = (int)$settings['bronze'];
+    $silver = (int)$settings['silver'];
+    $gold   = (int)$settings['gold'];
+
+    // Determine tier and discount rate (with correct range logic)
+    if ($points >= $gold) {
         $tier = 'Gold';
         $discount = 15;
-    } elseif ($points >= 10000) {
+    } elseif ($points >= $silver) {
         $tier = 'Silver';
         $discount = 10;
-    } elseif ($points >= 5000) {
+    } elseif ($points >= $bronze) {
         $tier = 'Bronze';
         $discount = 5;
     } else {
@@ -1381,6 +1394,13 @@ function getAvailablePromos($userID = null) {
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
+
+    public function saveLoyaltySettings($bronze, $silver, $gold, $minPurchase, $pointsPerPeso) {
+    $conn = $this->opencon();
+    $stmt = $conn->prepare("UPDATE loyalty_settings SET bronze = ?, silver = ?, gold = ?, min_purchase = ?, points_per_peso = ? WHERE id = 1");
+    $stmt->execute([$bronze, $silver, $gold, $minPurchase, $pointsPerPeso]);
+}
+
 }
 
 // Handle direct method calls from JavaScript

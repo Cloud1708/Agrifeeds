@@ -3,6 +3,26 @@ session_start();
 
 require_once('../includes/db.php');
 $con = new database();
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'save_settings') {
+    $bronze = intval($_POST['bronze']);
+    $silver = intval($_POST['silver']);
+    $gold = intval($_POST['gold']);
+    $minPurchase = floatval($_POST['min_purchase']);
+    $pointsPerPeso = floatval($_POST['points_per_peso']);
+
+    $con->saveLoyaltySettings($bronze, $silver, $gold, $minPurchase, $pointsPerPeso);
+
+    $members = $con->viewLoyaltyProgram();
+    foreach ($members as $member) {
+        $con->updateMemberTier($member['CustomerID']);
+    }
+
+    echo json_encode(['success' => true]);
+    exit;
+}
+
+$settings = $con->opencon()->query("SELECT bronze, silver, gold, min_purchase, points_per_peso FROM loyalty_settings WHERE id = 1")->fetch(PDO::FETCH_ASSOC);
 $members = $con->viewLoyaltyProgram();
 
 // Update each member's tier before displaying
@@ -179,32 +199,38 @@ unset($member);
                         <div class="row">
                             <div class="col-md-6">
                                 <label for="pointsPerPeso" class="form-label">Points per ₱1 Spent</label>
-                                <input type="number" class="form-control" id="pointsPerPeso" min="0" step="0.01" value="1" required>
+                                <input type="number" class="form-control" id="pointsPerPeso" min="0" step="0.01"
+                                    value="<?php echo isset($settings['points_per_peso']) ? $settings['points_per_peso'] : 1; ?>" required>
                             </div>
                             <div class="col-md-6">
                                 <label for="minPointsEarn" class="form-label">Minimum Purchase for Points</label>
                                 <div class="input-group">
                                     <span class="input-group-text">₱</span>
-                                    <input type="number" class="form-control" id="minPointsEarn" min="0" step="0.01" value="100" required>
+                                    <input type="number" class="form-control" id="minPointsEarn" min="0" step="0.01"
+                                        value="<?php echo isset($settings['min_purchase']) ? $settings['min_purchase'] : 100; ?>" required>
                                 </div>
                             </div>
                         </div>
                     </div>
 
+                    
                     <div class="mb-4">
                         <h6>Tier Requirements</h6>
                         <div class="row">
                             <div class="col-md-4">
                                 <label for="bronzeTier" class="form-label">Bronze Tier (Points)</label>
-                                <input type="number" class="form-control" id="bronzeTier" value="5000">
+                                <input type="number" class="form-control" id="bronzeTier"
+                                    value="<?php echo isset($settings['bronze']) ? $settings['bronze'] : 5000; ?>">
                             </div>
                             <div class="col-md-4">
                                 <label for="silverTier" class="form-label">Silver Tier (Points)</label>
-                                <input type="number" class="form-control" id="silverTier" value="10000">
+                                <input type="number" class="form-control" id="silverTier"
+                                    value="<?php echo isset($settings['silver']) ? $settings['silver'] : 10000; ?>">
                             </div>
                             <div class="col-md-4">
                                 <label for="goldTier" class="form-label">Gold Tier (Points)</label>
-                                <input type="number" class="form-control" id="goldTier" value="15000">
+                                <input type="number" class="form-control" id="goldTier"
+                                    value="<?php echo isset($settings['gold']) ? $settings['gold'] : 15000; ?>">
                             </div>
                         </div>
                     </div>
@@ -228,5 +254,31 @@ unset($member);
 </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>// ...existing code...
+// In your JS
+document.getElementById('programSettingsForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const bronze = document.getElementById('bronzeTier').value;
+    const silver = document.getElementById('silverTier').value;
+    const gold = document.getElementById('goldTier').value;
+    const minPurchase = document.getElementById('minPointsEarn').value;
+    const pointsPerPeso = document.getElementById('pointsPerPeso').value;
+
+    fetch('loyalty_program.php', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: `action=save_settings&bronze=${bronze}&silver=${silver}&gold=${gold}&min_purchase=${minPurchase}&points_per_peso=${pointsPerPeso}`
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Failed to save settings.');
+        }
+    });
+});</script>
+
 </body>
 </html>
