@@ -1,8 +1,22 @@
 <?php
 require_once('../includes/db.php');
 $con = new database();
+
+// Get dashboard statistics
 $totalCustomers = $con->getCustomerCount();
 $productsInStock = $con->getProductsInStock();
+$totalSales = $con->getTotalSales(); // You'll need to implement this method
+$totalOrders = $con->getTotalOrders(); // You'll need to implement this method
+
+// Get recent orders
+$recentOrders = $con->getRecentOrders(5); // Get 5 most recent orders
+
+// Get low stock alerts
+$lowStockAlerts = $con->viewInventoryAlerts();
+
+// Get sales data for charts
+$salesData = $con->getSalesData(); // You'll need to implement this method
+$topProducts = $con->getTopProducts(); // You'll need to implement this method
 ?>
 
 <!DOCTYPE html>
@@ -18,6 +32,7 @@ $productsInStock = $con->getProductsInStock();
     <!-- Custom CSS -->
     <link href="../css/custom.css" rel="stylesheet">
     <link href="../css/sidebar.css" rel="stylesheet">
+    <link href="../css/dashboard.css" rel="stylesheet">
     <!-- Google Fonts: Poppins -->
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
@@ -37,22 +52,23 @@ $productsInStock = $con->getProductsInStock();
                 </button>
             </div>
         </div>
-        <!-- Quick Actions (moved to top) -->
+
+        <!-- Quick Actions -->
         <div class="card mb-4">
             <div class="card-body">
                 <div class="d-flex flex-wrap gap-2 justify-content-start align-items-center">
-                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newSaleModal">
+                    <button class="btn btn-primary quick-action-btn" data-bs-toggle="modal" data-bs-target="#newSaleModal">
                         <i class="bi bi-cart-plus"></i> New Sale
                     </button>
-                    <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#newPurchaseModal">
+                    <button class="btn btn-success quick-action-btn" data-bs-toggle="modal" data-bs-target="#newPurchaseModal">
                         <i class="bi bi-bag-plus"></i> New Purchase
                     </button>
-                    <button class="btn btn-info" data-bs-toggle="modal" data-bs-target="#newCustomerModal">
+                    <button class="btn btn-info quick-action-btn" data-bs-toggle="modal" data-bs-target="#newCustomerModal">
                         <i class="bi bi-person-plus"></i> New Customer
                     </button>
-                    <button class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#newProductModal">
+                    <button class="btn btn-warning quick-action-btn" data-bs-toggle="modal" data-bs-target="#newProductModal">
                         <i class="bi bi-box-seam"></i> New Product
-            </button>
+                    </button>
                 </div>
             </div>
         </div>
@@ -63,7 +79,7 @@ $productsInStock = $con->getProductsInStock();
                 <div class="card dashboard-card">
                     <div class="card-body">
                         <h5 class="card-title">Total Sales</h5>
-                        <p class="card-text" id="totalSales">$0.00</p>
+                        <p class="card-text" id="totalSales">₱<?php echo number_format($totalSales, 2); ?></p>
                         <small class="text-muted">Last 30 days</small>
                     </div>
                 </div>
@@ -72,7 +88,7 @@ $productsInStock = $con->getProductsInStock();
                 <div class="card dashboard-card">
                     <div class="card-body">
                         <h5 class="card-title">Total Orders</h5>
-                        <p class="card-text" id="totalOrders">0</p>
+                        <p class="card-text" id="totalOrders"><?php echo $totalOrders; ?></p>
                         <small class="text-muted">Last 30 days</small>
                     </div>
                 </div>
@@ -103,7 +119,9 @@ $productsInStock = $con->getProductsInStock();
                 <div class="card">
                     <div class="card-body">
                         <h5 class="card-title">Sales Overview</h5>
-                        <canvas id="salesChart"></canvas>
+                        <div class="chart-container">
+                            <canvas id="salesChart"></canvas>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -111,7 +129,9 @@ $productsInStock = $con->getProductsInStock();
                 <div class="card">
                     <div class="card-body">
                         <h5 class="card-title">Top Products</h5>
-                        <canvas id="productsChart"></canvas>
+                        <div class="chart-container">
+                            <canvas id="productsChart"></canvas>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -133,8 +153,25 @@ $productsInStock = $con->getProductsInStock();
                                         <th>Status</th>
                                     </tr>
                                 </thead>
-                                <tbody id="recentOrdersTable">
-                                    <!-- Table content will be populated by JavaScript -->
+                                <tbody>
+                                    <?php if (!empty($recentOrders)): ?>
+                                        <?php foreach ($recentOrders as $order): ?>
+                                        <tr>
+                                            <td>#<?php echo htmlspecialchars($order['SaleID']); ?></td>
+                                            <td><?php echo htmlspecialchars($order['CustomerName']); ?></td>
+                                            <td>₱<?php echo number_format($order['TotalAmount'], 2); ?></td>
+                                            <td>
+                                                <span class="status-badge status-<?php echo strtolower($order['Status']); ?>">
+                                                    <?php echo htmlspecialchars($order['Status']); ?>
+                                                </span>
+                                            </td>
+                                        </tr>
+                                        <?php endforeach; ?>
+                                    <?php else: ?>
+                                        <tr>
+                                            <td colspan="4" class="text-center">No recent orders found.</td>
+                                        </tr>
+                                    <?php endif; ?>
                                 </tbody>
                             </table>
                         </div>
@@ -155,8 +192,29 @@ $productsInStock = $con->getProductsInStock();
                                         <th>Status</th>
                                     </tr>
                                 </thead>
-                                <tbody id="lowStockTable">
-                                    <!-- Table content will be populated by JavaScript -->
+                                <tbody>
+                                    <?php 
+                                    if (!empty($lowStockAlerts)): 
+                                        foreach ($lowStockAlerts as $alert): 
+                                    ?>
+                                    <tr>
+                                        <td><?php echo htmlspecialchars($alert['Prod_Name'] ?? 'N/A'); ?></td>
+                                        <td><?php echo htmlspecialchars($alert['CurrentStock'] ?? 'N/A'); ?></td>
+                                        <td><?php echo htmlspecialchars($alert['Threshold'] ?? 'N/A'); ?></td>
+                                        <td>
+                                            <span class="status-badge <?php echo ($alert['CurrentStock'] ?? 0) == 0 ? 'status-cancelled' : 'status-pending'; ?>">
+                                                <?php echo ($alert['CurrentStock'] ?? 0) == 0 ? 'Out of Stock' : 'Low Stock'; ?>
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    <?php 
+                                        endforeach;
+                                    else:
+                                    ?>
+                                    <tr>
+                                        <td colspan="4" class="text-center">No low stock alerts at this time.</td>
+                                    </tr>
+                                    <?php endif; ?>
                                 </tbody>
                             </table>
                         </div>
@@ -164,8 +222,8 @@ $productsInStock = $con->getProductsInStock();
                 </div>
             </div>
         </div>
+    </div>
 
-        
     <!-- Quick Actions Modals -->
     <!-- New Sale Modal -->
     <div class="modal fade" id="newSaleModal" tabindex="-1" aria-labelledby="newSaleModalLabel" aria-hidden="true">
@@ -515,6 +573,80 @@ $productsInStock = $con->getProductsInStock();
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Custom JS -->
-    <script src="../js/scripts.js"></script>
+    <script>
+        // Sales Chart
+        const salesCtx = document.getElementById('salesChart').getContext('2d');
+        const salesChart = new Chart(salesCtx, {
+            type: 'line',
+            data: {
+                labels: <?php echo json_encode($salesData['labels']); ?>,
+                datasets: [{
+                    label: 'Sales',
+                    data: <?php echo json_encode($salesData['data']); ?>,
+                    borderColor: 'rgb(75, 192, 192)',
+                    tension: 0.1,
+                    fill: false
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return '₱' + value.toLocaleString();
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Products Chart
+        const productsCtx = document.getElementById('productsChart').getContext('2d');
+        const productsChart = new Chart(productsCtx, {
+            type: 'doughnut',
+            data: {
+                labels: <?php echo json_encode($topProducts['labels']); ?>,
+                datasets: [{
+                    data: <?php echo json_encode($topProducts['data']); ?>,
+                    backgroundColor: [
+                        'rgb(255, 99, 132)',
+                        'rgb(54, 162, 235)',
+                        'rgb(255, 205, 86)',
+                        'rgb(75, 192, 192)',
+                        'rgb(153, 102, 255)'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+
+        // Refresh button functionality
+        document.getElementById('refreshBtn').addEventListener('click', function() {
+            location.reload();
+        });
+
+        // Export button functionality
+        document.getElementById('exportBtn').addEventListener('click', function() {
+            // Implement export functionality
+            alert('Export functionality will be implemented here');
+        });
+    </script>
 </body>
 </html> 
