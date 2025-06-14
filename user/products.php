@@ -147,10 +147,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['payment_method'])) {
         }
         $saleID = $conn->lastInsertId();
 
-        // Insert sale items
+       // Insert sale items AND update stock/inventory history
         foreach ($_SESSION['cart'] as $item) {
             $itemStmt = $conn->prepare("INSERT INTO Sale_Item (SaleID, ProductID, SI_Quantity, SI_Price) VALUES (?, ?, ?, ?)");
             $itemStmt->execute([$saleID, $item['id'], $item['quantity'], $item['price']]);
+
+            // Update product stock and log inventory history
+            $stmt = $conn->prepare("SELECT Prod_Stock FROM products WHERE ProductID = ?");
+            $stmt->execute([$item['id']]);
+            $currentStock = $stmt->fetchColumn();
+            if ($currentStock === false) $currentStock = 0;
+            $newStock = $currentStock - $item['quantity'];
+            if ($newStock < 0) $newStock = 0;
+
+            // Update stock
+            $updateStmt = $conn->prepare("UPDATE products SET Prod_Stock = ? WHERE ProductID = ?");
+            $updateStmt->execute([$newStock, $item['id']]);
+
+            // Log inventory history (negative quantity for sale, NO UserID)
+            $logStmt = $conn->prepare("INSERT INTO inventory_history (ProductID, IH_QtyChange, IH_NewStckLvl, IH_ChangeDate) VALUES (?, ?, ?, NOW())");
+            $logStmt->execute([$item['id'], -$item['quantity'], $newStock]);
         }
 
         // Insert payment history ONLY if payment method is card
@@ -201,6 +217,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['payment_method'])) {
         ]);
         exit();
     }
+
+
+
+
 }
 ?>
 
