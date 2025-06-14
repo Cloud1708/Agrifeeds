@@ -112,6 +112,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['payment_method'])) {
         $selectedPromo = null;
         foreach ($allPromos as $promo) {
             if (strcasecmp($promo['Prom_Code'], $promoCode) == 0) {
+                // Check if user has already used this promo code
+                $usageCount = $con->getPromoUsageCount($promo['PromotionID']);
+                $userUsageCount = $con->getUserPromoUsageCount($promo['PromotionID'], $userID);
+                
+                // Check if promo has reached its maximum usage limit
+                if ($promo['Promo_MaxUsage'] > 0 && $usageCount >= $promo['Promo_MaxUsage']) {
+                    echo json_encode([
+                        'success' => false,
+                        'message' => 'This promotion has reached its maximum usage limit.'
+                    ]);
+                    exit();
+                }
+                
+                // Check if user has already used this promo
+                if ($userUsageCount > 0) {
+                    echo json_encode([
+                        'success' => false,
+                        'message' => 'You have already used this promotion code.'
+                    ]);
+                    exit();
+                }
+                
                 $selectedPromo = $promo;
                 break;
             }
@@ -149,8 +171,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['payment_method'])) {
 
         // Insert sale items
         foreach ($_SESSION['cart'] as $item) {
+            // Calculate the discounted price for this item
+            $itemTotal = $item['price'] * $item['quantity'];
+            $itemDiscountRate = $discountRate > 0 ? $discountRate / 100 : 0;
+            $itemCustomerDiscount = $itemTotal * $itemDiscountRate;
+            $itemTotalAfterCustomerDiscount = $itemTotal - $itemCustomerDiscount;
+            
+            // Apply promo discount proportionally to each item
+            $itemPromoDiscount = 0;
+            if ($promoDiscount > 0) {
+                $itemPromoDiscount = ($itemTotalAfterCustomerDiscount / $totalAfterCustomerDiscount) * $promoDiscount;
+            }
+            
+            $finalItemPrice = ($itemTotalAfterCustomerDiscount - $itemPromoDiscount) / $item['quantity'];
+            
             $itemStmt = $conn->prepare("INSERT INTO Sale_Item (SaleID, ProductID, SI_Quantity, SI_Price) VALUES (?, ?, ?, ?)");
-            $itemStmt->execute([$saleID, $item['id'], $item['quantity'], $item['price']]);
+            $itemStmt->execute([$saleID, $item['id'], $item['quantity'], $finalItemPrice]);
         }
 
         // Insert payment history ONLY if payment method is card
@@ -497,17 +533,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['payment_method'])) {
     <?php if (!empty($promos)): ?>
         <select class="form-select" name="promo_code" id="promoCodeSelect">
             <option value="">-- Select Promo Code --</option>
-            <?php foreach ($promos as $promo): ?>
-                <option value="<?php echo htmlspecialchars($promo['Prom_Code']); ?>">
-    <?php
-        echo htmlspecialchars($promo['Prom_Code']);
-        if (strtolower($promo['Promo_DiscountType']) === 'percentage') {
-            echo ' (' . floatval($promo['Promo_DiscAmnt']) . '%)';
-        } else {
-            echo ' (₱' . number_format($promo['Promo_DiscAmnt'], 2) . ')';
-        }
-    ?>
-</option>
+            <?php foreach ($promos as $promo): 
+                $usageCount = $con->getPromoUsageCount($promo['PromotionID']);
+                $userUsageCount = $con->getUserPromoUsageCount($promo['PromotionID'], $userID);
+                $isDisabled = ($promo['Promo_MaxUsage'] > 0 && $usageCount >= $promo['Promo_MaxUsage']) || $userUsageCount > 0;
+            ?>
+                <option value="<?php echo htmlspecialchars($promo['Prom_Code']); ?>" 
+                        <?php echo $isDisabled ? 'disabled' : ''; ?>>
+                    <?php
+                    echo htmlspecialchars($promo['Prom_Code']);
+                    if (strtolower($promo['Promo_DiscountType']) === 'percentage') {
+                        echo ' (' . floatval($promo['Promo_DiscAmnt']) . '%)';
+                    } else {
+                        echo ' (₱' . number_format($promo['Promo_DiscAmnt'], 2) . ')';
+                    }
+                    if ($isDisabled) {
+                        echo ' - ' . ($userUsageCount > 0 ? 'Already Used' : 'Unavailable');
+                    }
+                    ?>
+                </option>
             <?php endforeach; ?>
         </select>
     <?php else: ?>
@@ -943,6 +987,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['payment_method'])) {
 
     document.getElementById('checkoutForm').addEventListener('submit', function(e) {
         e.preventDefault();
+        
+        // Check if selected promo is disabled
+        const promoSelect = document.getElementById('promoCodeSelect');
+        if (promoSelect) {
+            const selectedOption = promoSelect.options[promoSelect.selectedIndex];
+            if (selectedOption && selectedOption.disabled) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Invalid Promo Code',
+                    text: 'The selected promotion code is not available.',
+                    confirmButtonText: 'Close'
+                });
+                return;
+            }
+        }
+        
         const formData = new FormData(this);
         
         // Hide the checkout modal
