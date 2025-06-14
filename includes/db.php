@@ -1395,10 +1395,25 @@ function getAvailablePromos($userID = null) {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public function saveLoyaltySettings($bronze, $silver, $gold, $minPurchase, $pointsPerPeso) {
-    $conn = $this->opencon();
-    $stmt = $conn->prepare("UPDATE loyalty_settings SET bronze = ?, silver = ?, gold = ?, min_purchase = ?, points_per_peso = ? WHERE id = 1");
-    $stmt->execute([$bronze, $silver, $gold, $minPurchase, $pointsPerPeso]);
+    function saveLoyaltySettings($bronze, $silver, $gold, $minPurchase, $pointsPerPeso, $pointsExpireAfter) {
+    $stmt = $this->opencon()->prepare("UPDATE loyalty_settings SET bronze=?, silver=?, gold=?, min_purchase=?, points_per_peso=?, points_expire_after=? WHERE id=1");
+    $stmt->execute([$bronze, $silver, $gold, $minPurchase, $pointsPerPeso, $pointsExpireAfter]);
+}
+ 
+ 
+public function resetExpiredPoints($pointsExpireAfter) {
+    $pdo = $this->opencon();
+    $expireDate = date('Y-m-d H:i:s', strtotime("-$pointsExpireAfter months"));
+ 
+    // Use LP_LastUpdt instead of last_earned
+    $stmt = $pdo->prepare("SELECT CustomerID FROM loyalty_program WHERE LP_LastUpdt <= ?");
+    $stmt->execute([$expireDate]);
+    $expiredMembers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+ 
+    foreach ($expiredMembers as $member) {
+        $update = $pdo->prepare("UPDATE loyalty_program SET LP_PtsBalance = 0 WHERE CustomerID = ?");
+        $update->execute([$member['CustomerID']]);
+    }
 }
 
 }

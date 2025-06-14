@@ -1,30 +1,31 @@
 <?php
 session_start();
-
+ 
 require_once('../includes/db.php');
 $con = new database();
-
+ 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'save_settings') {
     $bronze = intval($_POST['bronze']);
     $silver = intval($_POST['silver']);
     $gold = intval($_POST['gold']);
     $minPurchase = floatval($_POST['min_purchase']);
     $pointsPerPeso = floatval($_POST['points_per_peso']);
-
-    $con->saveLoyaltySettings($bronze, $silver, $gold, $minPurchase, $pointsPerPeso);
-
+        $pointsExpireAfter = intval($_POST['points_expire_after']);
+ 
+    $con->saveLoyaltySettings($bronze, $silver, $gold, $minPurchase, $pointsPerPeso, $pointsExpireAfter);
     $members = $con->viewLoyaltyProgram();
     foreach ($members as $member) {
         $con->updateMemberTier($member['CustomerID']);
     }
-
+ 
     echo json_encode(['success' => true]);
     exit;
 }
-
-$settings = $con->opencon()->query("SELECT bronze, silver, gold, min_purchase, points_per_peso FROM loyalty_settings WHERE id = 1")->fetch(PDO::FETCH_ASSOC);
+ 
+$settings = $con->opencon()->query("SELECT bronze, silver, gold, min_purchase, points_per_peso, points_expire_after FROM loyalty_settings WHERE id = 1")->fetch(PDO::FETCH_ASSOC);
 $members = $con->viewLoyaltyProgram();
-
+$con->resetExpiredPoints($settings['points_expire_after']);
+ 
 // Update each member's tier before displaying
 foreach ($members as &$member) {
     $con->updateMemberTier($member['CustomerID']);
@@ -35,7 +36,7 @@ foreach ($members as &$member) {
 }
 unset($member);
 ?>
-
+ 
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -50,7 +51,7 @@ unset($member);
 </head>
 <body>
     <?php include '../includes/sidebar.php'; ?>
-
+ 
     <div class="main-content">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1>Loyalty Program</h1>
@@ -58,7 +59,7 @@ unset($member);
                 <i class="bi bi-gear"></i> Program Settings
             </button>
         </div>
-
+ 
         <!-- Program Statistics -->
         <div class="row mb-4">
             <div class="col-md-3">
@@ -98,7 +99,7 @@ unset($member);
                 </div>
             </div>
         </div>
-
+ 
         <!-- Search and Filter -->
         <div class="row mb-4">
             <div class="col-md-4">
@@ -127,7 +128,7 @@ unset($member);
                 </select>
             </div>
         </div>
-
+ 
         <!-- Members Table -->
         <div class="table-responsive">
             <table class="table table-striped table-hover">
@@ -138,52 +139,66 @@ unset($member);
                         <th>Points Balance</th>
                         <th>Tier</th>
                         <th>Last Update</th>
+                        <th>Status</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody id="membersTableBody">
             <?php foreach ($members as $member) { ?>
-            <tr>
-                <td><?php echo $member['LoyaltyID']; ?></td>
-                <td>
-                    <?php echo htmlspecialchars($member['Cust_FN'] . ' ' . $member['Cust_LN']); ?>
-                    <span class="text-muted small">(ID: <?php echo $member['CustomerID']; ?>)</span>
-                </td>
-                <td><?php echo number_format($member['LP_PtsBalance']); ?></td>
-                <td>
-                    <?php
-                        $tier = isset($member['LP_MbspTier']) ? $member['LP_MbspTier'] : 'None';
-                        switch ($tier) {
-                            case 'Gold':
-                                echo '<span class="badge bg-warning text-dark">Gold</span>';
-                                break;
-                            case 'Silver':
-                                echo '<span class="badge bg-secondary">Silver</span>';
-                                break;
-                            case 'Bronze':
-                                echo '<span class="badge bg-dark text-light">Bronze</span>';
-                                break;
-                            default:
-                                echo '<span class="badge bg-light text-dark">None</span>';
-                        }
-                    ?>
-                </td>
-                <td><?php echo date('Y-m-d', strtotime($member['LP_LastUpdt'])); ?></td>
-                <td>
-                    <button class="btn btn-sm btn-info" onclick="viewMember(<?php echo $member['LoyaltyID']; ?>)">
-                        <i class="bi bi-eye"></i>
-                    </button>
-                    <button class="btn btn-sm btn-warning" onclick="editMember(<?php echo $member['LoyaltyID']; ?>)">
-                        <i class="bi bi-pencil"></i>
-                    </button>
-                </td>
-            </tr>
-            <?php } ?>
+<tr>
+    <td><?php echo $member['LoyaltyID']; ?></td>
+    <td>
+        <?php echo htmlspecialchars($member['Cust_FN'] . ' ' . $member['Cust_LN']); ?>
+        <span class="text-muted small">(ID: <?php echo $member['CustomerID']; ?>)</span>
+    </td>
+    <td><?php echo number_format($member['LP_PtsBalance']); ?></td>
+    <td>
+        <?php
+            $tier = isset($member['LP_MbspTier']) ? $member['LP_MbspTier'] : 'None';
+            switch ($tier) {
+                case 'Gold':
+                    echo '<span class="badge bg-warning text-dark">Gold</span>';
+                    break;
+                case 'Silver':
+                    echo '<span class="badge bg-secondary">Silver</span>';
+                    break;
+                case 'Bronze':
+                    echo '<span class="badge bg-dark text-light">Bronze</span>';
+                    break;
+                default:
+                    echo '<span class="badge bg-light text-dark">None</span>';
+            }
+        ?>
+    </td>
+    <td><?php echo date('Y-m-d', strtotime($member['LP_LastUpdt'])); ?></td>
+ 
+    <td>
+        <?php
+            $expireMonths = isset($settings['points_expire_after']) ? (int)$settings['points_expire_after'] : 12;
+            $expireDate = date('Y-m-d', strtotime($member['LP_LastUpdt'] . " +$expireMonths months"));
+            $today = date('Y-m-d');
+            $status = ($today <= $expireDate) ? 'Active' : 'Inactive';
+            $badge = ($status == 'Active') ? 'bg-success' : 'bg-danger';
+        ?>
+        <span class="badge <?php echo $badge; ?>"><?php echo $status; ?></span>
+    </td>
+ 
+    <td>
+        <button class="btn btn-sm btn-info" onclick="viewMember(<?php echo $member['LoyaltyID']; ?>)">
+            <i class="bi bi-eye"></i>
+        </button>
+        <button class="btn btn-sm btn-warning" onclick="editMember(<?php echo $member['LoyaltyID']; ?>)">
+            <i class="bi bi-pencil"></i>
+        </button>
+    </td>
+   
+</tr>
+<?php } ?>
                 </tbody>
             </table>
         </div>
     </div>
-
+ 
     <!-- Program Settings Modal -->
 <div class="modal fade" id="programSettingsModal" tabindex="-1" aria-labelledby="programSettingsModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
@@ -212,8 +227,8 @@ unset($member);
                             </div>
                         </div>
                     </div>
-
-                    
+ 
+                   
                     <div class="mb-4">
                         <h6>Tier Requirements</h6>
                         <div class="row">
@@ -234,15 +249,20 @@ unset($member);
                             </div>
                         </div>
                     </div>
-
+ 
                     <div class="mb-4">
-                        <h6>Points Redemption</h6>
-                        <ul>
-                            <li><strong>Gold:</strong> 15,000 points</li>
-                            <li><strong>Silver:</strong> 10,000 points</li>
-                            <li><strong>Bronze:</strong> 5,000 points</li>
-                        </ul>
-                    </div>
+    <h6>Points Redemption</h6>
+    <ul>
+        <li><strong>Gold:</strong> <?php echo isset($settings['gold']) ? number_format($settings['gold']) : '15,000'; ?> points</li>
+        <li><strong>Silver:</strong> <?php echo isset($settings['silver']) ? number_format($settings['silver']) : '10,000'; ?> points</li>
+        <li><strong>Bronze:</strong> <?php echo isset($settings['bronze']) ? number_format($settings['bronze']) : '5,000'; ?> points</li>
+    </ul>
+</div>
+                    <div class="col-md-4">
+    <label for="points_expire_after" class="form-label">Points Expire After (Months)</label>
+    <input type="number" class="form-control" id="points_expire_after" name="points_expire_after"
+        value="<?php echo isset($settings['points_expire_after']) ? $settings['points_expire_after'] : 12; ?>">
+</div>
                     <div class="modal-footer">
     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
     <button type="submit" class="btn btn-primary">Save</button>
@@ -254,7 +274,7 @@ unset($member);
 </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-
+ 
 <script>// ...existing code...
 // In your JS
 document.getElementById('programSettingsForm').addEventListener('submit', function(e) {
@@ -264,11 +284,12 @@ document.getElementById('programSettingsForm').addEventListener('submit', functi
     const gold = document.getElementById('goldTier').value;
     const minPurchase = document.getElementById('minPointsEarn').value;
     const pointsPerPeso = document.getElementById('pointsPerPeso').value;
-
+    const pointsExpireAfter = document.getElementById('points_expire_after').value; // NEW
+ 
     fetch('loyalty_program.php', {
         method: 'POST',
         headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-        body: `action=save_settings&bronze=${bronze}&silver=${silver}&gold=${gold}&min_purchase=${minPurchase}&points_per_peso=${pointsPerPeso}`
+        body: `action=save_settings&bronze=${bronze}&silver=${silver}&gold=${gold}&min_purchase=${minPurchase}&points_per_peso=${pointsPerPeso}&points_expire_after=${pointsExpireAfter}`
     })
     .then(res => res.json())
     .then(data => {
@@ -278,7 +299,8 @@ document.getElementById('programSettingsForm').addEventListener('submit', functi
             alert('Failed to save settings.');
         }
     });
-});</script>
-
+});
+</script>
+ 
 </body>
 </html>
