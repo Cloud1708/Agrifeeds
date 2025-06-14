@@ -9,17 +9,18 @@ $sweetAlertConfig = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mark_completed'], $_POST['sale_id'])) {
     $saleId = intval($_POST['sale_id']);
+    $adminId = $_SESSION['user_id']; // Get the current admin's UserID
 
-    // 1. I-update ang Sale_Status lang (alisin ang IsCompleted)
-    $stmt = $conn->prepare("UPDATE Sales SET Sale_Status = 'Completed' WHERE SaleID = ?");
-    $stmt->execute([$saleId]);
+    // 1. Update Sale_Status and set Sale_Per to the admin's UserID
+    $stmt = $conn->prepare("UPDATE Sales SET Sale_Status = 'Completed', Sale_Per = ? WHERE SaleID = ?");
+    $stmt->execute([$adminId, $saleId]);
 
-    // 2. Kuhanin ang total amount ng sale
+    // 2. Get the total amount of the sale
     $totalStmt = $conn->prepare("SELECT SUM(SI_Quantity * SI_Price) as total FROM Sale_Item WHERE SaleID = ?");
     $totalStmt->execute([$saleId]);
     $total = $totalStmt->fetchColumn();
 
-    // 3. Mag-insert sa Payment_History (cash)
+    // 3. Insert into Payment_History (cash)
     $payStmt = $conn->prepare("INSERT INTO Payment_History (SaleID, PT_PayAmount, PT_PayDate, PT_PayMethod) VALUES (?, ?, NOW(), ?)");
     $payStmt->execute([$saleId, $total, 'cash']);
 
@@ -30,7 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mark_completed'], $_P
         'icon' => 'success'
     ];
 
-    // Redirect para di ma-resubmit
+    // Redirect to prevent resubmission
     header("Location: sales.php");
     exit();
 }
@@ -177,11 +178,19 @@ if (isset($_SESSION['sweet_alert'])) {
 <tr>
     <td><?php echo $sale['SaleID']; ?></td>
     <td><?php echo $sale['Sale_Date']; ?></td>
-    <td><?php echo htmlspecialchars($sale['Sale_Per']); // This is the admin ID ?></td>
+    <td>
+        <?php 
+        // Get admin name from User_Accounts table
+        $adminStmt = $conn->prepare("SELECT User_Name FROM User_Accounts WHERE UserID = ?");
+        $adminStmt->execute([$sale['Sale_Per']]);
+        $adminName = $adminStmt->fetchColumn();
+        echo htmlspecialchars($adminName ?: 'Not Assigned');
+        ?>
+    </td>
     <td><?php echo htmlspecialchars($sale['CustomerName']); ?></td>
     <td>
-<?php echo !empty($sale['PromotionName']) ? htmlspecialchars($sale['PromotionName']) : '-'; ?>
-</td>
+        <?php echo !empty($sale['PromotionName']) ? htmlspecialchars($sale['PromotionName']) : '-'; ?>
+    </td>
     <td><?php echo isset($sale['Sale_Status']) ? htmlspecialchars($sale['Sale_Status']) : '-'; ?></td>
     <td>
     <?php if (isset($sale['Sale_Status']) && $sale['Sale_Status'] === 'Pending'): ?>
