@@ -143,11 +143,83 @@ if (isset($_POST['edit_product'])) {
     $description = $_POST['description'];
     $price = $_POST['price'];
     $addStock = $_POST['stock'];
+    
+    // Handle image upload
+    $imagePath = null;
+    if (isset($_FILES['product_image']) && $_FILES['product_image']['error'] === UPLOAD_ERR_OK) {
+        // Define the upload directory
+        $uploadDir = '../uploads/product_images/';
+        
+        // Create directory if it doesn't exist
+        if (!file_exists($uploadDir)) {
+            if (!mkdir($uploadDir, 0777, true)) {
+                $_SESSION['sweetAlertConfig'] = "<script>
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'Failed to create upload directory'
+                    });
+                </script>";
+                header("Location: " . $_SERVER['PHP_SELF']);
+                exit();
+            }
+        }
+        
+        // Verify directory is writable
+        if (!is_writable($uploadDir)) {
+            $_SESSION['sweetAlertConfig'] = "<script>
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Upload directory is not writable'
+                });
+            </script>";
+            header("Location: " . $_SERVER['PHP_SELF']);
+            exit();
+        }
+        
+        $fileExtension = strtolower(pathinfo($_FILES['product_image']['name'], PATHINFO_EXTENSION));
+        $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif'];
+        
+        if (!in_array($fileExtension, $allowedExtensions)) {
+            $_SESSION['sweetAlertConfig'] = "<script>
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Invalid file type. Only JPG, JPEG, PNG, and GIF files are allowed.'
+                });
+            </script>";
+            header("Location: " . $_SERVER['PHP_SELF']);
+            exit();
+        }
+        
+        $fileName = uniqid() . '.' . $fileExtension;
+        $targetPath = $uploadDir . $fileName;
+        
+        if (move_uploaded_file($_FILES['product_image']['tmp_name'], $targetPath)) {
+            // Set the relative path for database storage
+            $imagePath = 'uploads/product_images/' . $fileName;
+        } else {
+            $uploadError = error_get_last();
+            $_SESSION['sweetAlertConfig'] = "<script>
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Failed to upload image: " . addslashes($uploadError ? $uploadError['message'] : 'Unknown error') . "'
+                });
+            </script>";
+            header("Location: " . $_SERVER['PHP_SELF']);
+            exit();
+        }
+    }
+    
     // Fetch current stock
     $product = $con->getProductById($id);
     $currentStock = isset($product['Prod_Stock']) ? (int)$product['Prod_Stock'] : 0;
     $newStock = $currentStock + (int)$addStock;
-    $result = $con->updateProduct($name, $category, $description, $price, $newStock, $id);
+    
+    // Update product with or without new image
+    $result = $con->updateProduct($name, $category, $description, $price, $newStock, $id, $imagePath);
  
     if ($result) {
         $_SESSION['sweetAlertConfig'] = "
@@ -379,6 +451,7 @@ foreach ($allProducts as $prod) {
                                     data-description="<?php echo htmlspecialchars($rows['Prod_Desc']); ?>"
                                     data-price="<?php echo $rows['Prod_Price']; ?>"
                                     data-stock="<?php echo $rows['Prod_Stock']; ?>"
+                                    data-image="<?php echo htmlspecialchars($rows['Prod_Image']); ?>"
                                     data-bs-toggle="modal"
                                     data-bs-target="#editProductModal"
                                 >
@@ -461,7 +534,7 @@ foreach ($allProducts as $prod) {
     <div class="modal fade" id="editProductModal" tabindex="-1" aria-labelledby="editProductModalLabel" aria-hidden="true">
       <div class="modal-dialog">
         <div class="modal-content">
-          <form id="editProductForm" method="POST">
+          <form id="editProductForm" method="POST" enctype="multipart/form-data">
             <input type="hidden" name="edit_product" value="1">
             <div class="modal-header">
               <h5 class="modal-title" id="editProductModalLabel">Edit Product</h5>
@@ -471,6 +544,14 @@ foreach ($allProducts as $prod) {
               <div class="mb-3">
                 <label for="editProductName" class="form-label">Product Name</label>
                 <input type="text" class="form-control" id="editProductName" name="productName" required>
+              </div>
+              <div class="mb-3">
+                <label for="editProductImage" class="form-label">Product Image</label>
+                <input type="file" class="form-control" id="editProductImage" name="product_image" accept="image/*">
+                <div class="mt-2">
+                  <img id="currentProductImage" src="" alt="Current Product Image" style="max-width: 100px; max-height: 100px; display: none;">
+                  <small class="text-muted">Leave empty to keep current image</small>
+                </div>
               </div>
               <div class="mb-3">
                 <label for="editCategory" class="form-label">Category</label>
@@ -529,6 +610,16 @@ foreach ($allProducts as $prod) {
             document.getElementById('editPrice').value = this.dataset.price;
             document.getElementById('editStock').value = 0; // Always start with 0 for add stock
             document.getElementById('currentStockDisplay').value = this.dataset.stock;
+            
+            // Handle current product image
+            const currentImage = document.getElementById('currentProductImage');
+            const imagePath = this.dataset.image;
+            if (imagePath) {
+                currentImage.src = '../' + imagePath;
+                currentImage.style.display = 'block';
+            } else {
+                currentImage.style.display = 'none';
+            }
         });
     });
     </script>
