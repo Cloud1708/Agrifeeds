@@ -95,7 +95,7 @@ $paginatedPurchaseOrders = array_slice($purchaseOrders, ($currentPage - 1) * $pe
         </div>
 
         <!-- Purchase Orders Table -->
-        <div class="table-responsive">
+       <div class="table-responsive">
             <table class="table table-striped table-hover">
                 <thead>
                     <tr>
@@ -117,7 +117,28 @@ $paginatedPurchaseOrders = array_slice($purchaseOrders, ($currentPage - 1) * $pe
                             <strong><?php echo $po['Sup_Name']; ?></strong><br>
                             <small class="text-muted"><?php echo $po['Sup_CoInfo']; ?></small>
                         </td>
-                        <td><?php echo $po['PO_Order_Date']; ?></td>
+                        <td>
+    <?php
+    
+
+        if (!empty($po['PO_Order_Date'])) {
+            // Try to detect if time is present, otherwise show only date
+            $dt = DateTime::createFromFormat('Y-m-d H:i:s', $po['PO_Order_Date']);
+            if (!$dt) {
+                // Try with just date
+                $dt = DateTime::createFromFormat('Y-m-d', $po['PO_Order_Date']);
+            }
+            // If still not valid, just print raw
+            if ($dt) {
+                echo $dt->format('Y-m-d H:i:s');
+            } else {
+                echo htmlspecialchars($po['PO_Order_Date']);
+            }
+        } else {
+            echo '';
+        }
+    ?>
+</td>
                         <td>
                             <?php 
                             if ($po['items_list']) {
@@ -258,8 +279,7 @@ $paginatedPurchaseOrders = array_slice($purchaseOrders, ($currentPage - 1) * $pe
                             </div>
                             <div class="col-md-6">
                                 <label for="poDate" class="form-label">Order Date</label>
-                                <input type="date" class="form-control" id="poDate" 
-                                       value="<?php echo date('Y-m-d'); ?>" required>
+                                <input type="datetime-local" class="form-control" id="poDate" value="<?php echo date('Y-m-d\TH:i'); ?>" required>
                             </div>
                         </div>
 

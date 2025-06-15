@@ -253,26 +253,51 @@ if ($currentPoints < $bronze) {
 
         <!-- Points History -->
         <div class="card">
-            <div class="card-body">
-                <h5 class="card-title">Points History</h5>
-                <div class="table-responsive">
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Transaction</th>
-                                <th>Points</th>
-                                <th>Balance</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <!-- Will be populated by JavaScript -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+    <div class="card-body">
+        <h5 class="card-title">Points History</h5>
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Transaction</th>
+                        <th>Points</th>
+                        <th>Balance</th>
+                    </tr>
+                </thead>
+                <tbody>
+<?php
+$pointsHistory = $con->getPointsHistoryByCustomer($customerInfo['CustomerID']);
+if ($pointsHistory && count($pointsHistory) > 0):
+    // Start from current balance
+    $runningBalance = (int)$customerInfo['LP_PtsBalance'];
+    foreach ($pointsHistory as $row):
+?>
+<tr>
+    <td><?= htmlspecialchars($row['Date']) ?></td>
+    <td><?= htmlspecialchars($row['Transaction']) ?></td>
+    <td>
+        <?= $row['PointsEarned'] > 0 ? '+' . htmlspecialchars($row['PointsEarned']) : '' ?>
+        <?= $row['PointsRedeemed'] > 0 ? '-' . htmlspecialchars($row['PointsRedeemed']) : '' ?>
+    </td>
+    <td><?= $runningBalance ?></td>
+</tr>
+<?php
+    // Subtract earned, add redeemed as you go UP the history
+    $runningBalance -= (int)$row['PointsEarned'];
+    $runningBalance += (int)$row['PointsRedeemed'];
+    endforeach;
+else:
+?>
+<tr>
+    <td colspan="4" class="text-center text-muted">No points history found.</td>
+</tr>
+<?php endif; ?>
+</tbody>
+            </table>
         </div>
     </div>
+</div>
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>

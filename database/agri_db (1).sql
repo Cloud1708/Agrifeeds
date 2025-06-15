@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Jun 15, 2025 at 09:27 PM
+-- Generation Time: Jun 15, 2025 at 10:17 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -64,7 +64,8 @@ CREATE TABLE `customers` (
 --
 
 INSERT INTO `customers` (`CustomerID`, `UserID`, `Cust_FN`, `Cust_LN`, `Cust_CoInfo`, `Cust_LoStat`, `Cust_DiscRate`) VALUES
-(1, 3, 'Carlo', 'Hernandez', '+639952604071', 'None', 0.00);
+(1, 3, 'Carlo', 'Hernandez', '+639952604071', 'None', 0.00),
+(2, 4, 'Cris uwu', 'hers', '+639952604071', 'None', 0.00);
 
 -- --------------------------------------------------------
 
@@ -123,7 +124,9 @@ CREATE TABLE `inventory_history` (
 --
 
 INSERT INTO `inventory_history` (`IHID`, `ProductID`, `IH_QtyChange`, `IH_NewStckLvl`, `IH_ChangeDate`) VALUES
-(1, 1, -1, 49, '2025-06-15 18:47:44');
+(1, 1, -1, 49, '2025-06-15 18:47:44'),
+(2, 2, -1, 29, '2025-06-15 19:59:51'),
+(3, 1, -1, 48, '2025-06-15 20:03:49');
 
 -- --------------------------------------------------------
 
@@ -144,7 +147,8 @@ CREATE TABLE `loyalty_program` (
 --
 
 INSERT INTO `loyalty_program` (`LoyaltyID`, `CustomerID`, `LP_PtsBalance`, `LP_MbspTier`, `LP_LastUpdt`) VALUES
-(1, 1, 555, 'None', '2025-06-15 18:47:44');
+(1, 1, 555, 'None', '2025-06-15 18:47:44'),
+(2, 2, 1170, 'None', '2025-06-15 20:03:49');
 
 -- --------------------------------------------------------
 
@@ -189,7 +193,9 @@ CREATE TABLE `loyalty_transaction_history` (
 --
 
 INSERT INTO `loyalty_transaction_history` (`LoTranHID`, `LoyaltyID`, `LoTranH_PtsEarned`, `LoTranH_PtsRedeemed`, `LoTranH_TransDate`, `LoTranH_TransDesc`) VALUES
-(1, 1, 555, NULL, '2025-06-15 18:47:44', 'Points earned from order #1');
+(1, 1, 555, NULL, '2025-06-15 18:47:44', 'Points earned from order #1'),
+(2, 2, 670, NULL, '2025-06-15 19:59:51', 'Points earned from order #2'),
+(3, 2, 500, NULL, '2025-06-15 20:03:49', 'Points earned from order #3');
 
 -- --------------------------------------------------------
 
@@ -224,7 +230,9 @@ CREATE TABLE `payment_history` (
 --
 
 INSERT INTO `payment_history` (`PaytoryID`, `SaleID`, `PT_PayAmount`, `PT_PayDate`, `PT_PayMethod`) VALUES
-(1, 1, 1111.00, '2025-06-15 18:47:44', 'cash');
+(1, 1, 1111.00, '2025-06-15 18:47:44', 'cash'),
+(2, 2, 1340.00, '2025-06-15 19:59:51', 'cash'),
+(3, 3, 1000.00, '2025-06-15 20:03:49', 'card');
 
 -- --------------------------------------------------------
 
@@ -248,7 +256,8 @@ CREATE TABLE `pricing_history` (
 --
 
 INSERT INTO `pricing_history` (`HistoryID`, `ProductID`, `PH_OldPrice`, `PH_NewPrice`, `PH_ChangeDate`, `PH_Effective_from`, `PH_Effective_to`, `PH_Created_at`) VALUES
-(1, 1, 1111.00, 1000.00, '2025-06-16', '2025-06-16', NULL, '2025-06-15 19:17:52');
+(1, 1, 1111.00, 1000.00, '2025-06-16', '2025-06-16', NULL, '2025-06-15 19:17:52'),
+(2, 2, 1340.00, 1300.00, '2025-06-16', '2025-06-17', NULL, '2025-06-15 19:36:46');
 
 -- --------------------------------------------------------
 
@@ -275,8 +284,8 @@ CREATE TABLE `products` (
 --
 
 INSERT INTO `products` (`ProductID`, `Prod_Name`, `Prod_Cat`, `Prod_Desc`, `Prod_Price`, `Prod_Stock`, `Prod_Image`, `UserID`, `Prod_Created_at`, `Prod_Updated_at`, `discontinued`) VALUES
-(1, 'Integra 2000', 'feed', 'pakain sa chicken', 1000.00, 49, 'uploads/product_images/684f10f13c991.png', 1, '2025-06-15 18:29:05', '2025-06-15 19:17:52', NULL),
-(2, 'Top Breed adult 20kls', 'feed', 'Pakain sa dog', 1340.00, 30, 'uploads/product_images/684f121f3c72f.jpg', 2, '2025-06-15 18:34:07', '2025-06-15 18:34:07', NULL),
+(1, 'Integra 2000', 'feed', 'pakain sa chicken', 1000.00, 48, 'uploads/product_images/684f10f13c991.png', 1, '2025-06-15 18:29:05', '2025-06-15 20:03:49', NULL),
+(2, 'Top Breed adult 20kls', 'feed', 'Pakain sa dog', 1340.00, 29, 'uploads/product_images/684f121f3c72f.jpg', 2, '2025-06-15 18:34:07', '2025-06-15 19:59:51', NULL),
 (3, 'Top Breed puppy 20kls ', 'feed', 'pakain sa puppy', 1610.00, 30, 'uploads/product_images/684f126f730f7.jpg', 2, '2025-06-15 18:35:27', '2025-06-15 18:35:27', NULL),
 (4, 'pedigree adult beef 20kls', 'feed', 'pakain sa aso beef edition', 2477.00, 35, 'uploads/product_images/684f12fd183a2.jpg', 2, '2025-06-15 18:37:49', '2025-06-15 18:37:49', NULL),
 (5, 'special cat food 7kls', 'feed', 'pakain sa cat', 922.00, 10, 'uploads/product_images/684f134f452ad.jpg', 2, '2025-06-15 18:39:11', '2025-06-15 18:39:11', NULL),
@@ -318,6 +327,14 @@ CREATE TABLE `promotions` (
   `Promo_IsActive` tinyint(1) DEFAULT 1
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Dumping data for table `promotions`
+--
+
+INSERT INTO `promotions` (`PromotionID`, `Prom_Code`, `Promo_Description`, `Promo_DiscAmnt`, `Promo_DiscountType`, `Promo_StartDate`, `Promo_EndDate`, `UsageLimit`, `Promo_IsActive`) VALUES
+(1, 'NEWYEAR', 'bagong taon', 12.00, 'Percentage', '2025-06-15 19:41:00', '2025-06-16 19:41:00', 10, 1),
+(2, 'Code123', 'testing', 50.00, 'Fixed', '2025-06-16 19:42:00', '2025-06-17 19:42:00', 20, 1);
+
 -- --------------------------------------------------------
 
 --
@@ -339,11 +356,21 @@ CREATE TABLE `promo_usage` (
 
 CREATE TABLE `purchase_orders` (
   `Pur_OrderID` int(11) NOT NULL,
-  `PO_Order_Date` timestamp NOT NULL DEFAULT current_timestamp(),
+  `PO_Order_Date` datetime DEFAULT NULL,
   `SupplierID` int(11) DEFAULT NULL,
   `PO_Order_Stat` varchar(100) DEFAULT NULL,
   `PO_Total_Amount` decimal(10,2) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `purchase_orders`
+--
+
+INSERT INTO `purchase_orders` (`Pur_OrderID`, `PO_Order_Date`, `SupplierID`, `PO_Order_Stat`, `PO_Total_Amount`) VALUES
+(1, '2025-06-16 00:00:00', 1, 'Waiting', 5000.00),
+(2, '2025-06-16 00:00:00', 1, 'Waiting', 8850.00),
+(3, '2025-06-16 00:00:00', 1, 'Waiting', 375.00),
+(4, '2025-06-16 04:13:00', 1, 'Waiting', 1000.00);
 
 -- --------------------------------------------------------
 
@@ -358,6 +385,17 @@ CREATE TABLE `purchase_order_item` (
   `Pur_OIQuantity` int(11) DEFAULT NULL,
   `Pur_OIPrice` decimal(10,2) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `purchase_order_item`
+--
+
+INSERT INTO `purchase_order_item` (`Pur_OrderItemID`, `Pur_OrderID`, `ProductID`, `Pur_OIQuantity`, `Pur_OIPrice`) VALUES
+(4, 1, 1, 5, 1000.00),
+(5, 2, 3, 3, 1610.00),
+(6, 2, 2, 3, 1340.00),
+(7, 3, 9, 5, 75.00),
+(8, 4, 1, 1, 1000.00);
 
 -- --------------------------------------------------------
 
@@ -378,7 +416,9 @@ CREATE TABLE `sales` (
 --
 
 INSERT INTO `sales` (`SaleID`, `Sale_Date`, `Sale_Per`, `CustomerID`, `Sale_Status`) VALUES
-(1, '2025-06-15 18:47:36', '2', 1, 'Completed');
+(1, '2025-06-15 18:47:36', '2', 1, 'Completed'),
+(2, '2025-06-15 19:59:43', '2', 2, 'Completed'),
+(3, '2025-06-15 20:03:49', NULL, 2, 'Completed');
 
 -- --------------------------------------------------------
 
@@ -399,7 +439,9 @@ CREATE TABLE `sale_item` (
 --
 
 INSERT INTO `sale_item` (`SaleItemID`, `SaleID`, `ProductID`, `SI_Quantity`, `SI_Price`) VALUES
-(1, 1, 1, 1, 1111.00);
+(1, 1, 1, 1, 1111.00),
+(2, 2, 2, 1, 1340.00),
+(3, 3, 1, 1, 1000.00);
 
 -- --------------------------------------------------------
 
@@ -414,6 +456,13 @@ CREATE TABLE `suppliers` (
   `Sup_PayTerm` varchar(100) DEFAULT NULL,
   `Sup_DeSched` varchar(100) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `suppliers`
+--
+
+INSERT INTO `suppliers` (`SupplierID`, `Sup_Name`, `Sup_CoInfo`, `Sup_PayTerm`, `Sup_DeSched`) VALUES
+(1, 'ABC Company', '2321313', 'Net 15', 'Monthly');
 
 -- --------------------------------------------------------
 
@@ -458,7 +507,8 @@ CREATE TABLE `user_accounts` (
 INSERT INTO `user_accounts` (`UserID`, `User_Name`, `User_Password`, `User_Role`, `User_CreatedAt`, `User_Photo`) VALUES
 (1, 'admin', '$2y$10$OTzcXoSGiLRqZpi0ewwpcu.9Tz3DFzqQNjc65yt0pf2fkDEVS7Mte', 1, '2025-06-15 18:16:17', 'uploads/profile_photos/684f0df10fe41.jpg'),
 (2, 'superadmin', '$2y$10$nRahBQrl2Pe2yIO94ZDwFe9pQOXHklgv4KVvk1jJKkzJlTW5MHzWG', 3, '2025-06-15 18:18:32', 'uploads/profile_photos/684f0e78a1acf.jpg'),
-(3, 'user', '$2y$10$kBOtQYFU52cuWYrYY50EjOLv.9BlAkZ5oxG0BBr7oOktBkCfn5.Vq', 2, '2025-06-15 18:19:49', 'uploads/profile_photos/684f0ec4f3852.jpg');
+(3, 'user', '$2y$10$kBOtQYFU52cuWYrYY50EjOLv.9BlAkZ5oxG0BBr7oOktBkCfn5.Vq', 2, '2025-06-15 18:19:49', 'uploads/profile_photos/684f0ec4f3852.jpg'),
+(4, 'user1', '$2y$10$0VEk3k0/i9/uuroJm6QtfOwPVhDkuq/xmH6RnkfoGDIo6/wF1zeyu', 2, '2025-06-15 19:59:22', 'uploads/profile_photos/684f261a3ff43.jpg');
 
 --
 -- Indexes for dumped tables
@@ -630,7 +680,7 @@ ALTER TABLE `categories`
 -- AUTO_INCREMENT for table `customers`
 --
 ALTER TABLE `customers`
-  MODIFY `CustomerID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `CustomerID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `customer_discount_rate`
@@ -648,19 +698,19 @@ ALTER TABLE `inventory_alerts`
 -- AUTO_INCREMENT for table `inventory_history`
 --
 ALTER TABLE `inventory_history`
-  MODIFY `IHID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `IHID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT for table `loyalty_program`
 --
 ALTER TABLE `loyalty_program`
-  MODIFY `LoyaltyID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `LoyaltyID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `loyalty_transaction_history`
 --
 ALTER TABLE `loyalty_transaction_history`
-  MODIFY `LoTranHID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `LoTranHID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT for table `order_promotions`
@@ -672,13 +722,13 @@ ALTER TABLE `order_promotions`
 -- AUTO_INCREMENT for table `payment_history`
 --
 ALTER TABLE `payment_history`
-  MODIFY `PaytoryID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `PaytoryID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT for table `pricing_history`
 --
 ALTER TABLE `pricing_history`
-  MODIFY `HistoryID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `HistoryID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `products`
@@ -696,7 +746,7 @@ ALTER TABLE `product_access_log`
 -- AUTO_INCREMENT for table `promotions`
 --
 ALTER TABLE `promotions`
-  MODIFY `PromotionID` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `PromotionID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `promo_usage`
@@ -708,31 +758,31 @@ ALTER TABLE `promo_usage`
 -- AUTO_INCREMENT for table `purchase_orders`
 --
 ALTER TABLE `purchase_orders`
-  MODIFY `Pur_OrderID` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `Pur_OrderID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT for table `purchase_order_item`
 --
 ALTER TABLE `purchase_order_item`
-  MODIFY `Pur_OrderItemID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `Pur_OrderItemID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- AUTO_INCREMENT for table `sales`
 --
 ALTER TABLE `sales`
-  MODIFY `SaleID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `SaleID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT for table `sale_item`
 --
 ALTER TABLE `sale_item`
-  MODIFY `SaleItemID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `SaleItemID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT for table `suppliers`
 --
 ALTER TABLE `suppliers`
-  MODIFY `SupplierID` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `SupplierID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `units`
@@ -744,7 +794,7 @@ ALTER TABLE `units`
 -- AUTO_INCREMENT for table `user_accounts`
 --
 ALTER TABLE `user_accounts`
-  MODIFY `UserID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `UserID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- Constraints for dumped tables
