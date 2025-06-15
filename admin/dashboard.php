@@ -128,6 +128,30 @@ $topProducts = $con->getTopProducts(); // You'll need to implement this method
             </div>
         </div>
 
+        <!-- Quick Actions -->
+        <div class="card mb-4">
+    <div class="card-body">
+        <h5 class="card-title">Quick Actions</h5>
+        <div class="d-flex flex-wrap gap-2">
+            <a href="sales.php" class="btn btn-primary">
+                <i class="bi bi-cash-coin me-2"></i> Sales
+            </a>
+            <a href="purchase_orders.php" class="btn btn-success">
+                <i class="bi bi-truck me-2"></i> Purchase Orders
+            </a>
+            <a href="customers.php" class="btn btn-info">
+                <i class="bi bi-person-plus me-2"></i> Customers
+            </a>
+            <a href="products.php" class="btn btn-warning">
+                <i class="bi bi-plus-square me-2"></i> Products
+            </a>
+            <a href="profile.php" class="btn btn-secondary">
+                <i class="bi bi-person-circle me-2"></i> Profile
+            </a>
+        </div>
+    </div>
+</div>
+
         
     <!-- Quick Actions Modals -->
     <!-- New Sale Modal -->
