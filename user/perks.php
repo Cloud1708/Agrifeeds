@@ -14,20 +14,33 @@ $userID = $_SESSION['user_id'];
 $userInfo = $con->getUserInfo($userID);
 $customerInfo = $con->getCustomerInfo($userID);
 
+// Update member tier before displaying
+if (isset($customerInfo['CustomerID'])) {
+    $con->updateMemberTier($customerInfo['CustomerID']);
+    // Refresh customer info to get updated tier
+    $customerInfo = $con->getCustomerInfo($userID);
+}
+
 // Calculate points needed for next tier
 $currentPoints = $customerInfo['LP_PtsBalance'];
 $nextTier = '';
 $pointsNeeded = 0;
 
-if ($currentPoints < 5000) {
+// Get tier thresholds from settings
+$settings = $con->opencon()->query("SELECT bronze, silver, gold FROM loyalty_settings WHERE id = 1")->fetch(PDO::FETCH_ASSOC);
+$bronze = (int)$settings['bronze'];
+$silver = (int)$settings['silver'];
+$gold = (int)$settings['gold'];
+
+if ($currentPoints < $bronze) {
     $nextTier = 'Bronze';
-    $pointsNeeded = 5000 - $currentPoints;
-} elseif ($currentPoints < 10000) {
+    $pointsNeeded = $bronze - $currentPoints;
+} elseif ($currentPoints < $silver) {
     $nextTier = 'Silver';
-    $pointsNeeded = 10000 - $currentPoints;
-} elseif ($currentPoints < 15000) {
+    $pointsNeeded = $silver - $currentPoints;
+} elseif ($currentPoints < $gold) {
     $nextTier = 'Gold';
-    $pointsNeeded = 15000 - $currentPoints;
+    $pointsNeeded = $gold - $currentPoints;
 } else {
     $nextTier = 'Platinum';
     $pointsNeeded = 0;
