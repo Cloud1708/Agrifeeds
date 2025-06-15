@@ -102,14 +102,6 @@ unset($member);
                     </div>
                 </div>
             </div>
-            <div class="col-md-3">
-                <div class="card dashboard-card">
-                    <div class="card-body">
-                        <h5 class="card-title">Points Redeemed</h5>
-                        <p class="card-text" id="pointsRedeemed">8,500</p>
-                    </div>
-                </div>
-            </div>
         </div>
  
         <!-- Search and Filter -->
@@ -129,7 +121,6 @@ unset($member);
                     <option value="Bronze">Bronze</option>
                     <option value="Silver">Silver</option>
                     <option value="Gold">Gold</option>
-                    <option value="Platinum">Platinum</option>
                 </select>
             </div>
             <div class="col-md-3">
@@ -346,6 +337,52 @@ document.getElementById('programSettingsForm').addEventListener('submit', functi
         }
     });
 });
+</script>
+
+<script>
+// Loyalty Program Search and Filter
+function filterMembers() {
+    const search = document.getElementById('memberSearch').value.toLowerCase();
+    const tier = document.getElementById('tierFilter').value.toLowerCase();
+    const status = document.getElementById('statusFilter').value.toLowerCase();
+    const rows = document.querySelectorAll('#membersTableBody tr');
+
+    rows.forEach(row => {
+        // Get columns
+        const loyaltyId = row.children[0]?.textContent.toLowerCase() || '';
+        const customer = row.children[1]?.textContent.toLowerCase() || '';
+        const points = row.children[2]?.textContent.toLowerCase() || '';
+        // Tier is inside a badge in column 3
+        const tierText = row.children[3]?.innerText.trim().toLowerCase() || '';
+        const lastUpdate = row.children[4]?.textContent.toLowerCase() || '';
+        // Status is inside a badge in column 5
+        const statusText = row.children[5]?.innerText.trim().toLowerCase() || '';
+
+        // Search filter (matches any column)
+        const searchMatch =
+            loyaltyId.includes(search) ||
+            customer.includes(search) ||
+            points.includes(search) ||
+            tierText.includes(search) ||
+            lastUpdate.includes(search) ||
+            statusText.includes(search);
+
+        // Tier filter
+        const tierMatch = (tier === 'all') || (tierText === tier);
+
+        // Status filter
+        const statusMatch = (status === 'all') || (statusText === status);
+
+        row.style.display = (searchMatch && tierMatch && statusMatch) ? '' : 'none';
+    });
+}
+
+document.getElementById('memberSearch').addEventListener('input', filterMembers);
+document.getElementById('tierFilter').addEventListener('change', filterMembers);
+document.getElementById('statusFilter').addEventListener('change', filterMembers);
+
+// Optionally, run filter on page load
+window.addEventListener('DOMContentLoaded', filterMembers);
 </script>
  
 </body>

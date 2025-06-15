@@ -83,15 +83,7 @@ $purchaseOrders = $con->getPurchaseOrders();
                     <option value="Delivered">Delivered</option>
                 </select>
             </div>
-            <div class="col-md-3">
-                <select class="form-select" id="dateRangeFilter">
-                    <option value="all">All Time</option>
-                    <option value="today">Today</option>
-                    <option value="week">This Week</option>
-                    <option value="month">This Month</option>
-                    <option value="custom">Custom Range</option>
-                </select>
-            </div>
+            
         </div>
 
         <!-- Purchase Orders Table -->
@@ -391,6 +383,10 @@ $purchaseOrders = $con->getPurchaseOrders();
         console.log('DOM Content Loaded');
         console.log('Purchase Orders:', purchaseOrders);
 
+        function normalizeText(text) {
+    return (text || '').toString().toLowerCase().trim();
+}
+
         // Handle product selection and price calculation
         function setupProductRow(row) {
             const productSelect = row.querySelector('.product-select');
@@ -415,6 +411,60 @@ $purchaseOrders = $con->getPurchaseOrders();
             quantityInput.addEventListener('input', updateSubtotal);
             priceInput.addEventListener('input', updateSubtotal);
         }
+
+        // Filter function
+function filterTable() {
+    const searchValue = normalizeText(document.getElementById('poSearch').value);
+    const supplierValue = document.getElementById('supplierFilter').value;
+    const statusValue = document.getElementById('statusFilter').value;
+
+    document.querySelectorAll('tbody tr').forEach(row => {
+        let show = true;
+
+        // Search by PO ID, Supplier, or Items
+        const poId = normalizeText(row.children[0]?.textContent);
+        const supplier = normalizeText(row.children[1]?.textContent);
+        const items = normalizeText(row.children[3]?.textContent);
+
+        if (searchValue) {
+            show = poId.includes(searchValue) ||
+                   supplier.includes(searchValue) ||
+                   items.includes(searchValue);
+        }
+
+        // Filter by supplier
+        if (show && supplierValue) {
+            // SupplierID is in a data attribute for easier matching
+            const rowSupplierId = row.getAttribute('data-supplier-id');
+            if (rowSupplierId !== supplierValue) show = false;
+        }
+
+        // Filter by status
+        if (show && statusValue && statusValue !== 'all') {
+            const status = normalizeText(row.children[5]?.textContent);
+            if (!status.includes(normalizeText(statusValue))) show = false;
+        }
+
+        row.style.display = show ? '' : 'none';
+    });
+}
+
+// Attach event listeners
+document.getElementById('poSearch').addEventListener('input', filterTable);
+document.getElementById('supplierFilter').addEventListener('change', filterTable);
+document.getElementById('statusFilter').addEventListener('change', filterTable);
+
+// Add data-supplier-id attribute to each row for supplier filtering
+document.querySelectorAll('tbody tr').forEach(row => {
+    // The supplier ID is not in the table, so we need to add it from purchaseOrders
+    const poId = row.children[0]?.textContent;
+    const po = purchaseOrders.find(p => p.Pur_OrderID == poId);
+    if (po) {
+        row.setAttribute('data-supplier-id', po.SupplierID);
+    }
+});
+
+        
 
         // Setup initial product row
         setupProductRow(document.querySelector('.product-item'));

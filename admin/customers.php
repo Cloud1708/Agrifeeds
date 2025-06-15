@@ -667,6 +667,44 @@ foreach ($customers as $customer) {
             }
             this.classList.add('was-validated');
         });
+
+        // --- Customer Search and Filter ---
+    const searchInput = document.getElementById('customerSearch');
+    const loyaltyFilter = document.getElementById('loyaltyFilter');
+    const table = document.querySelector('table.table tbody');
+
+    function getLoyaltyFromRow(row) {
+        const badge = row.querySelector('td:nth-child(4) .badge');
+        if (!badge) return 'none';
+        const text = badge.textContent.trim().toLowerCase();
+        if (text === 'gold') return 'gold';
+        if (text === 'silver') return 'silver';
+        if (text === 'bronze') return 'bronze';
+        return 'none';
+    }
+
+    function filterTable() {
+        const search = searchInput.value.trim().toLowerCase();
+        const loyalty = loyaltyFilter.value;
+
+        Array.from(table.rows).forEach(row => {
+            const name = row.cells[1].textContent.toLowerCase();
+            const contact = row.cells[2].textContent.toLowerCase();
+            const loyaltyStatus = getLoyaltyFromRow(row);
+
+            // Search matches name or contact
+            const matchesSearch = name.includes(search) || contact.includes(search);
+
+            // Loyalty filter
+            const matchesLoyalty = (loyalty === 'all') || (loyalty === loyaltyStatus);
+
+            row.style.display = (matchesSearch && matchesLoyalty) ? '' : 'none';
+        });
+    }
+
+    searchInput.addEventListener('input', filterTable);
+    loyaltyFilter.addEventListener('change', filterTable);
+    
     });
     </script>
 </body>

@@ -65,12 +65,7 @@ elseif ($currentStock <= $highThreshold) {
     $priority = 'low';
     $threshold = $lowThreshold;
 }
-    // Expiring soon
-    elseif ($expirationDate && strtotime($expirationDate) <= strtotime("+$expiringDays days")) {
-        $alertType = 'Expiring Soon';
-        $priority = 'medium';
-        $threshold = $expiringDays . ' days';
-    }
+
  
     if ($alertType) {
         // Save to inventory_alerts table if not already saved for this product and alert type today
@@ -130,49 +125,39 @@ elseif ($currentStock <= $highThreshold) {
             </button>
         </div>
  
-        <!-- Alert Summary Cards -->
-        <div class="row mb-4">
-            <div class="col-md-3">
-                <div class="card dashboard-card">
-                    <div class="card-body">
-                        <h5 class="card-title">Low Stock Items</h5>
-                        <p class="card-text" id="lowStockCount">
-                            <?php echo count(array_filter($alerts, fn($a) => $a['AlertType'] === 'Low Stock')); ?>
-                        </p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card dashboard-card">
-                    <div class="card-body">
-                        <h5 class="card-title">Out of Stock</h5>
-                        <p class="card-text" id="outOfStockCount">
-                            <?php echo count(array_filter($alerts, fn($a) => $a['AlertType'] === 'Out of Stock')); ?>
-                        </p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card dashboard-card">
-                    <div class="card-body">
-                        <h5 class="card-title">Expiring Soon</h5>
-                        <p class="card-text" id="expiringCount">
-                            <?php echo count(array_filter($alerts, fn($a) => $a['AlertType'] === 'Expiring Soon')); ?>
-                        </p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card dashboard-card">
-                    <div class="card-body">
-                        <h5 class="card-title">Total Alerts</h5>
-                        <p class="card-text" id="totalAlerts">
-                            <?php echo count($alerts); ?>
-                        </p>
-                    </div>
-                </div>
+       <!-- Alert Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card dashboard-card">
+            <div class="card-body">
+                <h5 class="card-title">Low Stock Items</h5>
+                <p class="card-text" id="lowStockCount">
+                    <?php echo count(array_filter($alerts, fn($a) => $a['AlertType'] === 'Low Stock')); ?>
+                </p>
             </div>
         </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card dashboard-card">
+            <div class="card-body">
+                <h5 class="card-title">Out of Stock</h5>
+                <p class="card-text" id="outOfStockCount">
+                    <?php echo count(array_filter($alerts, fn($a) => $a['AlertType'] === 'Out of Stock')); ?>
+                </p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card dashboard-card">
+            <div class="card-body">
+                <h5 class="card-title">Total Alerts</h5>
+                <p class="card-text" id="totalAlerts">
+                    <?php echo count($alerts); ?>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
  
         <!-- Search and Filter -->
         <div class="row mb-4">
@@ -190,7 +175,6 @@ elseif ($currentStock <= $highThreshold) {
                     <option value="all">All Types</option>
                     <option value="Low Stock">Low Stock</option>
                     <option value="Out of Stock">Out of Stock</option>
-                    <option value="Expiring Soon">Expiring Soon</option>
                 </select>
             </div>
             <div class="col-md-3">
@@ -304,43 +288,49 @@ elseif ($currentStock <= $highThreshold) {
     <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-    // Simple client-side filter for the alerts table
-    document.addEventListener('DOMContentLoaded', function() {
-        const alertSearch = document.getElementById('alertSearch');
-        const alertTypeFilter = document.getElementById('alertTypeFilter');
-        const priorityFilter = document.getElementById('priorityFilter');
-        const tableRows = document.querySelectorAll('#alertsTableBody tr');
- 
-        function filterTable() {
-            const searchTerm = alertSearch.value.toLowerCase();
-            const selectedType = alertTypeFilter.value;
-            const selectedPriority = priorityFilter.value;
- 
-            tableRows.forEach(row => {
-                const cells = row.getElementsByTagName('td');
-                const product = cells[0].textContent.toLowerCase();
-                const type = cells[1].textContent.trim();
-                const priority = cells[4].textContent.trim().toLowerCase();
- 
-                const matchesSearch = product.includes(searchTerm);
-                const matchesType = selectedType === 'all' || type === selectedType;
-                const matchesPriority = selectedPriority === 'all' || priority === selectedPriority;
- 
-                row.style.display = matchesSearch && matchesType && matchesPriority ? '' : 'none';
-            });
-        }
- 
-        alertSearch.addEventListener('input', filterTable);
-        alertTypeFilter.addEventListener('change', filterTable);
-        priorityFilter.addEventListener('change', filterTable);
-    });
- 
-    document.getElementById('saveSettingsBtn').addEventListener('click', function() {
+document.addEventListener('DOMContentLoaded', function() {
+    const alertSearch = document.getElementById('alertSearch');
+    const alertTypeFilter = document.getElementById('alertTypeFilter');
+    const priorityFilter = document.getElementById('priorityFilter');
+    const tableRows = document.querySelectorAll('#alertsTableBody tr');
+
+    function filterTable() {
+        const searchTerm = alertSearch.value.toLowerCase();
+        const selectedType = alertTypeFilter.value;
+        const selectedPriority = priorityFilter.value;
+
+        tableRows.forEach(row => {
+            const cells = row.getElementsByTagName('td');
+            // Correct column indexes:
+            // 0: Alert ID, 1: Product Name, 2: Alert Type, 3: Current Stock, 4: Threshold, 5: Priority, 6: Alert Date, 7: Actions
+            const productName = cells[1].textContent.toLowerCase();
+            const alertType = cells[2].textContent.trim();
+            const priority = cells[5].textContent.trim().toLowerCase();
+
+            // Search matches Product Name or Alert Type
+            const matchesSearch = productName.includes(searchTerm) || alertType.toLowerCase().includes(searchTerm);
+
+            // Filter by Alert Type
+            const matchesType = selectedType === 'all' || alertType === selectedType;
+
+            // Filter by Priority
+            const matchesPriority = selectedPriority === 'all' || priority === selectedPriority;
+
+            row.style.display = (matchesSearch && matchesType && matchesPriority) ? '' : 'none';
+        });
+    }
+
+    alertSearch.addEventListener('input', filterTable);
+    alertTypeFilter.addEventListener('change', filterTable);
+    priorityFilter.addEventListener('change', filterTable);
+});
+
+document.getElementById('saveSettingsBtn').addEventListener('click', function() {
     const high = document.getElementById('lowStockThresholdHigh').value;
     const medium = document.getElementById('lowStockThresholdMedium').value;
     const low = document.getElementById('lowStockThresholdLow').value;
     const expDays = document.getElementById('expirationDays').value;
- 
+
     fetch('inventory_alerts.php', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -359,5 +349,6 @@ elseif ($currentStock <= $highThreshold) {
     });
 });
 </script>
+
 </body>
 </html>

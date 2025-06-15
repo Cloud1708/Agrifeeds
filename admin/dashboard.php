@@ -64,26 +64,6 @@ $topProducts = $con->getTopProducts(); // You'll need to implement this method
             </div>
         </div>
 
-        <!-- Quick Actions -->
-        <div class="card mb-4">
-            <div class="card-body">
-                <div class="d-flex flex-wrap gap-2 justify-content-start align-items-center">
-                    <button class="btn btn-primary quick-action-btn" data-bs-toggle="modal" data-bs-target="#newSaleModal">
-                        <i class="bi bi-cart-plus"></i> New Sale
-                    </button>
-                    <button class="btn btn-success quick-action-btn" data-bs-toggle="modal" data-bs-target="#newPurchaseModal">
-                        <i class="bi bi-bag-plus"></i> New Purchase
-                    </button>
-                    <button class="btn btn-info quick-action-btn" data-bs-toggle="modal" data-bs-target="#newCustomerModal">
-                        <i class="bi bi-person-plus"></i> New Customer
-                    </button>
-                    <button class="btn btn-warning quick-action-btn" data-bs-toggle="modal" data-bs-target="#newProductModal">
-                        <i class="bi bi-box-seam"></i> New Product
-                    </button>
-                </div>
-            </div>
-        </div>
-
         <!-- Summary Cards -->
         <div class="row mb-4">
             <div class="col-md-3">

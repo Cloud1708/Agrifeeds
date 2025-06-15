@@ -139,15 +139,13 @@ $allPromotions = $con->viewPromotions();
                            placeholder="Search promotions..." aria-label="Search promotions">
                 </div>
             </div>
-            <div class="col-md-3">
-                <select class="form-select" id="typeFilter">
-                    <option value="all">All Types</option>
-                    <option value="Discount">Discount</option>
-                    <option value="BOGO">Buy One Get One</option>
-                    <option value="Bundle">Bundle Deal</option>
-                    <option value="Clearance">Clearance</option>
-                </select>
-            </div>
+           <div class="col-md-3">
+    <select class="form-select" id="typeFilter">
+        <option value="all">All Types</option>
+        <option value="Percentage">Percentage</option>
+        <option value="Fixed">Fixed Amount</option>
+    </select>
+</div>
             <div class="col-md-3">
                 <select class="form-select" id="statusFilter">
                     <option value="all">All Status</option>
@@ -393,17 +391,63 @@ $allPromotions = $con->viewPromotions();
     <script>
     // Fill Edit Promotion Modal with row data
     document.querySelectorAll('.editPromotionBtn').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            document.getElementById('editPromotionID').value = this.getAttribute('data-id');
-            document.getElementById('editPromCode').value = this.getAttribute('data-code');
-            document.getElementById('editPromoDescription').value = this.getAttribute('data-desc');
-            document.getElementById('editPromoDiscAmnt').value = this.getAttribute('data-amount');
-            document.getElementById('editPromoDiscountType').value = this.getAttribute('data-type');
-            document.getElementById('editPromoStartDate').value = this.getAttribute('data-start');
-            document.getElementById('editPromoEndDate').value = this.getAttribute('data-end');
-            document.getElementById('editUsageLimit').value = this.getAttribute('data-limit');
-        });
+    btn.addEventListener('click', function() {
+        document.getElementById('editPromotionID').value = this.getAttribute('data-id');
+        document.getElementById('editPromCode').value = this.getAttribute('data-code');
+        document.getElementById('editPromoDescription').value = this.getAttribute('data-desc');
+        document.getElementById('editPromoDiscAmnt').value = this.getAttribute('data-amount');
+        document.getElementById('editPromoDiscountType').value = this.getAttribute('data-type');
+        document.getElementById('editPromoStartDate').value = this.getAttribute('data-start');
+        document.getElementById('editPromoEndDate').value = this.getAttribute('data-end');
+        document.getElementById('editUsageLimit').value = this.getAttribute('data-limit');
     });
+});
+
+// Promotion Search and Filter
+function filterPromotions() {
+    const search = document.getElementById('promotionSearch').value.toLowerCase();
+    const type = document.getElementById('typeFilter').value.toLowerCase();
+    const status = document.getElementById('statusFilter').value.toLowerCase();
+    const rows = document.querySelectorAll('#promotionsTableBody tr');
+
+    rows.forEach(row => {
+        // Skip "No promotions found" row
+        if (row.children.length < 8) {
+            row.style.display = '';
+            return;
+        }
+        const code = row.children[1].textContent.toLowerCase();
+        const disc = row.children[2].textContent.toLowerCase();
+        const discType = row.children[3].textContent.toLowerCase();
+        const start = row.children[4].textContent.toLowerCase();
+        const end = row.children[5].textContent.toLowerCase();
+        const usage = row.children[6].textContent.toLowerCase();
+        const stat = row.children[7].innerText.trim().toLowerCase();
+
+        // Search filter (matches any column)
+        const searchMatch =
+            code.includes(search) ||
+            disc.includes(search) ||
+            discType.includes(search) ||
+            start.includes(search) ||
+            end.includes(search) ||
+            usage.includes(search) ||
+            stat.includes(search);
+
+        // Type filter
+        const typeMatch = (type === 'all') || (discType === type);
+
+        // Status filter
+        const statusMatch = (status === 'all') || (stat === status);
+
+        row.style.display = (searchMatch && typeMatch && statusMatch) ? '' : 'none';
+    });
+}
+
+document.getElementById('promotionSearch').addEventListener('input', filterPromotions);
+document.getElementById('typeFilter').addEventListener('change', filterPromotions);
+document.getElementById('statusFilter').addEventListener('change', filterPromotions);
+
     </script>
 </body>
 </html>

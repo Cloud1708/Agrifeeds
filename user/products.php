@@ -879,83 +879,90 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['payment_method'])) {
 
     // Update both cart and checkout content when adding to cart
     document.querySelectorAll('form[action=""]').forEach(form => {
-        form.addEventListener('submit', function(e) {
-            e.preventDefault();
-            const formData = new FormData(form);
-            
-            fetch('products.php', {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Update both cart and checkout content
-                    updateCartContent();
-                    updateCheckoutContent();
-                    
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Added to Cart!',
-                        text: 'Product has been added to your cart successfully.',
-                        showCancelButton: true,
-                        confirmButtonText: 'View Cart',
-                        cancelButtonText: 'Close',
-                        reverseButtons: true,
-                        allowOutsideClick: false,
-                        allowEscapeKey: false
-                    }).then((result) => {
-                        if (result.isConfirmed) {
-                            // Show cart modal
-                            const cartModal = new bootstrap.Modal(document.getElementById('cartModal'));
-                            cartModal.show();
-                            
-                            // Add event listener for when cart modal is shown
-                            document.getElementById('cartModal').addEventListener('shown.bs.modal', function () {
-                                // Update checkout content when cart modal is shown
-                                updateCheckoutContent();
-                            });
-                        } else {
-                            // Refresh and redirect to products page
-                            setTimeout(() => {
-                                window.location.href = 'products.php';
-                            }, 100);
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const formData = new FormData(form);
+
+        fetch('products.php', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Update both cart and checkout content
+                updateCartContent();
+                updateCheckoutContent();
+
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Added to Cart!',
+                    text: 'Product has been added to your cart successfully.',
+                    showCancelButton: true,
+                    confirmButtonText: 'View Cart',
+                    cancelButtonText: 'Close',
+                    reverseButtons: true,
+                    allowOutsideClick: false,
+                    allowEscapeKey: false
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        // --- CLOSE THE ADD TO CART MODAL ---
+                        // Find the closest modal and hide it
+                        const addToCartModal = form.closest('.modal');
+                        if (addToCartModal) {
+                            const bsModal = bootstrap.Modal.getInstance(addToCartModal);
+                            if (bsModal) bsModal.hide();
                         }
-                    });
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: data.message || 'Failed to add product to cart. Please try again.',
-                        confirmButtonText: 'Close',
-                        allowOutsideClick: false,
-                        allowEscapeKey: false
-                    }).then(() => {
+                        // Show cart modal
+                        const cartModal = new bootstrap.Modal(document.getElementById('cartModal'));
+                        cartModal.show();
+
+                        // Add event listener for when cart modal is shown
+                        document.getElementById('cartModal').addEventListener('shown.bs.modal', function () {
+                            // Update checkout content when cart modal is shown
+                            updateCheckoutContent();
+                        });
+                    } else {
                         // Refresh and redirect to products page
                         setTimeout(() => {
                             window.location.href = 'products.php';
                         }, 100);
-                    });
-                }
-            })
-            .catch(error => {
+                    }
+                });
+            } else {
                 Swal.fire({
                     icon: 'error',
                     title: 'Error',
-                    text: 'An error occurred: ' + error.message,
-                    confirmButtonText: 'Close'
+                    text: data.message || 'Failed to add product to cart. Please try again.',
+                    confirmButtonText: 'Close',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false
                 }).then(() => {
                     // Refresh and redirect to products page
                     setTimeout(() => {
                         window.location.href = 'products.php';
                     }, 100);
                 });
+            }
+        })
+        .catch(error => {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'An error occurred: ' + error.message,
+                confirmButtonText: 'Close'
+            }).then(() => {
+                // Refresh and redirect to products page
+                setTimeout(() => {
+                    window.location.href = 'products.php';
+                }, 100);
             });
         });
     });
+});
 
     // SweetAlert for Remove from Cart
     document.querySelectorAll('.remove-from-cart-form').forEach(form => {

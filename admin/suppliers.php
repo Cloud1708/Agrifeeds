@@ -156,21 +156,22 @@ $suppliers = $con->viewSuppliers();
                            placeholder="Search suppliers..." aria-label="Search suppliers">
                 </div>
             </div>
+           <div class="col-md-3">
+    <select class="form-select" id="supplierTypeFilter">
+        <option value="">All Payment Terms</option>
+        <option value="Immediate">Immediate</option>
+        <option value="Net 15">Net 15</option>
+        <option value="Net 30">Net 30</option>
+        <option value="Net 60">Net 60</option>
+    </select>
+</div>
             <div class="col-md-3">
-                <select class="form-select" id="supplierTypeFilter">
-                    <option value="">All Types</option>
-                    <option value="manufacturer">Manufacturer</option>
-                    <option value="distributor">Distributor</option>
-                    <option value="wholesaler">Wholesaler</option>
-                </select>
-            </div>
-            <div class="col-md-3">
-                <select class="form-select" id="statusFilter">
-                    <option value="all">All Status</option>
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                </select>
-            </div>
+    <select class="form-select" id="statusFilter">
+        <option value="all">All Delivery Schedules</option>
+        <option value="Monthly">Monthly</option>
+        <option value="Weekly">Weekly</option>
+    </select>
+</div>
         </div>
 
         <!-- Suppliers Table -->
@@ -358,6 +359,39 @@ $suppliers = $con->viewSuppliers();
             });
         });
     });
+
+    // --- Search and Filter Functionality ---
+    function filterSuppliers() {
+        const searchValue = document.getElementById('supplierSearch').value.toLowerCase();
+        const payTermValue = document.getElementById('supplierTypeFilter').value;
+        const schedValue = document.getElementById('statusFilter').value;
+
+        document.querySelectorAll('table tbody tr').forEach(function(row) {
+            const name = row.children[1].textContent.toLowerCase();
+            const contact = row.children[2].textContent.toLowerCase();
+            const payTerm = row.children[3].textContent;
+            const sched = row.children[4].textContent;
+
+            // Search matches name or contact info
+            const matchesSearch = name.includes(searchValue) || contact.includes(searchValue);
+
+            // Payment Terms filter
+            const matchesPayTerm = !payTermValue || payTerm === payTermValue;
+
+            // Delivery Schedule filter
+            const matchesSched = (schedValue === "all") || (sched === schedValue);
+
+            if (matchesSearch && matchesPayTerm && matchesSched) {
+                row.style.display = "";
+            } else {
+                row.style.display = "none";
+            }
+        });
+    }
+
+    document.getElementById('supplierSearch').addEventListener('input', filterSuppliers);
+    document.getElementById('supplierTypeFilter').addEventListener('change', filterSuppliers);
+    document.getElementById('statusFilter').addEventListener('change', filterSuppliers);
 </script>
 
     <?php echo $sweetAlertConfig; ?>

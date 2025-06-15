@@ -13,8 +13,6 @@ if ($_SESSION['user_role'] != 1 && $_SESSION['user_role'] != 3) {
     }
     exit();
 }
-
-
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -68,23 +66,32 @@ if ($_SESSION['user_role'] != 1 && $_SESSION['user_role'] != 3) {
             </div>
         </div>
 
-        <!-- Filters Section (static for now) -->
+        <!-- Filters Section -->
         <div class="filter-section">
             <div class="row g-3">
                 <div class="col-md-3">
                     <label class="form-label">Product</label>
-                    <select class="form-select">
+                    <select class="form-select" id="productFilter">
                         <option value="">All Products</option>
-                        <!-- Optionally populate dynamically -->
+                        <?php
+                        // Dynamically populate product options
+                        $productNames = [];
+                        foreach ($inventoryHistory as $row) {
+                            $productNames[$row['ProductID']] = $row['Prod_Name'];
+                        }
+                        foreach ($productNames as $pid => $pname) {
+                            echo '<option value="' . htmlspecialchars($pname) . '">' . htmlspecialchars($pname) . '</option>';
+                        }
+                        ?>
                     </select>
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Date Range</label>
-                    <input type="date" class="form-control">
+                    <input type="date" class="form-control" id="dateFilter">
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Change Type</label>
-                    <select class="form-select">
+                    <select class="form-select" id="changeTypeFilter">
                         <option value="">All Changes</option>
                         <option value="increase">Increase</option>
                         <option value="decrease">Decrease</option>
@@ -92,7 +99,7 @@ if ($_SESSION['user_role'] != 1 && $_SESSION['user_role'] != 3) {
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">&nbsp;</label>
-                    <button class="btn btn-primary w-100">
+                    <button class="btn btn-primary w-100" id="applyFiltersBtn" type="button">
                         <i class="bi bi-filter"></i> Apply Filters
                     </button>
                 </div>
@@ -117,8 +124,8 @@ if ($_SESSION['user_role'] != 1 && $_SESSION['user_role'] != 3) {
                     <tr>
                         <td><?php echo htmlspecialchars($row['IHID']); ?></td>
                         <td><?php echo htmlspecialchars($row['Prod_Name']); ?>
-                    <span class="text-muted small">(ID: <?php echo $row['ProductID']; ?>)</span>
-                    </td>
+                            <span class="text-muted small">(ID: <?php echo $row['ProductID']; ?>)</span>
+                        </td>
                         <td class="quantity-change <?php echo ($row['IH_QtyChange'] >= 0) ? 'quantity-increase' : 'quantity-decrease'; ?>">
                             <?php echo ($row['IH_QtyChange'] >= 0 ? '+' : '') . htmlspecialchars($row['IH_QtyChange']); ?>
                         </td>
@@ -143,13 +150,57 @@ if ($_SESSION['user_role'] != 1 && $_SESSION['user_role'] != 3) {
     <script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
     <script>
     $(document).ready(function() {
-        $('#inventoryHistoryTable').DataTable({
-    order: [[0, 'desc']], // 0 = first column (IH ID)
-    pageLength: 10,
-    language: {
-        search: "Search records:"
-    }
-});
+        var table = $('#inventoryHistoryTable').DataTable({
+            order: [[0, 'desc']],
+            pageLength: 10,
+            language: {
+                search: "Search records:"
+            }
+        });
+
+        // Custom filter function
+        $.fn.dataTable.ext.search.push(
+            function(settings, data, dataIndex) {
+                // Product filter
+                var product = $('#productFilter').val();
+                var productName = data[1].split('(ID:')[0].trim(); // Product column
+
+                if (product && productName !== product) {
+                    return false;
+                }
+
+                // Date filter
+                var dateFilter = $('#dateFilter').val();
+                var rowDate = data[4].split(' ')[0]; // Date column (Y-m-d)
+                if (dateFilter && rowDate !== dateFilter) {
+                    return false;
+                }
+
+                // Change type filter
+                var changeType = $('#changeTypeFilter').val();
+                var qtyChange = data[2].replace('+','');
+                qtyChange = parseInt(qtyChange, 10);
+
+                if (changeType === 'increase' && qtyChange < 0) {
+                    return false;
+                }
+                if (changeType === 'decrease' && qtyChange >= 0) {
+                    return false;
+                }
+
+                return true;
+            }
+        );
+
+        // Apply filters on button click
+        $('#applyFiltersBtn').on('click', function() {
+            table.draw();
+        });
+
+        // Optional: auto-apply on change
+        // $('#productFilter, #dateFilter, #changeTypeFilter').on('change', function() {
+        //     table.draw();
+        // });
     });
     </script>
 </body>

@@ -1,11 +1,47 @@
 <?php
 
+
 session_start();
- 
+
 require_once('../includes/db.php');
 $con = new database();
 $conn = $con->opencon();
 $sweetAlertConfig = '';
+
+// --- SALES SUMMARY QUERIES ---
+$todaySales = 0;
+$weekSales = 0;
+$monthSales = 0;
+$totalOrders = 0;
+
+// Today's Sales
+$stmt = $conn->prepare("SELECT SUM(si.SI_Quantity * si.SI_Price) AS total 
+    FROM Sales s 
+    JOIN Sale_Item si ON s.SaleID = si.SaleID 
+    WHERE DATE(s.Sale_Date) = CURDATE() AND s.Sale_Status = 'Completed'");
+$stmt->execute();
+$todaySales = $stmt->fetchColumn() ?: 0;
+
+// This Week's Sales
+$stmt = $conn->prepare("SELECT SUM(si.SI_Quantity * si.SI_Price) AS total 
+    FROM Sales s 
+    JOIN Sale_Item si ON s.SaleID = si.SaleID 
+    WHERE YEARWEEK(s.Sale_Date, 1) = YEARWEEK(CURDATE(), 1) AND s.Sale_Status = 'Completed'");
+$stmt->execute();
+$weekSales = $stmt->fetchColumn() ?: 0;
+
+// This Month's Sales
+$stmt = $conn->prepare("SELECT SUM(si.SI_Quantity * si.SI_Price) AS total 
+    FROM Sales s 
+    JOIN Sale_Item si ON s.SaleID = si.SaleID 
+    WHERE YEAR(s.Sale_Date) = YEAR(CURDATE()) AND MONTH(s.Sale_Date) = MONTH(CURDATE()) AND s.Sale_Status = 'Completed'");
+$stmt->execute();
+$monthSales = $stmt->fetchColumn() ?: 0;
+
+// Total Orders (only completed)
+$stmt = $conn->prepare("SELECT COUNT(*) FROM Sales WHERE Sale_Status = 'Completed'");
+$stmt->execute();
+$totalOrders = $stmt->fetchColumn() ?: 0;
 
 if ($_SESSION['user_role'] != 1 && $_SESSION['user_role'] != 3) {
     error_log("Invalid role " . $_SESSION['user_role'] . " - redirecting to appropriate page");
@@ -16,7 +52,6 @@ if ($_SESSION['user_role'] != 1 && $_SESSION['user_role'] != 3) {
     }
     exit();
 }
-
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mark_completed'], $_POST['sale_id'])) {
     $saleId = intval($_POST['sale_id']);
@@ -185,7 +220,9 @@ if (isset($_SESSION['sweet_alert'])) {
                 <div class="card dashboard-card">
                     <div class="card-body">
                         <h5 class="card-title">Today's Sales</h5>
-                        <p class="card-text" id="todaySales">$0.00</p>
+                        <p class="card-text" id="todaySales">
+                            ₱<?php echo number_format($todaySales, 2); ?>
+                        </p>
                     </div>
                 </div>
             </div>
@@ -193,7 +230,9 @@ if (isset($_SESSION['sweet_alert'])) {
                 <div class="card dashboard-card">
                     <div class="card-body">
                         <h5 class="card-title">This Week</h5>
-                        <p class="card-text" id="weekSales">$0.00</p>
+                        <p class="card-text" id="weekSales">
+                            ₱<?php echo number_format($weekSales, 2); ?>
+                        </p>
                     </div>
                 </div>
             </div>
@@ -201,7 +240,9 @@ if (isset($_SESSION['sweet_alert'])) {
                 <div class="card dashboard-card">
                     <div class="card-body">
                         <h5 class="card-title">This Month</h5>
-                        <p class="card-text" id="monthSales">$0.00</p>
+                        <p class="card-text" id="monthSales">
+                            ₱<?php echo number_format($monthSales, 2); ?>
+                        </p>
                     </div>
                 </div>
             </div>
@@ -209,7 +250,9 @@ if (isset($_SESSION['sweet_alert'])) {
                 <div class="card dashboard-card">
                     <div class="card-body">
                         <h5 class="card-title">Total Orders</h5>
-                        <p class="card-text" id="totalOrders">0</p>
+                        <p class="card-text" id="totalOrders">
+                            <?php echo $totalOrders; ?>
+                        </p>
                     </div>
                 </div>
             </div>
@@ -227,13 +270,14 @@ if (isset($_SESSION['sweet_alert'])) {
                 </div>
             </div>
             <div class="col-md-3">
-                <select class="form-select" id="dateRangeFilter">
-                    <option value="today">Today</option>
-                    <option value="week">This Week</option>
-                    <option value="month">This Month</option>
-                    <option value="custom">Custom Range</option>
-                </select>
-            </div>
+    <select class="form-select" id="dateRangeFilter">
+        <option value="all">All</option>
+        <option value="today">Today</option>
+        <option value="week">This Week</option>
+        <option value="month">This Month</option>
+        <option value="custom">Custom Range</option>
+    </select>
+</div>
             <div class="col-md-4" id="customDateRange" style="display: none;">
                 <div class="row">
                     <div class="col-md-6">
@@ -334,86 +378,79 @@ if (isset($_SESSION['sweet_alert'])) {
 
     <!-- Sale_Item View Modal -->
     <div class="modal fade" id="saleItemViewModal" tabindex="-1" aria-labelledby="saleItemViewModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-xl">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="saleItemViewModalLabel">Sale_Item Table</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <!-- Sale_Item Table -->
-                    <div class="table-responsive">
-                        <table class="table table-striped table-hover">
-                            <thead>
-                                <tr>
-                                    <th>SaleItemID</th>
-                                    <th>SaleID</th>
-                                    <th>Product Name</th>
-                                    <th>SI_Quantity</th>
-                                    <th>SI_Price</th>
-                                </tr>
-                            </thead>
-                            <tbody id="saleItemTableBody">
-                                <?php
-                                include_once '../includes/db.php';
-                                $db = new database();
-                                $con = $db->opencon();
-                                $stmt = $con->prepare("SELECT si.SaleItemID, si.SaleID, p.Prod_Name AS ProductName, si.SI_Quantity, si.SI_Price FROM Sale_Item si JOIN Products p ON si.ProductID = p.ProductID");
-                                $stmt->execute();
-                                $saleItems = $stmt->fetchAll(PDO::FETCH_ASSOC);
-                                foreach ($saleItems as $item) {
-                                    echo "<tr>";
-                                    echo "<td>{$item['SaleItemID']}</td>";
-                                    echo "<td>{$item['SaleID']}</td>";
-                                    echo "<td>{$item['ProductName']}</td>";
-                                    echo "<td>{$item['SI_Quantity']}</td>";
-                                    echo "<td>{$item['SI_Price']}</td>";
-                                    echo "</tr>";
-                                }
-                                ?>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                </div>
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="saleItemViewModalLabel">Sale_Item Table</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+
+                <!-- Add search/filter input here -->
+               <div class="modal-body">
+    <div class="row mb-3">
+        <div class="col-md-4 mb-2">
+            <div class="input-group">
+                <span class="input-group-text">
+                    <i class="bi bi-search"></i>
+                </span>
+                <input type="text" class="form-control" id="saleItemSearch" placeholder="Search Sale Items...">
+            </div>
+        </div>
+        <div class="col-md-3 mb-2">
+            <select class="form-select" id="productFilter">
+                <option value="">All Products</option>
+                <?php
+                // Dynamically populate product options from Sale_Item join Products
+                $productStmt = $conn->prepare("SELECT DISTINCT p.ProductID, p.Prod_Name FROM Sale_Item si JOIN Products p ON si.ProductID = p.ProductID ORDER BY p.Prod_Name ASC");
+                $productStmt->execute();
+                $productNames = $productStmt->fetchAll(PDO::FETCH_ASSOC);
+                foreach ($productNames as $prod) {
+                    echo '<option value="' . htmlspecialchars($prod['Prod_Name']) . '">' . htmlspecialchars($prod['Prod_Name']) . '</option>';
+                }
+                ?>
+            </select>
+        </div>
+    </div>
+                <!-- Sale_Item Table -->
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead>
+                <tr>
+                    <th>SaleItemID</th>
+                    <th>SaleID</th>
+                    <th>Product Name</th>
+                    <th>SI_Quantity</th>
+                    <th>SI_Price</th>
+                </tr>
+            </thead>
+            <tbody id="saleItemTableBody">
+                <?php
+                $stmt = $conn->prepare("SELECT si.SaleItemID, si.SaleID, p.Prod_Name AS ProductName, si.SI_Quantity, si.SI_Price FROM Sale_Item si JOIN Products p ON si.ProductID = p.ProductID");
+                $stmt->execute();
+                $saleItems = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                foreach ($saleItems as $item) {
+                    echo "<tr>";
+                    echo "<td>{$item['SaleItemID']}</td>";
+                    echo "<td>{$item['SaleID']}</td>";
+                    echo "<td>{$item['ProductName']}</td>";
+                    echo "<td>{$item['SI_Quantity']}</td>";
+                    echo "<td>{$item['SI_Price']}</td>";
+                    echo "</tr>";
+                }
+                ?>
+            </tbody>
+        </table>
+    </div>
+</div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
             </div>
         </div>
     </div>
- 
-    <!-- Sale Items Modal -->
-    <div class="modal fade" id="saleItemsModal" tabindex="-1" aria-labelledby="saleItemsModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="saleItemsModalLabel">Sale Items</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="table-responsive">
-                        <table class="table table-striped">
-                            <thead>
-                                <tr>
-                                    <th>Sale Item ID</th>
-                                    <th>Product ID</th>
-                                    <th>Quantity</th>
-                                    <th>Price</th>
-                                    <th>Subtotal</th>
-                                </tr>
-                            </thead>
-                            <tbody id="saleItemsTableBody">
-                                <!-- Sale items will be populated here -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                </div>
-            </div>
-        </div>
-    </div>
+</div>
+
  
     <!-- Payment History Modal -->
 <div class="modal fade" id="paymentHistoryModal" tabindex="-1" aria-labelledby="paymentHistoryModalLabel" aria-hidden="true">
@@ -491,27 +528,133 @@ if (isset($_SESSION['sweet_alert'])) {
     <script>
     // JS client-side filtering for Payment_History, works with the pre-rendered table above
     function filterPaymentHistory() {
-        var start = document.getElementById('paymentStartDate').value;
-        var end = document.getElementById('paymentEndDate').value;
-        var rows = document.querySelectorAll('#paymentHistoryTableBody tr');
+    var start = document.getElementById('paymentStartDate').value;
+    var end = document.getElementById('paymentEndDate').value;
+    var rows = document.querySelectorAll('#paymentHistoryTableBody tr');
 
-        rows.forEach(function(row) {
-            var dateCell = row.children[3];
-            if (!dateCell) return;
-            var dateVal = dateCell.textContent.trim();
-            // Accepts 'YYYY-MM-DD' or 'YYYY-MM-DD HH:MM:SS'
-            var dateOnly = dateVal.split(' ')[0];
-            if (!start && !end) {
-                row.style.display = '';
-                return;
-            }
-            var show = true;
-            if (start && dateOnly < start) show = false;
-            if (end && dateOnly > end) show = false;
-            row.style.display = show ? '' : 'none';
+    rows.forEach(function(row) {
+        var dateCell = row.children[3];
+        if (!dateCell) return;
+        var dateVal = dateCell.textContent.trim();
+        var dateOnly = dateVal.split(' ')[0];
+        var show = true;
+        if (start && dateOnly < start) show = false;
+        if (end && dateOnly > end) show = false;
+        row.style.display = show ? '' : 'none';
+    });
+}
+    </script>
+
+    <!-- SALES TABLE SEARCH & FILTER -->
+    <script>
+    // Helper: Get date string in YYYY-MM-DD from a table cell
+    function getCellDate(row, colIdx) {
+        let val = row.children[colIdx]?.textContent.trim();
+        if (!val) return null;
+        // Accepts 'YYYY-MM-DD' or 'YYYY-MM-DD HH:MM:SS'
+        return val.split(' ')[0];
+    }
+
+    // Helper: Get today's, week's, month's date range
+    function getDateRange(type) {
+        const today = new Date();
+        let start, end;
+        if (type === 'today') {
+            start = end = today;
+        } else if (type === 'week') {
+            const first = today.getDate() - today.getDay();
+            start = new Date(today.setDate(first));
+            end = new Date();
+        } else if (type === 'month') {
+            start = new Date(today.getFullYear(), today.getMonth(), 1);
+            end = new Date();
+        }
+        return {
+            start: start ? start.toISOString().slice(0,10) : null,
+            end: end ? end.toISOString().slice(0,10) : null
+        };
+    }
+
+    function filterSalesTable() {
+    const search = document.getElementById('saleSearch').value.toLowerCase();
+    const dateRange = document.getElementById('dateRangeFilter').value;
+    let startDate = '', endDate = '';
+
+    if (dateRange === 'custom') {
+        startDate = document.getElementById('startDate').value;
+        endDate = document.getElementById('endDate').value;
+    } else if (dateRange !== 'all') {
+        const range = getDateRange(dateRange);
+        startDate = range.start;
+        endDate = range.end;
+    }
+
+    const rows = document.querySelectorAll('#salesTableBody tr');
+    rows.forEach(row => {
+        let cells = row.children;
+        let saleId = cells[0]?.textContent.toLowerCase() || '';
+        let saleDate = getCellDate(row, 1);
+        let salePerson = cells[2]?.textContent.toLowerCase() || '';
+        let customer = cells[3]?.textContent.toLowerCase() || '';
+        let promotion = cells[4]?.textContent.toLowerCase() || '';
+        let status = cells[5]?.textContent.toLowerCase() || '';
+
+        // Search filter
+        let searchMatch = (
+            saleId.includes(search) ||
+            salePerson.includes(search) ||
+            customer.includes(search) ||
+            promotion.includes(search) ||
+            status.includes(search)
+        );
+
+        // Date filter
+        let dateMatch = true;
+        if (dateRange !== 'all') {
+            if (startDate && saleDate && saleDate < startDate) dateMatch = false;
+            if (endDate && saleDate && saleDate > endDate) dateMatch = false;
+        }
+
+        row.style.display = (searchMatch && dateMatch) ? '' : 'none';
+    });
+}
+
+// Sale Item Modal Search/Filter with Product Filter
+document.addEventListener('DOMContentLoaded', function() {
+    var saleItemSearch = document.getElementById('saleItemSearch');
+    var productFilter = document.getElementById('productFilter');
+    function filterSaleItems() {
+        const search = saleItemSearch ? saleItemSearch.value.toLowerCase() : '';
+        const product = productFilter ? productFilter.value.toLowerCase() : '';
+        const rows = document.querySelectorAll('#saleItemTableBody tr');
+        rows.forEach(row => {
+            const rowText = row.textContent.toLowerCase();
+            const prodName = row.children[2]?.textContent.toLowerCase() || '';
+            const searchMatch = rowText.includes(search);
+            const productMatch = !product || prodName === product;
+            row.style.display = (searchMatch && productMatch) ? '' : 'none';
         });
     }
+    if (saleItemSearch) saleItemSearch.addEventListener('input', filterSaleItems);
+    if (productFilter) productFilter.addEventListener('change', filterSaleItems);
+});
+
+    // Show/hide custom date range inputs
+    document.getElementById('dateRangeFilter').addEventListener('change', function() {
+        const custom = this.value === 'custom';
+        document.getElementById('customDateRange').style.display = custom ? '' : 'none';
+        filterSalesTable();
+    });
+    document.getElementById('saleSearch').addEventListener('input', filterSalesTable);
+    document.getElementById('startDate').addEventListener('change', filterSalesTable);
+    document.getElementById('endDate').addEventListener('change', filterSalesTable);
+    document.getElementById('dateRangeFilter').addEventListener('change', filterSalesTable);
+ 
+
+    // Initial filter on page load
+    window.addEventListener('DOMContentLoaded', filterSalesTable);
     </script>
+
     <?php if (!empty($sweetAlertConfig)): ?>
     <script>
         <?php echo $sweetAlertConfig; ?>
