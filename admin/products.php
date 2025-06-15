@@ -1,5 +1,7 @@
 <?php
- 
+// Set timezone to Manila
+date_default_timezone_set('Asia/Manila');
+
 session_start();
  
 require_once('../includes/db.php');
@@ -844,7 +846,7 @@ foreach ($allProducts as $prod) {
             </div>
           </div>
         </form>
-      </div>
+        </div>
     </div>
    
     <!-- Bootstrap 5 JS Bundle -->
@@ -998,7 +1000,10 @@ document.getElementById('perPage').addEventListener('change', function() {
     document.getElementById('openPriceModalBtn').addEventListener('click', function() {
         document.getElementById('editPriceProductID').value = document.getElementById('editProductID').value;
         document.getElementById('newPrice').value = document.getElementById('editPriceDisplay').value;
-        document.getElementById('effectiveFrom').value = '';
+        // Set today's date as default for effectiveFrom using Manila timezone
+        const now = new Date();
+        const manilaDate = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Manila' }));
+        document.getElementById('effectiveFrom').value = manilaDate.toISOString().split('T')[0];
         document.getElementById('effectiveTo').value = '';
         var priceModal = new bootstrap.Modal(document.getElementById('editPriceModal'));
         priceModal.show();
