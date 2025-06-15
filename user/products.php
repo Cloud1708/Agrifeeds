@@ -212,18 +212,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['payment_method'])) {
         if (strtolower($_POST['payment_method']) === 'card') {
             $payStmt = $conn->prepare("INSERT INTO Payment_History (SaleID, PT_PayAmount, PT_PayDate, PT_PayMethod) VALUES (?, ?, NOW(), ?)");
             $payStmt->execute([$saleID, $finalTotal, $_POST['payment_method']]);
+        }
 
-            // Add loyalty points for completed orders
-            if (isset($customerInfo['CustomerID'])) {
-                $settings = $con->opencon()->query("SELECT min_purchase, points_per_peso FROM loyalty_settings WHERE id = 1")->fetch(PDO::FETCH_ASSOC);
-                $minPurchase = (float)$settings['min_purchase'];
-                $pointsPerPeso = (float)$settings['points_per_peso'];
+        // --- Award loyalty points for completed orders (only for card payment) ---
+        if (strtolower($_POST['payment_method']) === 'card' && isset($customerInfo['CustomerID'])) {
+            $settings = $con->opencon()->query("SELECT min_purchase, points_per_peso FROM loyalty_settings WHERE id = 1")->fetch(PDO::FETCH_ASSOC);
+            $minPurchase = (float)$settings['min_purchase'];
+            $pointsPerPeso = (float)$settings['points_per_peso'];
 
-                if ($finalTotal >= $minPurchase) {
-                    $pointsEarned = floor($finalTotal * $pointsPerPeso);
-                    if ($pointsEarned > 0) {
-                        $stmt = $con->opencon()->prepare("UPDATE loyalty_program SET LP_PtsBalance = LP_PtsBalance + ? WHERE CustomerID = ?");
+            if ($finalTotal >= $minPurchase) {
+                $pointsEarned = floor($finalTotal * $pointsPerPeso);
+                if ($pointsEarned > 0) {
+                    // First check if customer is enrolled in loyalty program
+                    $stmt = $con->opencon()->prepare("SELECT LoyaltyID FROM loyalty_program WHERE CustomerID = ?");
+                    $stmt->execute([$customerInfo['CustomerID']]);
+                    $loyaltyId = $stmt->fetchColumn();
+
+                    if ($loyaltyId) {
+                        // Update points balance and last update timestamp
+                        $stmt = $con->opencon()->prepare("UPDATE loyalty_program SET LP_PtsBalance = LP_PtsBalance + ?, LP_LastUpdt = NOW() WHERE CustomerID = ?");
                         $result = $stmt->execute([$pointsEarned, $customerInfo['CustomerID']]);
+
+                        // Log the transaction
+                        if ($result) {
+                            $stmt = $con->opencon()->prepare("INSERT INTO loyalty_transaction_history (LoyaltyID, LoTranH_PtsEarned, LoTranH_TransDesc) VALUES (?, ?, ?)");
+                            $stmt->execute([$loyaltyId, $pointsEarned, "Points earned from order #$saleID"]);
+                        }
                     }
                 }
             }
