@@ -14,7 +14,6 @@ if ($_SESSION['user_role'] != 1 && $_SESSION['user_role'] != 3) {
     }
     exit();
 }
-
  
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $input = json_decode(file_get_contents('php://input'), true);
@@ -47,25 +46,24 @@ foreach ($products as $product) {
     $expirationDate = $product['Prod_ExpDate'] ?? null;
    
     if ($currentStock == 0) {
-    $alertType = 'Out of Stock';
-    $priority = 'high';
-    $threshold = 0;
-}
-// Low stock logic with different thresholds and priorities
-elseif ($currentStock <= $highThreshold) {
-    $alertType = 'Low Stock';
-    $priority = 'high';
-    $threshold = $highThreshold;
-} elseif ($currentStock <= $mediumThreshold) {
-    $alertType = 'Low Stock';
-    $priority = 'medium';
-    $threshold = $mediumThreshold;
-} elseif ($currentStock <= $lowThreshold) {
-    $alertType = 'Low Stock';
-    $priority = 'low';
-    $threshold = $lowThreshold;
-}
-
+        $alertType = 'Out of Stock';
+        $priority = 'high';
+        $threshold = 0;
+    }
+    // Low stock logic with different thresholds and priorities
+    elseif ($currentStock <= $highThreshold) {
+        $alertType = 'Low Stock';
+        $priority = 'high';
+        $threshold = $highThreshold;
+    } elseif ($currentStock <= $mediumThreshold) {
+        $alertType = 'Low Stock';
+        $priority = 'medium';
+        $threshold = $mediumThreshold;
+    } elseif ($currentStock <= $lowThreshold) {
+        $alertType = 'Low Stock';
+        $priority = 'low';
+        $threshold = $lowThreshold;
+    }
  
     if ($alertType) {
         // Save to inventory_alerts table if not already saved for this product and alert type today
@@ -199,7 +197,6 @@ elseif ($currentStock <= $highThreshold) {
         <th>Threshold</th>
         <th>Priority</th>      
         <th>Alert Date</th>
-        <th>Actions</th>
     </tr>
 </thead>
 <tbody id="alertsTableBody">
@@ -226,10 +223,6 @@ elseif ($currentStock <= $highThreshold) {
             </span>
         </td>
         <td><?php echo htmlspecialchars($alert['AlertDate']); ?></td>
-        <td>
-            <button class="btn btn-sm btn-info"><i class="bi bi-eye"></i> View</button>
-            <button class="btn btn-sm btn-warning"><i class="bi bi-pencil"></i> Edit</button>
-        </td>
     </tr>
 <?php endforeach; ?>
 </tbody>
@@ -287,6 +280,7 @@ elseif ($currentStock <= $highThreshold) {
  
     <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
 document.addEventListener('DOMContentLoaded', function() {
     const alertSearch = document.getElementById('alertSearch');
@@ -331,20 +325,59 @@ document.getElementById('saveSettingsBtn').addEventListener('click', function() 
     const low = document.getElementById('lowStockThresholdLow').value;
     const expDays = document.getElementById('expirationDays').value;
 
-    fetch('inventory_alerts.php', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-            action: 'save_settings',
-            high, medium, low, expDays
-        })
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.success) {
-            location.reload();
+    Swal.fire({
+        title: 'Save Alert Settings?',
+        text: "Are you sure you want to save these alert settings?",
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, save it!',
+        cancelButtonText: 'No, cancel',
+        reverseButtons: true
+    }).then((result) => {
+        if (result.isConfirmed) {
+            fetch('inventory_alerts.php', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    action: 'save_settings',
+                    high, medium, low, expDays
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Settings Saved',
+                        text: 'Alert settings have been updated successfully!',
+                        confirmButtonText: 'OK'
+                    }).then(() => {
+                        location.reload();
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Failed',
+                        text: 'Failed to save settings.',
+                        confirmButtonText: 'OK'
+                    });
+                }
+            })
+            .catch(() => {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'An error occurred while saving settings.',
+                    confirmButtonText: 'OK'
+                });
+            });
         } else {
-            alert('Failed to save settings.');
+            Swal.fire({
+                icon: 'info',
+                title: 'Cancelled',
+                text: 'No changes were saved.',
+                confirmButtonText: 'OK'
+            });
         }
     });
 });

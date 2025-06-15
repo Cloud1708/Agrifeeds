@@ -4,6 +4,24 @@ session_start();
 require_once('../includes/db.php');
 $con = new database();
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'edit_member') {
+    $loyaltyId = intval($_POST['loyalty_id']);
+    $points = intval($_POST['points']);
+    $tier = $_POST['tier'];
+
+    // Optional: Validate input here
+
+    // Update member in DB
+    $result = $con->updateLoyaltyMember($loyaltyId, $points, $tier);
+
+    if ($result) {
+        echo json_encode(['success' => true]);
+    } else {
+        echo json_encode(['success' => false, 'error' => 'Failed to update member']);
+    }
+    exit;
+}
+
 if ($_SESSION['user_role'] != 1 && $_SESSION['user_role'] != 3) {
     error_log("Invalid role " . $_SESSION['user_role'] . " - redirecting to appropriate page");
     if ($_SESSION['user_role'] == 2) {
@@ -33,7 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     exit;
 }
  
-$settings = $con->opencon()->query("SELECT bronze, silver, gold, min_purchase, points_per_peso, points_expire_after FROM loyalty_settings WHERE id = 1")->fetch(PDO::FETCH_ASSOC);
+$settings = $con->opencon()->query("SELECT bronze, silver, gold, min_purchase, points_per_peso, points_expire_after FROM loyalty_settings WHERE LSID = 1")->fetch(PDO::FETCH_ASSOC);
 $members = $con->viewLoyaltyProgram();
 $con->resetExpiredPoints($settings['points_expire_after']);
 
@@ -192,9 +210,6 @@ unset($member);
                         <span class="badge <?php echo $badge; ?>"><?php echo $status; ?></span>
                     </td>
                     <td>
-                        <button class="btn btn-sm btn-info" onclick="viewMember(<?php echo $member['LoyaltyID']; ?>)">
-                            <i class="bi bi-eye"></i>
-                        </button>
                         <button class="btn btn-sm btn-warning" onclick="editMember(<?php echo $member['LoyaltyID']; ?>)">
                             <i class="bi bi-pencil"></i>
                         </button>
@@ -265,6 +280,41 @@ unset($member);
             </div>
         </div>
     </div>
+
+    <!-- Edit Member Modal -->
+<div class="modal fade" id="editMemberModal" tabindex="-1" aria-labelledby="editMemberModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <form id="editMemberForm" class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="editMemberModalLabel">Edit Member</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editLoyaltyId" name="loyalty_id">
+        <div class="mb-3">
+          <label class="form-label">Name</label>
+          <input type="text" class="form-control" id="editName" readonly>
+        </div>
+        <div class="mb-3">
+          <label for="editPoints" class="form-label">Points Balance</label>
+          <input type="number" class="form-control" id="editPoints" name="points" required>
+        </div>
+        <div class="mb-3">
+          <label for="editTier" class="form-label">Tier</label>
+          <input type="text" class="form-control" id="editTier" name="tier" readonly>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Last Update</label>
+          <input type="text" class="form-control" id="editLastUpdate" readonly>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+      </div>
+    </form>
+  </div>
+</div>
  
     <!-- Program Settings Modal -->
 <div class="modal fade" id="programSettingsModal" tabindex="-1" aria-labelledby="programSettingsModalLabel" aria-hidden="true">
@@ -342,6 +392,85 @@ unset($member);
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
  
+    <script>
+function editMember(loyaltyId) {
+    // Find row data
+    const row = [...document.querySelectorAll('#membersTableBody tr')]
+        .find(r => r.children[0].textContent == loyaltyId);
+    if (!row) return;
+
+    document.getElementById('editLoyaltyId').value = loyaltyId;
+    // Name is in column 1 (with ID), extract only the name part
+    const nameCell = row.children[1].childNodes[0].textContent.trim();
+    document.getElementById('editName').value = nameCell;
+    document.getElementById('editPoints').value = row.children[2].textContent.replace(/,/g, '');
+    document.getElementById('editTier').value = row.children[3].innerText.trim();
+    document.getElementById('editLastUpdate').value = row.children[4].textContent.trim();
+
+    var editModal = new bootstrap.Modal(document.getElementById('editMemberModal'));
+    editModal.show();
+}
+
+document.getElementById('editMemberForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    formData.append('action', 'edit_member');
+
+    fetch('loyalty_program.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            Swal.fire('Success', 'Member updated!', 'success').then(() => location.reload());
+        } else {
+            Swal.fire('Error', data.error || 'Failed to update member', 'error');
+        }
+    });
+});
+
+// Get tier requirements from PHP
+const bronzePoints = <?php echo isset($settings['bronze']) ? (int)$settings['bronze'] : 5000; ?>;
+const silverPoints = <?php echo isset($settings['silver']) ? (int)$settings['silver'] : 10000; ?>;
+const goldPoints = <?php echo isset($settings['gold']) ? (int)$settings['gold'] : 15000; ?>;
+
+function getTierByPoints(points) {
+    if (points >= goldPoints) return 'Gold';
+    if (points >= silverPoints) return 'Silver';
+    if (points >= bronzePoints) return 'Bronze';
+    return 'None';
+}
+
+function editMember(loyaltyId) {
+    // Find row data
+    const row = [...document.querySelectorAll('#membersTableBody tr')]
+        .find(r => r.children[0].textContent == loyaltyId);
+    if (!row) return;
+
+    document.getElementById('editLoyaltyId').value = loyaltyId;
+    const nameCell = row.children[1].childNodes[0].textContent.trim();
+    document.getElementById('editName').value = nameCell;
+    const points = row.children[2].textContent.replace(/,/g, '');
+    document.getElementById('editPoints').value = points;
+    document.getElementById('editTier').value = getTierByPoints(parseInt(points));
+    // Set last update to current date
+    document.getElementById('editLastUpdate').value = new Date().toISOString().slice(0, 10);
+
+    var editModal = new bootstrap.Modal(document.getElementById('editMemberModal'));
+    editModal.show();
+}
+
+// Update tier in real-time when points change
+document.getElementById('editPoints').addEventListener('input', function() {
+    const points = parseInt(this.value) || 0;
+    document.getElementById('editTier').value = getTierByPoints(points);
+    // Update last update to current date
+    document.getElementById('editLastUpdate').value = new Date().toISOString().slice(0, 10);
+});
+
+</script>
+
 <script>
 document.getElementById('programSettingsForm').addEventListener('submit', function(e) {
     e.preventDefault();

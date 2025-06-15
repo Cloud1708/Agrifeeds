@@ -1,8 +1,10 @@
 <?php
-// Set timezone to Manila
-date_default_timezone_set('Asia/Manila');
 
+    date_default_timezone_set('Asia/Manila');
+    
 class database{
+
+
 
     function opencon(): PDO{
         return new PDO(
@@ -443,7 +445,7 @@ class database{
         $points = (int)$stmt->fetchColumn();
 
         // Fetch tier thresholds from settings (no fixed defaults)
-        $settings = $con->query("SELECT bronze, silver, gold FROM loyalty_settings WHERE id = 1")->fetch(PDO::FETCH_ASSOC);
+        $settings = $con->query("SELECT bronze, silver, gold FROM loyalty_settings WHERE LSID = 1")->fetch(PDO::FETCH_ASSOC);
 
         if (!$settings) {
             // Optionally, handle error if settings are missing
@@ -1439,7 +1441,7 @@ class database{
     }
 
     function saveLoyaltySettings($bronze, $silver, $gold, $minPurchase, $pointsPerPeso, $pointsExpireAfter) {
-        $stmt = $this->opencon()->prepare("UPDATE loyalty_settings SET bronze=?, silver=?, gold=?, min_purchase=?, points_per_peso=?, points_expire_after=? WHERE id=1");
+        $stmt = $this->opencon()->prepare("UPDATE loyalty_settings SET bronze=?, silver=?, gold=?, min_purchase=?, points_per_peso=?, points_expire_after=? WHERE LSID=1");
         $stmt->execute([$bronze, $silver, $gold, $minPurchase, $pointsPerPeso, $pointsExpireAfter]);
     }
  
@@ -1813,6 +1815,13 @@ class database{
             return $e->getMessage();
         }
     }
+
+    public function updateLoyaltyMember($loyaltyId, $points, $tier) {
+    $pdo = $this->opencon();
+    $stmt = $pdo->prepare("UPDATE loyalty_program SET LP_PtsBalance = ?, LP_MbspTier = ?, LP_LastUpdt = NOW() WHERE LoyaltyID = ?");
+    return $stmt->execute([$points, $tier, $loyaltyId]);
+}
+
 
 }
 

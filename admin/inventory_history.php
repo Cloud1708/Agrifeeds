@@ -116,7 +116,6 @@ if ($_SESSION['user_role'] != 1 && $_SESSION['user_role'] != 3) {
                         <th>Quantity Change</th>
                         <th>New Stock Level</th>
                         <th>Date</th>
-                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -131,11 +130,6 @@ if ($_SESSION['user_role'] != 1 && $_SESSION['user_role'] != 3) {
                         </td>
                         <td><?php echo htmlspecialchars($row['IH_NewStckLvl']); ?></td>
                         <td><?php echo date('Y-m-d H:i', strtotime($row['IH_ChangeDate'])); ?></td>
-                        <td>
-                            <button class="btn btn-sm btn-outline-primary">
-                                <i class="bi bi-eye"></i>
-                            </button>
-                        </td>
                     </tr>
                     <?php endforeach; ?>
                 </tbody>

@@ -113,7 +113,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mark_completed'], $_P
         $customerId = $custStmt->fetchColumn();
         if ($customerId) {
             // Get loyalty settings
-            $settings = $conn->query("SELECT min_purchase, points_per_peso FROM loyalty_settings WHERE id = 1")->fetch(PDO::FETCH_ASSOC);
+            $settings = $conn->query("SELECT min_purchase, points_per_peso FROM loyalty_settings WHERE LSID = 1")->fetch(PDO::FETCH_ASSOC);
             $minPurchase = (float)$settings['min_purchase'];
             $pointsPerPeso = (float)$settings['points_per_peso'];
             if ($total >= $minPurchase) {

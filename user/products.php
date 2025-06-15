@@ -217,7 +217,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['payment_method'])) {
 
         // --- Award loyalty points for completed orders (only for card payment) ---
         if (strtolower($_POST['payment_method']) === 'card' && isset($customerInfo['CustomerID'])) {
-            $settings = $con->opencon()->query("SELECT min_purchase, points_per_peso FROM loyalty_settings WHERE id = 1")->fetch(PDO::FETCH_ASSOC);
+            $settings = $con->opencon()->query("SELECT min_purchase, points_per_peso FROM loyalty_settings WHERE LSID = 1")->fetch(PDO::FETCH_ASSOC);
             $minPurchase = (float)$settings['min_purchase'];
             $pointsPerPeso = (float)$settings['points_per_peso'];
 

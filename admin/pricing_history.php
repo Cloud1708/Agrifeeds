@@ -4,7 +4,6 @@ require_once '../includes/db.php';
 $db = new database();
 $sweetAlertConfig = "";
 
-
 if ($_SESSION['user_role'] != 1 && $_SESSION['user_role'] != 3) {
     error_log("Invalid role " . $_SESSION['user_role'] . " - redirecting to appropriate page");
     if ($_SESSION['user_role'] == 2) {
@@ -14,7 +13,6 @@ if ($_SESSION['user_role'] != 1 && $_SESSION['user_role'] != 3) {
     }
     exit();
 }
-
 
 // Get pricing history data
 $stats = $db->getPricingHistoryStats();
@@ -119,7 +117,6 @@ if ($debug) {
     <div class="main-content">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1>Pricing History</h1>
-           
         </div>
 
         <!-- Summary Cards -->
@@ -211,10 +208,20 @@ if ($debug) {
                         <td><?php echo htmlspecialchars($record['Prod_Name']); ?></td>
                         <td>₱<?php echo number_format($record['PH_OldPrice'], 2); ?></td>
                         <td>₱<?php echo number_format($record['PH_NewPrice'], 2); ?></td>
-                        <td><?php echo htmlspecialchars($record['PH_ChangeDate']); ?></td>
+                        <td>
+                            <?php
+                                // Format Change Date like Created At (Y-m-d H:i:s)
+                                echo date('Y-m-d H:i:s', strtotime($record['PH_ChangeDate']));
+                            ?>
+                        </td>
                         <td><?php echo htmlspecialchars($record['PH_Effective_from']); ?></td>
                         <td><?php echo htmlspecialchars($record['PH_Effective_to'] ?? 'N/A'); ?></td>
-                        <td><?php echo htmlspecialchars($record['PH_Created_at']); ?></td>
+                        <td>
+                            <?php
+                                // Format Created At (Y-m-d H:i:s)
+                                echo date('Y-m-d H:i:s', strtotime($record['PH_Created_at']));
+                            ?>
+                        </td>
                     </tr>
                     <?php endforeach; ?>
                 </tbody>
@@ -312,15 +319,15 @@ if ($debug) {
                         </div>
                         <div class="mb-3">
                             <label for="addChangeDate" class="form-label">Change Date</label>
-                            <input type="date" class="form-control" id="addChangeDate" required>
+                            <input type="datetime-local" class="form-control" id="addChangeDate" required>
                         </div>
                         <div class="mb-3">
                             <label for="addEffectiveFrom" class="form-label">Effective From</label>
-                            <input type="date" class="form-control" id="addEffectiveFrom" required>
+                            <input type="datetime-local" class="form-control" id="addEffectiveFrom" required>
                         </div>
                         <div class="mb-3">
                             <label for="addEffectiveTo" class="form-label">Effective To</label>
-                            <input type="date" class="form-control" id="addEffectiveTo">
+                            <input type="datetime-local" class="form-control" id="addEffectiveTo">
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -358,15 +365,15 @@ if ($debug) {
                         </div>
                         <div class="mb-3">
                             <label for="editChangeDate" class="form-label">Change Date</label>
-                            <input type="date" class="form-control" id="editChangeDate" disabled>
+                            <input type="datetime-local" class="form-control" id="editChangeDate" disabled>
                         </div>
                         <div class="mb-3">
                             <label for="editEffectiveFrom" class="form-label">Effective From</label>
-                            <input type="date" class="form-control" id="editEffectiveFrom" required>
+                            <input type="datetime-local" class="form-control" id="editEffectiveFrom" required>
                         </div>
                         <div class="mb-3">
                             <label for="editEffectiveTo" class="form-label">Effective To</label>
-                            <input type="date" class="form-control" id="editEffectiveTo">
+                            <input type="datetime-local" class="form-control" id="editEffectiveTo">
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -391,9 +398,10 @@ if ($debug) {
                 document.getElementById('editProductName').value = this.closest('tr').querySelectorAll('td')[1].textContent;
                 document.getElementById('editOldPrice').value = this.dataset.oldprice;
                 document.getElementById('editNewPrice').value = this.dataset.newprice;
-                document.getElementById('editChangeDate').value = this.dataset.changedate;
-                document.getElementById('editEffectiveFrom').value = this.dataset.effectivefrom;
-                document.getElementById('editEffectiveTo').value = this.dataset.effectiveto || '';
+                // Convert to datetime-local format
+                document.getElementById('editChangeDate').value = this.dataset.changedate.replace(' ', 'T').slice(0,16);
+                document.getElementById('editEffectiveFrom').value = this.dataset.effectivefrom.replace(' ', 'T').slice(0,16);
+                document.getElementById('editEffectiveTo').value = this.dataset.effectiveto ? this.dataset.effectiveto.replace(' ', 'T').slice(0,16) : '';
             });
         });
 
@@ -519,7 +527,6 @@ if ($debug) {
                 rows.forEach(row => {
                     const cells = row.querySelectorAll('td');
                     const prodName = cells[1].textContent.toLowerCase();
-                    // Remove statusText and status filter if you removed the status column
                     let show = true;
 
                     if (search && !row.textContent.toLowerCase().includes(search)) {
@@ -528,7 +535,6 @@ if ($debug) {
                     if (product !== 'all' && !prodName.includes(product)) {
                         show = false;
                     }
-                    // Remove status filter if not needed
                     row.style.display = show ? '' : 'none';
                 });
             }

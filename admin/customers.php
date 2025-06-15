@@ -350,7 +350,6 @@ $paginatedCustomers = array_slice($allCustomers, ($currentPage - 1) * $perPage, 
                         <th>Contact Info</th>
                         <th>Loyalty Status</th>
                         <th>Discount Rate</th>
-                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -383,18 +382,6 @@ $paginatedCustomers = array_slice($allCustomers, ($currentPage - 1) * $perPage, 
                         ?>
                     </td>
                     <td><?php echo number_format($customer['Cust_DiscRate'], 0) . '%'; ?></td>
-                    <td>
-                        <button class="btn btn-sm btn-info" onclick="viewCustomer(<?php echo $customer['CustomerID']; ?>)">
-                            <i class="bi bi-eye"></i>
-                        </button>
-                        <form method="post" style="display:inline;">
-                            <input type="hidden" name="edit_customer_modal" value="1">
-                            <input type="hidden" name="customerID" value="<?php echo $customer['CustomerID']; ?>">
-                            <button type="submit" class="btn btn-sm btn-warning">
-                                <i class="bi bi-pencil"></i>
-                            </button>
-                        </form>
-                    </td>
                 </tr>
                 <?php } ?>
                 </tbody>
