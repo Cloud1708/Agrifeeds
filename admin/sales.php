@@ -60,6 +60,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mark_completed'], $_P
         $payStmt = $conn->prepare("INSERT INTO Payment_History (SaleID, PT_PayAmount, PT_PayDate, PT_PayMethod) VALUES (?, ?, NOW(), 'cash')");
         $payStmt->execute([$saleId, $total]);
 
+        // 6. Award loyalty points if eligible
+        // Get the customer ID for this sale
+        $custStmt = $conn->prepare("SELECT CustomerID FROM Sales WHERE SaleID = ?");
+        $custStmt->execute([$saleId]);
+        $customerId = $custStmt->fetchColumn();
+        if ($customerId) {
+            // Get loyalty settings
+            $settings = $conn->query("SELECT min_purchase, points_per_peso FROM loyalty_settings WHERE id = 1")->fetch(PDO::FETCH_ASSOC);
+            $minPurchase = (float)$settings['min_purchase'];
+            $pointsPerPeso = (float)$settings['points_per_peso'];
+            if ($total >= $minPurchase) {
+                $pointsEarned = floor($total * $pointsPerPeso);
+                if ($pointsEarned > 0) {
+                    // Check if customer is enrolled in loyalty program
+                    $stmt = $conn->prepare("SELECT LoyaltyID FROM loyalty_program WHERE CustomerID = ?");
+                    $stmt->execute([$customerId]);
+                    $loyaltyId = $stmt->fetchColumn();
+                    if ($loyaltyId) {
+                        // Update points and last update
+                        $stmt = $conn->prepare("UPDATE loyalty_program SET LP_PtsBalance = LP_PtsBalance + ?, LP_LastUpdt = NOW() WHERE CustomerID = ?");
+                        $result = $stmt->execute([$pointsEarned, $customerId]);
+                        // Log the transaction
+                        if ($result) {
+                            $stmt = $conn->prepare("INSERT INTO loyalty_transaction_history (LoyaltyID, LoTranH_PtsEarned, LoTranH_TransDesc) VALUES (?, ?, ?)");
+                            $stmt->execute([$loyaltyId, $pointsEarned, "Points earned from order #$saleId"]);
+                        }
+                    }
+                }
+            }
+        }
+
         $conn->commit();
 
         // Store success message in session
