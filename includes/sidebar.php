@@ -82,11 +82,6 @@ error_log("Is super admin: " . (isset($_SESSION['user_role']) && $_SESSION['user
                     <i class="bi bi-star me-2"></i> Loyalty Program
                 </a>
             </li>
-            <li class="nav-item">
-                <a class="nav-link <?php echo $current_page === 'reports.php' ? 'active' : ''; ?>" href="reports.php">
-                    <i class="bi bi-graph-up me-2"></i> Reports
-                </a>
-            </li>
         </ul>
     </div>
     <div class="sidebar-footer">

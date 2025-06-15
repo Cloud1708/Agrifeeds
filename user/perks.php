@@ -25,7 +25,7 @@ $nextTier = '';
 $pointsNeeded = 0;
 
 // Get tier thresholds from settings
-$settings = $con->opencon()->query("SELECT bronze, silver, gold FROM loyalty_settings WHERE id = 1")->fetch(PDO::FETCH_ASSOC);
+$settings = $con->opencon()->query("SELECT bronze, silver, gold FROM loyalty_settings WHERE LSID = 1")->fetch(PDO::FETCH_ASSOC);
 $bronze = (int)$settings['bronze'];
 $silver = (int)$settings['silver'];
 $gold = (int)$settings['gold'];
@@ -58,6 +58,7 @@ if ($currentPoints < $bronze) {
     <!-- Custom CSS -->
     <link href="../css/custom.css" rel="stylesheet">
     <link href="../css/sidebar.css" rel="stylesheet">
+     <link href="../css/background.css" rel="stylesheet">
     <!-- Google Fonts: Poppins -->
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>

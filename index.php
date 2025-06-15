@@ -65,6 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <!DOCTYPE html>
 <html lang="en">
+     
 <head>
     <meta charset="UTF-8">
     <title>Login - AgriFeeds</title>
@@ -146,6 +147,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             text-decoration: underline;
         }
     </style>
+     <link href="./css/background.css" rel="stylesheet">
 </head>
 <body>
     <div class="card">
