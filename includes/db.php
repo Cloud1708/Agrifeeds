@@ -1822,6 +1822,32 @@ class database{
     return $stmt->execute([$points, $tier, $loyaltyId]);
 }
 
+public function getPointsHistoryByCustomer($customerID) {
+    $pdo = $this->opencon();
+    // Get LoyaltyID for this customer
+    $stmt = $pdo->prepare("SELECT LoyaltyID FROM loyalty_program WHERE CustomerID = ?");
+    $stmt->execute([$customerID]);
+    $loyalty = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$loyalty) return [];
+
+    $loyaltyID = $loyalty['LoyaltyID'];
+
+    $stmt = $pdo->prepare("
+        SELECT 
+            LoTranHID,
+            LoTranH_TransDate AS Date,
+            LoTranH_TransDesc AS Transaction,
+            LoTranH_PtsEarned AS PointsEarned,
+            LoTranH_PtsRedeemed AS PointsRedeemed
+        FROM Loyalty_Transaction_History
+        WHERE LoyaltyID = ?
+        ORDER BY LoTranH_TransDate DESC
+    ");
+    $stmt->execute([$loyaltyID]);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
 
 }
 
