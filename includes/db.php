@@ -53,272 +53,283 @@ class database{
         }
     }
 
-    function viewProducts() {
+    function viewProducts($showDiscontinued = false) {
         $con = $this->opencon();
-        return $con->query("SELECT * FROM products")->fetchAll();
+        $sql = "SELECT * FROM products WHERE discontinued = 0 OR discontinued IS NULL";
+        $stmt = $con->prepare($sql);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-function updateProduct($name, $category, $description, $price, $stock, $id, $imagePath = null) {
-    try {
+    function getDiscontinuedProducts() {
         $con = $this->opencon();
-        $con->beginTransaction();
-
-        // Fetch the old product details before updating
-        $stmt = $con->prepare("SELECT Prod_Name, Prod_Cat, Prod_Desc, Prod_Price, Prod_Stock, Prod_Image FROM products WHERE ProductID = ?");
-        $stmt->execute([$id]);
-        $oldProduct = $stmt->fetch(PDO::FETCH_ASSOC);
-        
-        // Track changes
-        $changes = [];
-        if ($oldProduct['Prod_Name'] !== $name) {
-            $changes[] = "name from '{$oldProduct['Prod_Name']}' to '{$name}'";
-        }
-        if ($oldProduct['Prod_Cat'] !== $category) {
-            $changes[] = "category from '{$oldProduct['Prod_Cat']}' to '{$category}'";
-        }
-        if ($oldProduct['Prod_Desc'] !== $description) {
-            $changes[] = "description";
-        }
-        if ($oldProduct['Prod_Price'] != $price) {
-            $changes[] = "price from ₱" . number_format($oldProduct['Prod_Price'], 2) . " to ₱" . number_format($price, 2);
-        }
-        if ($oldProduct['Prod_Stock'] != $stock) {
-            $changes[] = "stock from {$oldProduct['Prod_Stock']} to {$stock}";
-        }
-        if ($imagePath !== null && $oldProduct['Prod_Image'] !== $imagePath) {
-            $changes[] = "image";
-        }
-
-        // Update the product
-        $sql = "UPDATE products SET Prod_Name = ?, Prod_Cat = ?, Prod_Desc = ?, Prod_Price = ?, Prod_Stock = ?, Prod_Updated_at = NOW()";
-        $params = [$name, $category, $description, $price, $stock];
-        
-        // Add image path to update if provided
-        if ($imagePath !== null) {
-            $sql .= ", Prod_Image = ?";
-            $params[] = $imagePath;
-        }
-        
-        $sql .= " WHERE ProductID = ?";
-        $params[] = $id;
-        
-        $query = $con->prepare($sql);
-        $query->execute($params);
-
-        // If price changed, add to pricing history
-        if ($oldProduct['Prod_Price'] != $price) {
-            $changeDate = date('Y-m-d');
-            $effectiveFrom = $changeDate;
-            $stmt = $con->prepare("INSERT INTO pricing_history 
-                (ProductID, PH_OldPrice, PH_NewPrice, PH_ChangeDate, PH_Effective_from) 
-                VALUES (?, ?, ?, ?, ?)");
-            $stmt->execute([$id, $oldProduct['Prod_Price'], $price, $changeDate, $effectiveFrom]);
-        }
-
-        // If stock changed, add to inventory history
-        if ($oldProduct['Prod_Stock'] != $stock) {
-            $qtyChange = $stock - $oldProduct['Prod_Stock'];
-            $stmt = $con->prepare("INSERT INTO inventory_history 
-                (ProductID, IH_QtyChange, IH_NewStckLvl, IH_ChangeDate) 
-                VALUES (?, ?, ?, NOW())");
-            $stmt->execute([$id, $qtyChange, $stock]);
-        }
-
-        // Log the changes in Product_Access_Log
-        if (!empty($changes)) {
-            $changeDetails = implode(', ', $changes);
-            $userId = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
-            $stmt = $con->prepare("INSERT INTO Product_Access_Log (ProductID, UserID, Pal_Action, Pal_TimeStamp) VALUES (?, ?, ?, NOW())");
-            $stmt->execute([$id, $userId, "Updated product: " . $changeDetails]);
-        }
-
-        $con->commit();
-        return true;
-    } catch (PDOException $e) {
-        if (isset($con)) $con->rollback();
-        error_log("Error updating product: " . $e->getMessage());
-        return false;
+        $sql = "SELECT * FROM products WHERE discontinued = 1";
+        $stmt = $con->prepare($sql);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
-}
+
+    function updateProduct($name, $category, $description, $price, $stock, $id, $imagePath = null) {
+        try {
+            $con = $this->opencon();
+            $con->beginTransaction();
+
+            // Fetch the old product details before updating
+            $stmt = $con->prepare("SELECT Prod_Name, Prod_Cat, Prod_Desc, Prod_Price, Prod_Stock, Prod_Image FROM products WHERE ProductID = ?");
+            $stmt->execute([$id]);
+            $oldProduct = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            // Track changes
+            $changes = [];
+            if ($oldProduct['Prod_Name'] !== $name) {
+                $changes[] = "name from '{$oldProduct['Prod_Name']}' to '{$name}'";
+            }
+            if ($oldProduct['Prod_Cat'] !== $category) {
+                $changes[] = "category from '{$oldProduct['Prod_Cat']}' to '{$category}'";
+            }
+            if ($oldProduct['Prod_Desc'] !== $description) {
+                $changes[] = "description";
+            }
+            if ($oldProduct['Prod_Price'] != $price) {
+                $changes[] = "price from ₱" . number_format($oldProduct['Prod_Price'], 2) . " to ₱" . number_format($price, 2);
+            }
+            if ($oldProduct['Prod_Stock'] != $stock) {
+                $changes[] = "stock from {$oldProduct['Prod_Stock']} to {$stock}";
+            }
+            if ($imagePath !== null && $oldProduct['Prod_Image'] !== $imagePath) {
+                $changes[] = "image";
+            }
+
+            // Update the product
+            $sql = "UPDATE products SET Prod_Name = ?, Prod_Cat = ?, Prod_Desc = ?, Prod_Price = ?, Prod_Stock = ?, Prod_Updated_at = NOW()";
+            $params = [$name, $category, $description, $price, $stock];
+            
+            // Add image path to update if provided
+            if ($imagePath !== null) {
+                $sql .= ", Prod_Image = ?";
+                $params[] = $imagePath;
+            }
+            
+            $sql .= " WHERE ProductID = ?";
+            $params[] = $id;
+            
+            $query = $con->prepare($sql);
+            $query->execute($params);
+
+            // If price changed, add to pricing history
+            if ($oldProduct['Prod_Price'] != $price) {
+                $changeDate = date('Y-m-d');
+                $effectiveFrom = $changeDate;
+                $stmt = $con->prepare("INSERT INTO pricing_history 
+                    (ProductID, PH_OldPrice, PH_NewPrice, PH_ChangeDate, PH_Effective_from) 
+                    VALUES (?, ?, ?, ?, ?)");
+                $stmt->execute([$id, $oldProduct['Prod_Price'], $price, $changeDate, $effectiveFrom]);
+            }
+
+            // If stock changed, add to inventory history
+            if ($oldProduct['Prod_Stock'] != $stock) {
+                $qtyChange = $stock - $oldProduct['Prod_Stock'];
+                $stmt = $con->prepare("INSERT INTO inventory_history 
+                    (ProductID, IH_QtyChange, IH_NewStckLvl, IH_ChangeDate) 
+                    VALUES (?, ?, ?, NOW())");
+                $stmt->execute([$id, $qtyChange, $stock]);
+            }
+
+            // Log the changes in Product_Access_Log
+            if (!empty($changes)) {
+                $changeDetails = implode(', ', $changes);
+                $userId = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
+                $stmt = $con->prepare("INSERT INTO Product_Access_Log (ProductID, UserID, Pal_Action, Pal_TimeStamp) VALUES (?, ?, ?, NOW())");
+                $stmt->execute([$id, $userId, "Updated product: " . $changeDetails]);
+            }
+
+            $con->commit();
+            return true;
+        } catch (PDOException $e) {
+            if (isset($con)) $con->rollback();
+            error_log("Error updating product: " . $e->getMessage());
+            return false;
+        }
+    }
 
     function deleteProduct($id) {
-    try {
-        $con = $this->opencon();
-        $con->beginTransaction();
-        $stmt = $con->prepare("DELETE FROM products WHERE ProductID = ?");
-        $result = $stmt->execute([$id]);
-        $con->commit();
-        return $result;
-    } catch (PDOException $e) {
-        if (isset($con)) $con->rollBack();
-        return false;
-    }
-}
-
-function addCustomer($firstName, $lastName, $contactInfo, $discountRate, $enrollLoyalty = false) {
-    $con = $this->opencon();
-    try {
-        $con->beginTransaction();
- 
-        $stmt = $con->prepare("INSERT INTO customers (Cust_FN, Cust_LN, Cust_CoInfo, Cust_DiscRate) VALUES (?, ?, ?, ?)");
-        $stmt->execute([$firstName, $lastName, $contactInfo, $discountRate]);
-        $custID = $con->lastInsertId();
- 
-        // If enroll loyalty is checked, add to loyalty_program
-        if ($enrollLoyalty) {
-            $tier = 'None'; // Default tier
-            $points = 0;      // Default points
-            $now = date('Y-m-d H:i:s');
-            $stmt2 = $con->prepare("INSERT INTO loyalty_program (CustomerID, LP_PtsBalance, LP_MbspTier, LP_LastUpdt) VALUES (?, ?, ?, ?)");
-            $stmt2->execute([$custID, $points, $tier, $now]);
+        try {
+            $con = $this->opencon();
+            $con->beginTransaction();
+            $stmt = $con->prepare("DELETE FROM products WHERE ProductID = ?");
+            $result = $stmt->execute([$id]);
+            $con->commit();
+            return $result;
+        } catch (PDOException $e) {
+            if (isset($con)) $con->rollBack();
+            return false;
         }
- 
-        $con->commit();
-        return $custID;
-    } catch (PDOException $e) {
-        $con->rollBack();
-        return false;
     }
-}
+
+    function addCustomer($firstName, $lastName, $contactInfo, $discountRate, $enrollLoyalty = false) {
+        $con = $this->opencon();
+        try {
+            $con->beginTransaction();
+ 
+            $stmt = $con->prepare("INSERT INTO customers (Cust_FN, Cust_LN, Cust_CoInfo, Cust_DiscRate) VALUES (?, ?, ?, ?)");
+            $stmt->execute([$firstName, $lastName, $contactInfo, $discountRate]);
+            $custID = $con->lastInsertId();
+ 
+            // If enroll loyalty is checked, add to loyalty_program
+            if ($enrollLoyalty) {
+                $tier = 'None'; // Default tier
+                $points = 0;      // Default points
+                $now = date('Y-m-d H:i:s');
+                $stmt2 = $con->prepare("INSERT INTO loyalty_program (CustomerID, LP_PtsBalance, LP_MbspTier, LP_LastUpdt) VALUES (?, ?, ?, ?)");
+                $stmt2->execute([$custID, $points, $tier, $now]);
+            }
+ 
+            $con->commit();
+            return $custID;
+        } catch (PDOException $e) {
+            $con->rollBack();
+            return false;
+        }
+    }
  
     
-function viewCustomers() {
-    $con = $this->opencon();
-    $sql = "SELECT c.*, l.LP_PtsBalance 
-            FROM customers c
-            LEFT JOIN loyalty_program l ON c.CustomerID = l.CustomerID";
-    return $con->query($sql)->fetchAll(PDO::FETCH_ASSOC);
-}
+    function viewCustomers() {
+        $con = $this->opencon();
+        $sql = "SELECT c.*, l.LP_PtsBalance 
+                FROM customers c
+                LEFT JOIN loyalty_program l ON c.CustomerID = l.CustomerID";
+        return $con->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+    }
 
     function viewPromotions() {
-    $con = $this->opencon();
-    $stmt = $con->prepare("SELECT * FROM promotions ORDER BY PromotionID");
-    $stmt->execute();
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
-}
+        $con = $this->opencon();
+        $stmt = $con->prepare("SELECT * FROM promotions ORDER BY PromotionID");
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
 
     function addPromotion($code, $desc, $amount, $type, $start, $end, $limit, $isActive) {
-    $con = $this->opencon();
-    try {
-        $con->beginTransaction();
-        $stmt = $con->prepare("INSERT INTO promotions 
-            (Prom_Code, Promo_Description, Promo_DiscAmnt, Promo_DiscountType, Promo_StartDate, Promo_EndDate, UsageLimit, Promo_IsActive) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-        $stmt->execute([$code, $desc, $amount, $type, $start, $end, $limit, $isActive]);
-        $promotionID = $con->lastInsertId();
-        $con->commit();
-        return $promotionID;
-    } catch (PDOException $e) {
-        if (isset($con)) $con->rollBack();
-        return false;
-    }
-}
-
-function updatePromotionDetails($code, $desc, $amount, $type, $start, $end, $limit, $promotionId){
-    try    {
         $con = $this->opencon();
-        $con->beginTransaction();
-        $query = $con->prepare("UPDATE promotions SET Prom_Code = ?, Promo_Description = ?, Promo_DiscAmnt =?, Promo_DiscountType = ?, Promo_StartDate = ? , Promo_EndDate = ?, UsageLimit = ? WHERE PromotionID = ? ");
-        $query->execute([$code, $desc, $amount, $type, $start, $end, $limit, $promotionId]);
-        $con->commit();
-        return true;
+        try {
+            $con->beginTransaction();
+            $stmt = $con->prepare("INSERT INTO promotions 
+                (Prom_Code, Promo_Description, Promo_DiscAmnt, Promo_DiscountType, Promo_StartDate, Promo_EndDate, UsageLimit, Promo_IsActive) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt->execute([$code, $desc, $amount, $type, $start, $end, $limit, $isActive]);
+            $promotionID = $con->lastInsertId();
+            $con->commit();
+            return $promotionID;
+        } catch (PDOException $e) {
+            if (isset($con)) $con->rollBack();
+            return false;
+        }
+    }
+
+    function updatePromotionDetails($code, $desc, $amount, $type, $start, $end, $limit, $promotionId){
+        try    {
+            $con = $this->opencon();
+            $con->beginTransaction();
+            $query = $con->prepare("UPDATE promotions SET Prom_Code = ?, Promo_Description = ?, Promo_DiscAmnt =?, Promo_DiscountType = ?, Promo_StartDate = ? , Promo_EndDate = ?, UsageLimit = ? WHERE PromotionID = ? ");
+            $query->execute([$code, $desc, $amount, $type, $start, $end, $limit, $promotionId]);
+            $con->commit();
+            return true;
  
-    } catch (PDOException $e) {
-       
-         $con->rollBack();
-        return false;
-    }
+        } catch (PDOException $e) {
+           
+             $con->rollBack();
+            return false;
+        }
     }
 
- function addSupplier($Sup_Name, $Sup_CoInfo, $Sup_PayTerm, $Sup_DeSched) {
-    $con = $this->opencon();
-    try {
-        $con->beginTransaction();
-        $stmt = $con->prepare("INSERT INTO suppliers (Sup_Name, Sup_CoInfo, Sup_PayTerm, Sup_DeSched) VALUES (?, ?, ?, ?)");
-        $stmt->execute([$Sup_Name, $Sup_CoInfo, $Sup_PayTerm, $Sup_DeSched]);
-        $supplierID = $con->lastInsertId();
-        $con->commit();
-        return $supplierID;
-    } catch (PDOException $e) {
-        $con->rollback();
-        // Uncomment for debugging:
-        // die("DB Error: " . $e->getMessage());
-        return false;
-    }
-}
-
-function viewSuppliers() {
-    $con = $this->opencon();
-    return $con->query("SELECT * FROM suppliers")->fetchAll(PDO::FETCH_ASSOC);
-}
-
-function updateSupplier( $Sup_Name, $Sup_CoInfo, $Sup_PayTerm, $Sup_DeSched, $SupplierID) {
-    $con = $this->opencon();
-    try {
-        $con->beginTransaction();
-        $stmt = $con->prepare("UPDATE suppliers SET Sup_Name = ?, Sup_CoInfo = ?, Sup_PayTerm = ?, Sup_DeSched = ? WHERE SupplierID = ?");
-        $updated = $stmt->execute([$Sup_Name, $Sup_CoInfo, $Sup_PayTerm, $Sup_DeSched, $SupplierID]);
-        $con->commit();
-        return $updated;
-    } catch (PDOException $e) {
-        $con->rollBack();
-        return false;
-    }
-}
-
-function deleteSupplier($id) {
-    try {
+    function addSupplier($Sup_Name, $Sup_CoInfo, $Sup_PayTerm, $Sup_DeSched) {
         $con = $this->opencon();
-        $con->beginTransaction();
-        $stmt = $con->prepare("DELETE FROM suppliers WHERE SupplierID = ?");
-        $result = $stmt->execute([$id]);
-        $con->commit();
-        return $result;
-    } catch (PDOException $e) {
-        if (isset($con)) $con->rollBack();
-        return false;
+        try {
+            $con->beginTransaction();
+            $stmt = $con->prepare("INSERT INTO suppliers (Sup_Name, Sup_CoInfo, Sup_PayTerm, Sup_DeSched) VALUES (?, ?, ?, ?)");
+            $stmt->execute([$Sup_Name, $Sup_CoInfo, $Sup_PayTerm, $Sup_DeSched]);
+            $supplierID = $con->lastInsertId();
+            $con->commit();
+            return $supplierID;
+        } catch (PDOException $e) {
+            $con->rollback();
+            // Uncomment for debugging:
+            // die("DB Error: " . $e->getMessage());
+            return false;
+        }
     }
-}
 
-function getProductById($id) {
-    $con = $this->opencon();
-    $stmt = $con->prepare("SELECT * FROM products WHERE ProductID = ?");
-    $stmt->execute([$id]);
-    return $stmt->fetch(PDO::FETCH_ASSOC);
-}
+    function viewSuppliers() {
+        $con = $this->opencon();
+        return $con->query("SELECT * FROM suppliers")->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    function updateSupplier( $Sup_Name, $Sup_CoInfo, $Sup_PayTerm, $Sup_DeSched, $SupplierID) {
+        $con = $this->opencon();
+        try {
+            $con->beginTransaction();
+            $stmt = $con->prepare("UPDATE suppliers SET Sup_Name = ?, Sup_CoInfo = ?, Sup_PayTerm = ?, Sup_DeSched = ? WHERE SupplierID = ?");
+            $updated = $stmt->execute([$Sup_Name, $Sup_CoInfo, $Sup_PayTerm, $Sup_DeSched, $SupplierID]);
+            $con->commit();
+            return $updated;
+        } catch (PDOException $e) {
+            $con->rollBack();
+            return false;
+        }
+    }
+
+    function deleteSupplier($id) {
+        try {
+            $con = $this->opencon();
+            $con->beginTransaction();
+            $stmt = $con->prepare("DELETE FROM suppliers WHERE SupplierID = ?");
+            $result = $stmt->execute([$id]);
+            $con->commit();
+            return $result;
+        } catch (PDOException $e) {
+            if (isset($con)) $con->rollBack();
+            return false;
+        }
+    }
+
+    function getProductById($id) {
+        $con = $this->opencon();
+        $stmt = $con->prepare("SELECT * FROM products WHERE ProductID = ?");
+        $stmt->execute([$id]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
  
 
-function registerUser($username, $password, $role, $photo = null, $firstName = null, $lastName = null, $contactInfo = null) {
-    try {
-        $con = $this->opencon();
-        $con->beginTransaction();
-        
-        // Hash the password
-        $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-        
-        // Insert into USER_ACCOUNTS
-        $stmt = $con->prepare("INSERT INTO USER_ACCOUNTS (User_Name, User_Password, User_Role, User_Photo, User_CreatedAt) VALUES (?, ?, ?, ?, NOW())");
-        $stmt->execute([$username, $hashedPassword, $role, $photo]);
-        
-        $userID = $con->lastInsertId();
+    function registerUser($username, $password, $role, $photo = null, $firstName = null, $lastName = null, $contactInfo = null) {
+        try {
+            $con = $this->opencon();
+            $con->beginTransaction();
+            
+            // Hash the password
+            $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+            
+            // Insert into USER_ACCOUNTS
+            $stmt = $con->prepare("INSERT INTO USER_ACCOUNTS (User_Name, User_Password, User_Role, User_Photo, User_CreatedAt) VALUES (?, ?, ?, ?, NOW())");
+            $stmt->execute([$username, $hashedPassword, $role, $photo]);
+            
+            $userID = $con->lastInsertId();
 
-        // Insert into Customers
-        $stmt = $con->prepare("INSERT INTO customers (UserID, Cust_FN, Cust_LN, Cust_CoInfo, Cust_LoStat, Cust_DiscRate) VALUES (?, ?, ?, ?, 'None', '0.00')");
-        $stmt->execute([$userID, $firstName, $lastName, $contactInfo]);
-        
-        $customerID = $con->lastInsertId();
+            // Insert into Customers
+            $stmt = $con->prepare("INSERT INTO customers (UserID, Cust_FN, Cust_LN, Cust_CoInfo, Cust_LoStat, Cust_DiscRate) VALUES (?, ?, ?, ?, 'None', '0.00')");
+            $stmt->execute([$userID, $firstName, $lastName, $contactInfo]);
+            
+            $customerID = $con->lastInsertId();
 
-        // Insert into Loyalty_Program
-        $stmt = $con->prepare("INSERT INTO loyalty_program (CustomerID, LP_PtsBalance, LP_MbspTier, LP_LastUpdt) VALUES (?, 0, 'None', NOW())");
-        $stmt->execute([$customerID]);
+            // Insert into Loyalty_Program
+            $stmt = $con->prepare("INSERT INTO loyalty_program (CustomerID, LP_PtsBalance, LP_MbspTier, LP_LastUpdt) VALUES (?, 0, 'None', NOW())");
+            $stmt->execute([$customerID]);
 
-        $con->commit();
-        return $userID;
-    } catch (PDOException $e) {
-        if (isset($con)) $con->rollBack();
-        return false;
+            $con->commit();
+            return $userID;
+        } catch (PDOException $e) {
+            if (isset($con)) $con->rollBack();
+            return false;
+        }
     }
-}
 
     function loginUser($username, $password) {
         try {
@@ -409,60 +420,60 @@ function registerUser($username, $password, $role, $photo = null, $firstName = n
     }
         
     function viewLoyaltyProgram() {
-    $con = $this->opencon();
-    $stmt = $con->prepare("
-        SELECT l.LoyaltyID, l.CustomerID, c.Cust_FN, c.Cust_LN, l.LP_PtsBalance, l.LP_LastUpdt
-        FROM loyalty_program l
-        JOIN customers c ON l.CustomerID = c.CustomerID
-        ORDER BY l.LoyaltyID
-    ");
-    $stmt->execute();
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
-}
-
-public function updateMemberTier($customerId) {
-    $con = $this->opencon();
-
-    // Get current points
-    $stmt = $con->prepare("SELECT LP_PtsBalance FROM loyalty_program WHERE CustomerID = ?");
-    $stmt->execute([$customerId]);
-    $points = (int)$stmt->fetchColumn();
-
-    // Fetch tier thresholds from settings (no fixed defaults)
-    $settings = $con->query("SELECT bronze, silver, gold FROM loyalty_settings WHERE id = 1")->fetch(PDO::FETCH_ASSOC);
-
-    if (!$settings) {
-        // Optionally, handle error if settings are missing
-        return;
+        $con = $this->opencon();
+        $stmt = $con->prepare("
+            SELECT l.LoyaltyID, l.CustomerID, c.Cust_FN, c.Cust_LN, l.LP_PtsBalance, l.LP_LastUpdt
+            FROM loyalty_program l
+            JOIN customers c ON l.CustomerID = c.CustomerID
+            ORDER BY l.LoyaltyID
+        ");
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    $bronze = (int)$settings['bronze'];
-    $silver = (int)$settings['silver'];
-    $gold   = (int)$settings['gold'];
+    public function updateMemberTier($customerId) {
+        $con = $this->opencon();
 
-    // Determine tier and discount rate (with correct range logic)
-    if ($points >= $gold) {
-        $tier = 'Gold';
-        $discount = 15;
-    } elseif ($points >= $silver) {
-        $tier = 'Silver';
-        $discount = 10;
-    } elseif ($points >= $bronze) {
-        $tier = 'Bronze';
-        $discount = 5;
-    } else {
-        $tier = 'None';
-        $discount = 0;
+        // Get current points
+        $stmt = $con->prepare("SELECT LP_PtsBalance FROM loyalty_program WHERE CustomerID = ?");
+        $stmt->execute([$customerId]);
+        $points = (int)$stmt->fetchColumn();
+
+        // Fetch tier thresholds from settings (no fixed defaults)
+        $settings = $con->query("SELECT bronze, silver, gold FROM loyalty_settings WHERE id = 1")->fetch(PDO::FETCH_ASSOC);
+
+        if (!$settings) {
+            // Optionally, handle error if settings are missing
+            return;
+        }
+
+        $bronze = (int)$settings['bronze'];
+        $silver = (int)$settings['silver'];
+        $gold   = (int)$settings['gold'];
+
+        // Determine tier and discount rate (with correct range logic)
+        if ($points >= $gold) {
+            $tier = 'Gold';
+            $discount = 15;
+        } elseif ($points >= $silver) {
+            $tier = 'Silver';
+            $discount = 10;
+        } elseif ($points >= $bronze) {
+            $tier = 'Bronze';
+            $discount = 5;
+        } else {
+            $tier = 'None';
+            $discount = 0;
+        }
+
+        // Update tier in DB
+        $stmt = $con->prepare("UPDATE loyalty_program SET LP_MbspTier = ? WHERE CustomerID = ?");
+        $stmt->execute([$tier, $customerId]);
+
+        // Update loyalty status and discount rate in customers table
+        $stmt = $con->prepare("UPDATE customers SET Cust_LoStat = ?, Cust_DiscRate = ? WHERE CustomerID = ?");
+        $stmt->execute([$tier, $discount, $customerId]);
     }
-
-    // Update tier in DB
-    $stmt = $con->prepare("UPDATE loyalty_program SET LP_MbspTier = ? WHERE CustomerID = ?");
-    $stmt->execute([$tier, $customerId]);
-
-    // Update loyalty status and discount rate in customers table
-    $stmt = $con->prepare("UPDATE customers SET Cust_LoStat = ?, Cust_DiscRate = ? WHERE CustomerID = ?");
-    $stmt->execute([$tier, $discount, $customerId]);
-}
 
     // Pricing History Functions
     function addPricingHistory($productId, $oldPrice, $newPrice, $changeDate, $effectiveFrom, $effectiveTo = null) {
@@ -529,16 +540,16 @@ public function updateMemberTier($customerId) {
     }
 
     public function updatePricingHistory($historyId, $oldPrice, $newPrice, $changeDate, $effectiveFrom, $effectiveTo = null) {
-    $con = $this->opencon();
-    $sql = "UPDATE pricing_history 
-            SET PH_Effective_from = :effectiveFrom, PH_Effective_to = :effectiveTo
-            WHERE HistoryID = :historyId";
-    $stmt = $con->prepare($sql);
-    $stmt->bindParam(':effectiveFrom', $effectiveFrom);
-    $stmt->bindParam(':effectiveTo', $effectiveTo);
-    $stmt->bindParam(':historyId', $historyId);
-    return $stmt->execute();
-}
+        $con = $this->opencon();
+        $sql = "UPDATE pricing_history 
+                SET PH_Effective_from = :effectiveFrom, PH_Effective_to = :effectiveTo
+                WHERE HistoryID = :historyId";
+        $stmt = $con->prepare($sql);
+        $stmt->bindParam(':effectiveFrom', $effectiveFrom);
+        $stmt->bindParam(':effectiveTo', $effectiveTo);
+        $stmt->bindParam(':historyId', $historyId);
+        return $stmt->execute();
+    }
 
     function deletePricingHistory($historyId) {
         try {
@@ -556,543 +567,565 @@ public function updateMemberTier($customerId) {
         }
     }
 
-function viewInventoryHistory() {
-    $con = $this->opencon();
-    $stmt = $con->prepare("
-        SELECT ih.*, p.Prod_Name 
-        FROM inventory_history ih
-        JOIN products p ON ih.ProductID = p.ProductID
-        ORDER BY ih.IH_ChangeDate DESC
-    ");
-    $stmt->execute();
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
-}
-
-function getPurchaseOrders() {
-    $con = $this->opencon();
-    $stmt = $con->prepare("
-        SELECT 
-            po.*,
-            s.Sup_Name,
-            s.Sup_CoInfo,
-            s.Sup_PayTerm,
-            s.Sup_DeSched,
-            GROUP_CONCAT(
-                CONCAT(
-                    p.Prod_Name, ' (',
-                    poi.Pur_OIQuantity, ' x ₱',
-                    poi.Pur_OIPrice, ')'
-                ) SEPARATOR ', '
-            ) as items_list,
-            GROUP_CONCAT(
-                CONCAT(
-                    p.Prod_Name, ':', poi.Pur_OIPrice
-                ) SEPARATOR ','
-            ) as item_prices,
-            COUNT(poi.Pur_OrderItemID) as total_items,
-            SUM(poi.Pur_OIQuantity * poi.Pur_OIPrice) as total_amount
-        FROM purchase_orders po
-        JOIN suppliers s ON po.SupplierID = s.SupplierID
-        LEFT JOIN purchase_order_item poi ON po.Pur_OrderID = poi.Pur_OrderID
-        LEFT JOIN products p ON poi.ProductID = p.ProductID
-        GROUP BY po.Pur_OrderID
-        ORDER BY po.Pur_OrderID DESC
-    ");
-    $stmt->execute();
-    $orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-    // Add current stock levels and inventory history for each order
-    foreach ($orders as &$order) {
-        // Parse item prices
-        $itemPrices = [];
-        if ($order['item_prices']) {
-            foreach (explode(',', $order['item_prices']) as $price) {
-                list($name, $price) = explode(':', $price);
-                $itemPrices[$name] = $price;
-            }
-        }
-        $order['item_prices'] = $itemPrices;
-
-        // Get current stock levels
-        $currentStock = [];
-        if ($order['items_list']) {
-            $items = explode(', ', $order['items_list']);
-            foreach ($items as $item) {
-                $itemName = explode(' (', $item)[0];
-                $stmt = $con->prepare("SELECT Prod_Stock FROM products WHERE Prod_Name = ?");
-                $stmt->execute([$itemName]);
-                $currentStock[$itemName] = $stmt->fetchColumn() ?: 0;
-            }
-        }
-        $order['current_stock'] = $currentStock;
-
-        // Get inventory history
-        $inventoryHistory = [];
-        if ($order['items_list']) {
-            $items = explode(', ', $order['items_list']);
-            foreach ($items as $item) {
-                $itemName = explode(' (', $item)[0];
-                $stmt = $con->prepare("
-                    SELECT 
-                        p.Prod_Name as product_name,
-                        ih.IH_QtyChange as quantity_change,
-                        ih.IH_NewStckLvl as new_stock_level,
-                        ih.IH_ChangeDate as change_date
-                    FROM inventory_history ih
-                    JOIN products p ON ih.ProductID = p.ProductID
-                    WHERE p.Prod_Name = ?
-                    ORDER BY ih.IH_ChangeDate DESC
-                    LIMIT 5
-                ");
-                $stmt->execute([$itemName]);
-                $history = $stmt->fetchAll(PDO::FETCH_ASSOC);
-                if ($history) {
-                    // Add description based on quantity change
-                    foreach ($history as &$entry) {
-                        $entry['description'] = $entry['quantity_change'] > 0 
-                            ? "Stock added from Purchase Order #" . $order['Pur_OrderID']
-                            : "Stock reduced from sales";
-                    }
-                    $inventoryHistory = array_merge($inventoryHistory, $history);
-                }
-            }
-        }
-        $order['inventory_history'] = $inventoryHistory;
-    }
-
-    return $orders;
-}
-
-function viewInventoryAlerts() {
-    try {
-        $sql = "SELECT 
-                p.Prod_Name,
-                p.Prod_Stock as CurrentStock,
-                CASE 
-                    WHEN p.Prod_Stock <= 10 THEN 10
-                    WHEN p.Prod_Stock <= 20 THEN 20
-                    ELSE 30
-                END as Threshold
-                FROM Products p
-                WHERE p.Prod_Stock <= 30
-                ORDER BY p.Prod_Stock ASC";
-        $stmt = $this->opencon()->prepare($sql);
+    function viewInventoryHistory() {
+        $con = $this->opencon();
+        $stmt = $con->prepare("
+            SELECT ih.*, p.Prod_Name 
+            FROM inventory_history ih
+            JOIN products p ON ih.ProductID = p.ProductID
+            ORDER BY ih.IH_ChangeDate DESC
+        ");
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    } catch (PDOException $e) {
-        error_log("Error in viewInventoryAlerts: " . $e->getMessage());
-        return [];
     }
-}
+
+    function getPurchaseOrders() {
+        $con = $this->opencon();
+        $stmt = $con->prepare("
+            SELECT 
+                po.*,
+                s.Sup_Name,
+                s.Sup_CoInfo,
+                s.Sup_PayTerm,
+                s.Sup_DeSched,
+                GROUP_CONCAT(
+                    CONCAT(
+                        p.Prod_Name, ' (',
+                        poi.Pur_OIQuantity, ' x ₱',
+                        poi.Pur_OIPrice, ')'
+                    ) SEPARATOR ', '
+                ) as items_list,
+                GROUP_CONCAT(
+                    CONCAT(
+                        p.Prod_Name, ':', poi.Pur_OIPrice
+                    ) SEPARATOR ','
+                ) as item_prices,
+                COUNT(poi.Pur_OrderItemID) as total_items,
+                SUM(poi.Pur_OIQuantity * poi.Pur_OIPrice) as total_amount
+            FROM purchase_orders po
+            JOIN suppliers s ON po.SupplierID = s.SupplierID
+            LEFT JOIN purchase_order_item poi ON po.Pur_OrderID = poi.Pur_OrderID
+            LEFT JOIN products p ON poi.ProductID = p.ProductID
+            GROUP BY po.Pur_OrderID
+            ORDER BY po.Pur_OrderID DESC
+        ");
+        $stmt->execute();
+        $orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Add current stock levels and inventory history for each order
+        foreach ($orders as &$order) {
+            // Parse item prices
+            $itemPrices = [];
+            if ($order['item_prices']) {
+                foreach (explode(',', $order['item_prices']) as $price) {
+                    list($name, $price) = explode(':', $price);
+                    $itemPrices[$name] = $price;
+                }
+            }
+            $order['item_prices'] = $itemPrices;
+
+            // Get current stock levels
+            $currentStock = [];
+            if ($order['items_list']) {
+                $items = explode(', ', $order['items_list']);
+                foreach ($items as $item) {
+                    $itemName = explode(' (', $item)[0];
+                    $stmt = $con->prepare("SELECT Prod_Stock FROM products WHERE Prod_Name = ?");
+                    $stmt->execute([$itemName]);
+                    $currentStock[$itemName] = $stmt->fetchColumn() ?: 0;
+                }
+            }
+            $order['current_stock'] = $currentStock;
+
+            // Get inventory history
+            $inventoryHistory = [];
+            if ($order['items_list']) {
+                $items = explode(', ', $order['items_list']);
+                foreach ($items as $item) {
+                    $itemName = explode(' (', $item)[0];
+                    $stmt = $con->prepare("
+                        SELECT 
+                            p.Prod_Name as product_name,
+                            ih.IH_QtyChange as quantity_change,
+                            ih.IH_NewStckLvl as new_stock_level,
+                            ih.IH_ChangeDate as change_date
+                        FROM inventory_history ih
+                        JOIN products p ON ih.ProductID = p.ProductID
+                        WHERE p.Prod_Name = ?
+                        ORDER BY ih.IH_ChangeDate DESC
+                        LIMIT 5
+                    ");
+                    $stmt->execute([$itemName]);
+                    $history = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                    if ($history) {
+                        // Add description based on quantity change
+                        foreach ($history as &$entry) {
+                            $entry['description'] = $entry['quantity_change'] > 0 
+                                ? "Stock added from Purchase Order #" . $order['Pur_OrderID']
+                                : "Stock reduced from sales";
+                        }
+                        $inventoryHistory = array_merge($inventoryHistory, $history);
+                    }
+                }
+            }
+            $order['inventory_history'] = $inventoryHistory;
+        }
+
+        return $orders;
+    }
+
+    function viewInventoryAlerts() {
+        try {
+            $sql = "SELECT 
+                    p.Prod_Name,
+                    p.Prod_Stock as CurrentStock,
+                    CASE 
+                        WHEN p.Prod_Stock <= 10 THEN 10
+                        WHEN p.Prod_Stock <= 20 THEN 20
+                        ELSE 30
+                    END as Threshold
+                    FROM Products p
+                    WHERE p.Prod_Stock <= 30
+                    ORDER BY p.Prod_Stock ASC";
+            $stmt = $this->opencon()->prepare($sql);
+            $stmt->execute();
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log("Error in viewInventoryAlerts: " . $e->getMessage());
+            return [];
+        }
+    }
  
    
     public function getAllProducts() {
-    $con = $this->opencon();
-    $stmt = $con->prepare("SELECT * FROM products");
-    $stmt->execute();
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
-}
- 
-public function updateProductStock($productId, $newStock) {
-    $con = $this->opencon();
-    $stmt = $con->prepare("UPDATE products SET Prod_Stock = ? WHERE ProductID = ?");
-    return $stmt->execute([$newStock, $productId]);
-}
-
-function updateCustomer($id, $firstName, $lastName, $contactInfo, $discountRate, $enrollLoyalty) {
-    $con = $this->opencon();
-    try {
-        $con->beginTransaction();
- 
-        // Update customer details
-        $stmt = $con->prepare("UPDATE customers SET Cust_FN = ?, Cust_LN = ?, Cust_CoInfo = ?, Cust_DiscRate = ? WHERE CustomerID = ?");
-        $stmt->execute([$firstName, $lastName, $contactInfo, $discountRate, $id]);
- 
-        // Handle loyalty program enrollment
-        $stmt = $con->prepare("SELECT COUNT(*) FROM loyalty_program WHERE CustomerID = ?");
-        $stmt->execute([$id]);
-        $isEnrolled = $stmt->fetchColumn() > 0;
- 
-        if ($enrollLoyalty && !$isEnrolled) {
-            // Add to loyalty program
-            $tier = 'None';
-            $points = 0;
-            $now = date('Y-m-d H:i:s');
-            $stmt = $con->prepare("INSERT INTO loyalty_program (CustomerID, LP_PtsBalance, LP_MbspTier, LP_LastUpdt) VALUES (?, ?, ?, ?)");
-            $stmt->execute([$id, $points, $tier, $now]);
-        } elseif (!$enrollLoyalty && $isEnrolled) {
-            // Remove from loyalty program
-            $stmt = $con->prepare("DELETE FROM loyalty_program WHERE CustomerID = ?");
-            $stmt->execute([$id]);
-        }
- 
-        $con->commit();
-        return true;
-    } catch (PDOException $e) {
-        $con->rollBack();
-        return false;
-    }
-}
-
-public function addPurchaseOrder($supplierId, $orderDate, $paymentTerms, $notes, $shippingCost, $totalAmount, $items = []) {
-    try {
         $con = $this->opencon();
-        $con->beginTransaction();
-
-        // Debug log
-        error_log("Adding purchase order with data: " . print_r([
-            'supplierId' => $supplierId,
-            'orderDate' => $orderDate,
-            'paymentTerms' => $paymentTerms,
-            'notes' => $notes,
-            'shippingCost' => $shippingCost,
-            'totalAmount' => $totalAmount,
-            'items' => $items
-        ], true));
-
-        // Insert into purchase_orders
-        $stmt = $con->prepare("INSERT INTO purchase_orders 
-            (SupplierID, PO_Order_Date, PO_Order_Stat, PO_Total_Amount, PO_Shipping_Cost, PO_Payment_Terms, PO_Notes)
-            VALUES (?, ?, 'Waiting', ?, ?, ?, ?)");
-        
-        $stmt->execute([
-            $supplierId,
-            $orderDate,
-            $totalAmount,
-            $shippingCost ?? 0,
-            $paymentTerms,
-            $notes
-        ]);
-
-        $poId = $con->lastInsertId();
-
-        // Insert items
-        foreach ($items as $item) {
-            $stmt = $con->prepare("INSERT INTO purchase_order_item 
-                (Pur_OrderID, ProductID, Pur_OIQuantity, Pur_OIPrice)
-                VALUES (?, ?, ?, ?)");
-            $stmt->execute([
-                $poId,
-                $item['product_id'],
-                $item['quantity'],
-                $item['price']
-            ]);
-        }
-
-        $con->commit();
-        return ['success' => true, 'po_id' => $poId];
-    } catch (PDOException $e) {
-        if (isset($con)) $con->rollBack();
-        error_log("Error adding purchase order: " . $e->getMessage());
-        return ['success' => false, 'message' => 'Failed to add purchase order: ' . $e->getMessage()];
-    }
-}
-
-public function getCustomerById($customerId) {
-    $conn = $this->opencon();
-    $stmt = $conn->prepare("
-        SELECT c.*, l.LP_PtsBalance, l.LP_MbspTier, l.LP_LastUpdt
-        FROM customers c
-        LEFT JOIN loyalty_program l ON c.CustomerID = l.CustomerID
-        WHERE c.CustomerID = ?
-    ");
-    $stmt->execute([$customerId]);
-    return $stmt->fetch(PDO::FETCH_ASSOC);
-}
-
-public function getCustomerCount() {
-    $con = $this->opencon();
-    $stmt = $con->prepare("SELECT COUNT(*) as total FROM customers");
-    $stmt->execute();
-    $row = $stmt->fetch(PDO::FETCH_ASSOC);
-    return $row ? (int)$row['total'] : 0;
-}
-
-public function getProductsInStock() {
-    $con = $this->opencon();
-    $stmt = $con->prepare("SELECT COUNT(*) as total FROM products WHERE Prod_Stock > 0");
-    $stmt->execute();
-    $row = $stmt->fetch(PDO::FETCH_ASSOC);
-    return $row ? (int)$row['total'] : 0;
-}
-
-// new methods
-
-
-
-function getUserInfo($userID) {
-    $con = $this->opencon();
-    $stmt = $con->prepare("
-        SELECT * FROM User_Accounts 
-        WHERE UserID = ?
-    ");
-    $stmt->execute([$userID]);
-    return $stmt->fetch(PDO::FETCH_ASSOC);
-}
-
-function getCustomerInfo($userID) {
-    $con = $this->opencon();
-    $stmt = $con->prepare("
-        SELECT 
-            c.*,
-            COALESCE(l.LP_PtsBalance, 0) as LP_PtsBalance,
-            COALESCE(l.LP_MbspTier, 'None') as Cust_LoStat,
-            COALESCE(c.Cust_DiscRate, '0.00') as Cust_DiscRate
-        FROM Customers c
-        LEFT JOIN Loyalty_Program l ON c.CustomerID = l.CustomerID
-        WHERE c.UserID = ?
-    ");
-    $stmt->execute([$userID]);
-    return $stmt->fetch(PDO::FETCH_ASSOC);
-}
-
-function getUserOrders($userID) {
-    $con = $this->opencon();
-    $stmt = $con->prepare("
-        SELECT 
-            s.SaleID AS OrderID,
-            s.Sale_Date AS Order_Date,
-            s.Sale_Status as Order_Status,
-            (SELECT COUNT(*) FROM Sale_Item WHERE SaleID = s.SaleID) as item_count,
-            (SELECT SUM(SI_Quantity * SI_Price) FROM Sale_Item WHERE SaleID = s.SaleID) as Order_Total,
-            p.Prom_Code as PromotionName
-        FROM Sales s
-        JOIN Customers c ON s.CustomerID = c.CustomerID
-        LEFT JOIN Order_Promotions op ON s.SaleID = op.SaleID
-        LEFT JOIN promotions p ON op.PromotionID = p.PromotionID
-        WHERE c.UserID = ?
-        ORDER BY s.Sale_Date DESC
-    ");
-    $stmt->execute([$userID]);
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
-}
-
-function getOrderDetails($saleID) {
-    $con = $this->opencon();
-    $stmt = $con->prepare("
-        SELECT 
-            s.SaleID as OrderID,
-            s.Sale_Date as Order_Date,
-            s.Sale_Status as Order_Status,
-            COALESCE(ph.PT_PayMethod, 'cash') as Payment_Method,
-            si.SI_Quantity as Quantity,
-            si.SI_Price as Price,
-            p.Prod_Name as product_name,
-            CONCAT(c.Cust_FN, ' ', c.Cust_LN) as customer_name,
-            c.Cust_DiscRate,
-            COALESCE(op.OrderP_DiscntApplied, 0) as discount_applied,
-            (si.SI_Quantity * si.SI_Price) as Subtotal,
-            (SELECT SUM(SI_Quantity * SI_Price) FROM Sale_Item WHERE SaleID = s.SaleID) as Order_Total,
-            prom.Prom_Code as PromotionName,
-            CASE 
-                WHEN COALESCE(ph.PT_PayMethod, 'cash') = 'cash' THEN 'Cash'
-                WHEN COALESCE(ph.PT_PayMethod, 'cash') = 'card' THEN 'Card'
-                ELSE 'Cash'
-            END as Payment_Method_Display
-        FROM Sales s
-        JOIN Sale_Item si ON s.SaleID = si.SaleID
-        JOIN Products p ON si.ProductID = p.ProductID
-        JOIN Customers c ON s.CustomerID = c.CustomerID
-        LEFT JOIN Order_Promotions op ON s.SaleID = op.SaleID
-        LEFT JOIN promotions prom ON op.PromotionID = prom.PromotionID
-        LEFT JOIN Payment_History ph ON s.SaleID = ph.SaleID
-        WHERE s.SaleID = ?
-    ");
-    $stmt->execute([$saleID]);
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
-}
-
-
-
-//
-
-
-function getAllUsers($offset = null, $limit = null) {
-    try {
-        $con = $this->opencon();
-        $sql = "SELECT * FROM USER_ACCOUNTS ORDER BY UserID";
-        
-        if ($offset !== null && $limit !== null) {
-            $sql .= " LIMIT ? OFFSET ?";
-            $stmt = $con->prepare($sql);
-            $stmt->bindValue(1, $limit, PDO::PARAM_INT);
-            $stmt->bindValue(2, $offset, PDO::PARAM_INT);
-        } else {
-            $stmt = $con->prepare($sql);
-        }
-        
+        $stmt = $con->prepare("SELECT * FROM products");
         $stmt->execute();
-        $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        error_log("getAllUsers - Number of users fetched: " . count($results));
-        error_log("getAllUsers - Offset: " . $offset . ", Limit: " . $limit);
-        return $results;
-    } catch (PDOException $e) {
-        error_log("getAllUsers error: " . $e->getMessage());
-        return false;
-    }
-}
-
-function getTotalUsers() {
-    try {
-        $con = $this->opencon();
-        $stmt = $con->prepare("SELECT COUNT(*) as total FROM USER_ACCOUNTS");
-        $stmt->execute();
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        $count = (int)$result['total'];
-        error_log("getTotalUsers - Raw count from database: " . $count);
-        return $count;
-    } catch (PDOException $e) {
-        error_log("getTotalUsers error: " . $e->getMessage());
-        return 0;
-    }
-}
-
-function updateUserRole($userID, $newRole) {
-    try {
-        $con = $this->opencon();
-        $con->beginTransaction();
-        
-        $stmt = $con->prepare("UPDATE USER_ACCOUNTS SET User_Role = ? WHERE UserID = ?");
-        $result = $stmt->execute([$newRole, $userID]);
-        
-        if ($result) {
-            error_log("Successfully updated role for user $userID to $newRole");
-        } else {
-            error_log("Failed to update role for user $userID");
-        }
-        
-        $con->commit();
-        return $result;
-    } catch (PDOException $e) {
-        error_log("updateUserRole error: " . $e->getMessage());
-        if (isset($con)) $con->rollBack();
-        return false;
-    }
-}
-
-function addAuditLog($userId, $action, $details) {
-    try {
-        $con = $this->opencon();
-        $ipAddress = $_SERVER['REMOTE_ADDR'];
-        
-        $stmt = $con->prepare("INSERT INTO audit_logs (user_id, action, details, ip_address, timestamp) 
-                              VALUES (?, ?, ?, ?, NOW())");
-        $result = $stmt->execute([$userId, $action, $details, $ipAddress]);
-        
-        return $result;
-    } catch (PDOException $e) {
-        error_log("Error adding audit log: " . $e->getMessage());
-        return false;
-    }
-}
-
-function getAuditLogs($start = 0, $length = 25, $search = '', $orderColumn = 'timestamp', $orderDir = 'DESC') {
-    try {
-        $con = $this->opencon();
-        
-        $query = "SELECT a.*, u.User_Name 
-                 FROM audit_logs a 
-                 LEFT JOIN USER_ACCOUNTS u ON a.user_id = u.UserID";
-        
-        if (!empty($search)) {
-            $query .= " WHERE a.action LIKE :search 
-                       OR a.details LIKE :search 
-                       OR u.User_Name LIKE :search 
-                       OR a.ip_address LIKE :search";
-        }
-        
-        $query .= " ORDER BY $orderColumn $orderDir LIMIT :start, :length";
-        
-        $stmt = $con->prepare($query);
-        
-        if (!empty($search)) {
-            $searchParam = "%$search%";
-            $stmt->bindParam(':search', $searchParam);
-        }
-        
-        $stmt->bindParam(':start', $start, PDO::PARAM_INT);
-        $stmt->bindParam(':length', $length, PDO::PARAM_INT);
-        $stmt->execute();
-        
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    } catch (PDOException $e) {
-        error_log("Error getting audit logs: " . $e->getMessage());
-        return false;
     }
-}
-
-function getTotalAuditLogs($search = '') {
-    try {
+ 
+    public function updateProductStock($productId, $newStock) {
         $con = $this->opencon();
-        
-        $query = "SELECT COUNT(*) FROM audit_logs a 
-                 LEFT JOIN USER_ACCOUNTS u ON a.user_id = u.UserID";
-        
-        if (!empty($search)) {
-            $query .= " WHERE a.action LIKE :search 
-                       OR a.details LIKE :search 
-                       OR u.User_Name LIKE :search 
-                       OR a.ip_address LIKE :search";
-        }
-        
-        $stmt = $con->prepare($query);
-        
-        if (!empty($search)) {
-            $searchParam = "%$search%";
-            $stmt->bindParam(':search', $searchParam);
-        }
-        
-        $stmt->execute();
-        return $stmt->fetchColumn();
-    } catch (PDOException $e) {
-        error_log("Error getting total audit logs: " . $e->getMessage());
-        return 0;
+        $stmt = $con->prepare("UPDATE products SET Prod_Stock = ? WHERE ProductID = ?");
+        return $stmt->execute([$newStock, $productId]);
     }
-}
 
-function getAvailablePromos($userID = null) {
-    $con = $this->opencon();
-    $today = date('Y-m-d H:i:s');
-    $sql = "SELECT * FROM promotions 
-        WHERE Promo_IsActive = 1 
-          AND DATE(Promo_StartDate) <= CURDATE() 
-          AND DATE(Promo_EndDate) >= CURDATE()";
-    $stmt = $con->prepare($sql);
-    $stmt->execute();
-    $promos = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
-    // Filter by usage limit
-    $filtered = [];
-    foreach ($promos as $promo) {
-        if (empty($promo['UsageLimit']) || $promo['UsageLimit'] == 0) {
-            $filtered[] = $promo; // Unlimited usage
-            continue;
-        }
-        $used = $this->getPromoUsageCount($promo['PromotionID']);
-        if ($used < $promo['UsageLimit']) {
-            $filtered[] = $promo;
+    function updateCustomer($id, $firstName, $lastName, $contactInfo, $discountRate, $enrollLoyalty) {
+        $con = $this->opencon();
+        try {
+            $con->beginTransaction();
+ 
+            // Update customer details
+            $stmt = $con->prepare("UPDATE customers SET Cust_FN = ?, Cust_LN = ?, Cust_CoInfo = ?, Cust_DiscRate = ? WHERE CustomerID = ?");
+            $stmt->execute([$firstName, $lastName, $contactInfo, $discountRate, $id]);
+ 
+            // Handle loyalty program enrollment
+            $stmt = $con->prepare("SELECT COUNT(*) FROM loyalty_program WHERE CustomerID = ?");
+            $stmt->execute([$id]);
+            $isEnrolled = $stmt->fetchColumn() > 0;
+ 
+            if ($enrollLoyalty && !$isEnrolled) {
+                // Add to loyalty program
+                $tier = 'None';
+                $points = 0;
+                $now = date('Y-m-d H:i:s');
+                $stmt = $con->prepare("INSERT INTO loyalty_program (CustomerID, LP_PtsBalance, LP_MbspTier, LP_LastUpdt) VALUES (?, ?, ?, ?)");
+                $stmt->execute([$id, $points, $tier, $now]);
+            } elseif (!$enrollLoyalty && $isEnrolled) {
+                // Remove from loyalty program
+                $stmt = $con->prepare("DELETE FROM loyalty_program WHERE CustomerID = ?");
+                $stmt->execute([$id]);
+            }
+ 
+            $con->commit();
+            return true;
+        } catch (PDOException $e) {
+            $con->rollBack();
+            return false;
         }
     }
-    return $filtered;
-}
+
+    public function addPurchaseOrder($supplierId, $orderDate, $paymentTerms, $notes, $shippingCost, $totalAmount, $items = []) {
+        try {
+            $con = $this->opencon();
+            $con->beginTransaction();
+
+            // Debug log
+            error_log("Adding purchase order with data: " . print_r([
+                'supplierId' => $supplierId,
+                'orderDate' => $orderDate,
+                'paymentTerms' => $paymentTerms,
+                'notes' => $notes,
+                'shippingCost' => $shippingCost,
+                'totalAmount' => $totalAmount,
+                'items' => $items
+            ], true));
+
+            // Insert into purchase_orders
+            $stmt = $con->prepare("INSERT INTO purchase_orders 
+                (SupplierID, PO_Order_Date, PO_Order_Stat, PO_Total_Amount, PO_Shipping_Cost, PO_Payment_Terms, PO_Notes)
+                VALUES (?, ?, 'Waiting', ?, ?, ?, ?)");
+            
+            $stmt->execute([
+                $supplierId,
+                $orderDate,
+                $totalAmount,
+                $shippingCost ?? 0,
+                $paymentTerms,
+                $notes
+            ]);
+
+            $poId = $con->lastInsertId();
+
+            // Insert items
+            foreach ($items as $item) {
+                $stmt = $con->prepare("INSERT INTO purchase_order_item 
+                    (Pur_OrderID, ProductID, Pur_OIQuantity, Pur_OIPrice)
+                    VALUES (?, ?, ?, ?)");
+                $stmt->execute([
+                    $poId,
+                    $item['product_id'],
+                    $item['quantity'],
+                    $item['price']
+                ]);
+            }
+
+            $con->commit();
+            return ['success' => true, 'po_id' => $poId];
+        } catch (PDOException $e) {
+            if (isset($con)) $con->rollBack();
+            error_log("Error adding purchase order: " . $e->getMessage());
+            return ['success' => false, 'message' => 'Failed to add purchase order: ' . $e->getMessage()];
+        }
+    }
+
+    public function getCustomerById($customerId) {
+        $conn = $this->opencon();
+        $stmt = $conn->prepare("
+            SELECT c.*, l.LP_PtsBalance, l.LP_MbspTier, l.LP_LastUpdt
+            FROM customers c
+            LEFT JOIN loyalty_program l ON c.CustomerID = l.CustomerID
+            WHERE c.CustomerID = ?
+        ");
+        $stmt->execute([$customerId]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    public function getCustomerCount() {
+        $con = $this->opencon();
+        $stmt = $con->prepare("SELECT COUNT(*) as total FROM customers");
+        $stmt->execute();
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ? (int)$row['total'] : 0;
+    }
+
+    public function getProductsInStock() {
+        $con = $this->opencon();
+        $stmt = $con->prepare("SELECT COUNT(*) as total FROM products WHERE Prod_Stock > 0");
+        $stmt->execute();
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ? (int)$row['total'] : 0;
+    }
+
+    // new methods
+
+
+
+    function getUserInfo($userID) {
+        $con = $this->opencon();
+        $stmt = $con->prepare("
+            SELECT * FROM User_Accounts 
+            WHERE UserID = ?
+        ");
+        $stmt->execute([$userID]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    function getCustomerInfo($userID) {
+        $con = $this->opencon();
+        $stmt = $con->prepare("
+            SELECT 
+                c.*,
+                COALESCE(l.LP_PtsBalance, 0) as LP_PtsBalance,
+                COALESCE(l.LP_MbspTier, 'None') as Cust_LoStat,
+                COALESCE(c.Cust_DiscRate, '0.00') as Cust_DiscRate
+            FROM Customers c
+            LEFT JOIN Loyalty_Program l ON c.CustomerID = l.CustomerID
+            WHERE c.UserID = ?
+        ");
+        $stmt->execute([$userID]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    function getUserOrders($userID, $limit = null, $offset = null) {
+        $con = $this->opencon();
+        $sql = "
+            SELECT 
+                s.SaleID AS OrderID,
+                s.Sale_Date AS Order_Date,
+                s.Sale_Status as Order_Status,
+                (SELECT COUNT(*) FROM Sale_Item WHERE SaleID = s.SaleID) as item_count,
+                (SELECT SUM(SI_Quantity * SI_Price) FROM Sale_Item WHERE SaleID = s.SaleID) as Order_Total,
+                p.Prom_Code as PromotionName
+            FROM Sales s
+            JOIN Customers c ON s.CustomerID = c.CustomerID
+            LEFT JOIN Order_Promotions op ON s.SaleID = op.SaleID
+            LEFT JOIN promotions p ON op.PromotionID = p.PromotionID
+            WHERE c.UserID = ?
+            ORDER BY s.Sale_Date DESC";
+
+        if ($limit !== null) {
+            $sql .= " LIMIT ?";
+            if ($offset !== null) {
+                $sql .= " OFFSET ?";
+            }
+        }
+
+        $stmt = $con->prepare($sql);
+        
+        if ($limit !== null) {
+            if ($offset !== null) {
+                $stmt->bindValue(1, $userID, PDO::PARAM_INT);
+                $stmt->bindValue(2, $limit, PDO::PARAM_INT);
+                $stmt->bindValue(3, $offset, PDO::PARAM_INT);
+            } else {
+                $stmt->bindValue(1, $userID, PDO::PARAM_INT);
+                $stmt->bindValue(2, $limit, PDO::PARAM_INT);
+            }
+        } else {
+            $stmt->bindValue(1, $userID, PDO::PARAM_INT);
+        }
+
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    function getOrderDetails($saleID) {
+        $con = $this->opencon();
+        $stmt = $con->prepare("
+            SELECT 
+                s.SaleID as OrderID,
+                s.Sale_Date as Order_Date,
+                s.Sale_Status as Order_Status,
+                COALESCE(ph.PT_PayMethod, 'cash') as Payment_Method,
+                si.SI_Quantity as Quantity,
+                si.SI_Price as Price,
+                p.Prod_Name as product_name,
+                CONCAT(c.Cust_FN, ' ', c.Cust_LN) as customer_name,
+                c.Cust_DiscRate,
+                COALESCE(op.OrderP_DiscntApplied, 0) as discount_applied,
+                (si.SI_Quantity * si.SI_Price) as Subtotal,
+                (SELECT SUM(SI_Quantity * SI_Price) FROM Sale_Item WHERE SaleID = s.SaleID) as Order_Total,
+                prom.Prom_Code as PromotionName,
+                CASE 
+                    WHEN COALESCE(ph.PT_PayMethod, 'cash') = 'cash' THEN 'Cash'
+                    WHEN COALESCE(ph.PT_PayMethod, 'cash') = 'card' THEN 'Card'
+                    ELSE 'Cash'
+                END as Payment_Method_Display
+            FROM Sales s
+            JOIN Sale_Item si ON s.SaleID = si.SaleID
+            JOIN Products p ON si.ProductID = p.ProductID
+            JOIN Customers c ON s.CustomerID = c.CustomerID
+            LEFT JOIN Order_Promotions op ON s.SaleID = op.SaleID
+            LEFT JOIN promotions prom ON op.PromotionID = prom.PromotionID
+            LEFT JOIN Payment_History ph ON s.SaleID = ph.SaleID
+            WHERE s.SaleID = ?
+        ");
+        $stmt->execute([$saleID]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+
+
+    //
+
+
+    function getAllUsers($offset = null, $limit = null) {
+        try {
+            $con = $this->opencon();
+            $sql = "SELECT * FROM USER_ACCOUNTS ORDER BY UserID";
+            
+            if ($offset !== null && $limit !== null) {
+                $sql .= " LIMIT ? OFFSET ?";
+                $stmt = $con->prepare($sql);
+                $stmt->bindValue(1, $limit, PDO::PARAM_INT);
+                $stmt->bindValue(2, $offset, PDO::PARAM_INT);
+            } else {
+                $stmt = $con->prepare($sql);
+            }
+            
+            $stmt->execute();
+            $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            error_log("getAllUsers - Number of users fetched: " . count($results));
+            error_log("getAllUsers - Offset: " . $offset . ", Limit: " . $limit);
+            return $results;
+        } catch (PDOException $e) {
+            error_log("getAllUsers error: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    function getTotalUsers() {
+        try {
+            $con = $this->opencon();
+            $stmt = $con->prepare("SELECT COUNT(*) as total FROM USER_ACCOUNTS");
+            $stmt->execute();
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            $count = (int)$result['total'];
+            error_log("getTotalUsers - Raw count from database: " . $count);
+            return $count;
+        } catch (PDOException $e) {
+            error_log("getTotalUsers error: " . $e->getMessage());
+            return 0;
+        }
+    }
+
+    function updateUserRole($userID, $newRole) {
+        try {
+            $con = $this->opencon();
+            $con->beginTransaction();
+            
+            $stmt = $con->prepare("UPDATE USER_ACCOUNTS SET User_Role = ? WHERE UserID = ?");
+            $result = $stmt->execute([$newRole, $userID]);
+            
+            if ($result) {
+                error_log("Successfully updated role for user $userID to $newRole");
+            } else {
+                error_log("Failed to update role for user $userID");
+            }
+            
+            $con->commit();
+            return $result;
+        } catch (PDOException $e) {
+            error_log("updateUserRole error: " . $e->getMessage());
+            if (isset($con)) $con->rollBack();
+            return false;
+        }
+    }
+
+    function addAuditLog($userId, $action, $details) {
+        try {
+            $con = $this->opencon();
+            $ipAddress = $_SERVER['REMOTE_ADDR'];
+            
+            $stmt = $con->prepare("INSERT INTO audit_logs (user_id, action, details, ip_address, timestamp) 
+                                  VALUES (?, ?, ?, ?, NOW())");
+            $result = $stmt->execute([$userId, $action, $details, $ipAddress]);
+            
+            return $result;
+        } catch (PDOException $e) {
+            error_log("Error adding audit log: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    function getAuditLogs($start = 0, $length = 25, $search = '', $orderColumn = 'timestamp', $orderDir = 'DESC') {
+        try {
+            $con = $this->opencon();
+            
+            $query = "SELECT a.*, u.User_Name 
+                     FROM audit_logs a 
+                     LEFT JOIN USER_ACCOUNTS u ON a.user_id = u.UserID";
+            
+            if (!empty($search)) {
+                $query .= " WHERE a.action LIKE :search 
+                           OR a.details LIKE :search 
+                           OR u.User_Name LIKE :search 
+                           OR a.ip_address LIKE :search";
+            }
+            
+            $query .= " ORDER BY $orderColumn $orderDir LIMIT :start, :length";
+            
+            $stmt = $con->prepare($query);
+            
+            if (!empty($search)) {
+                $searchParam = "%$search%";
+                $stmt->bindParam(':search', $searchParam);
+            }
+            
+            $stmt->bindParam(':start', $start, PDO::PARAM_INT);
+            $stmt->bindParam(':length', $length, PDO::PARAM_INT);
+            $stmt->execute();
+            
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log("Error getting audit logs: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    function getTotalAuditLogs($search = '') {
+        try {
+            $con = $this->opencon();
+            
+            $query = "SELECT COUNT(*) FROM audit_logs a 
+                     LEFT JOIN USER_ACCOUNTS u ON a.user_id = u.UserID";
+            
+            if (!empty($search)) {
+                $query .= " WHERE a.action LIKE :search 
+                           OR a.details LIKE :search 
+                           OR u.User_Name LIKE :search 
+                           OR a.ip_address LIKE :search";
+            }
+            
+            $stmt = $con->prepare($query);
+            
+            if (!empty($search)) {
+                $searchParam = "%$search%";
+                $stmt->bindParam(':search', $searchParam);
+            }
+            
+            $stmt->execute();
+            return $stmt->fetchColumn();
+        } catch (PDOException $e) {
+            error_log("Error getting total audit logs: " . $e->getMessage());
+            return 0;
+        }
+    }
+
+    function getAvailablePromos($userID = null) {
+        $con = $this->opencon();
+        $today = date('Y-m-d H:i:s');
+        $sql = "SELECT * FROM promotions 
+            WHERE Promo_IsActive = 1 
+              AND DATE(Promo_StartDate) <= CURDATE() 
+              AND DATE(Promo_EndDate) >= CURDATE()";
+        $stmt = $con->prepare($sql);
+        $stmt->execute();
+        $promos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Filter by usage limit
+        $filtered = [];
+        foreach ($promos as $promo) {
+            if (empty($promo['UsageLimit']) || $promo['UsageLimit'] == 0) {
+                $filtered[] = $promo; // Unlimited usage
+                continue;
+            }
+            $used = $this->getPromoUsageCount($promo['PromotionID']);
+            if ($used < $promo['UsageLimit']) {
+                $filtered[] = $promo;
+            }
+        }
+        return $filtered;
+    }
 
      function getPromoByCode($code) {
-    $con = $this->opencon();
-    $sql = "SELECT * FROM promotions 
-        WHERE Promo_IsActive = 1 
-          AND DATE(Promo_StartDate) <= CURDATE() 
-          AND DATE(Promo_EndDate) >= CURDATE()";
-    $stmt = $con->prepare($sql);
-    $stmt->execute();
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
-}
+        $con = $this->opencon();
+        $sql = "SELECT * FROM promotions 
+            WHERE Promo_IsActive = 1 
+              AND DATE(Promo_StartDate) <= CURDATE() 
+              AND DATE(Promo_EndDate) >= CURDATE()";
+        $stmt = $con->prepare($sql);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
 
     function getPromoUsageCount($promotionId) {
-    $con = $this->opencon();
-    $stmt = $con->prepare("SELECT COUNT(*) FROM promo_usage WHERE PromotionID = ?");
-    $stmt->execute([$promotionId]);
-    return (int)$stmt->fetchColumn();
-}
+        $con = $this->opencon();
+        $stmt = $con->prepare("SELECT COUNT(*) FROM promo_usage WHERE PromotionID = ?");
+        $stmt->execute([$promotionId]);
+        return (int)$stmt->fetchColumn();
+    }
 
     function logPromoUsage($promotionId, $userId) {
         $con = $this->opencon();
@@ -1403,25 +1436,25 @@ function getAvailablePromos($userID = null) {
     }
 
     function saveLoyaltySettings($bronze, $silver, $gold, $minPurchase, $pointsPerPeso, $pointsExpireAfter) {
-    $stmt = $this->opencon()->prepare("UPDATE loyalty_settings SET bronze=?, silver=?, gold=?, min_purchase=?, points_per_peso=?, points_expire_after=? WHERE id=1");
-    $stmt->execute([$bronze, $silver, $gold, $minPurchase, $pointsPerPeso, $pointsExpireAfter]);
-}
- 
- 
-public function resetExpiredPoints($pointsExpireAfter) {
-    $pdo = $this->opencon();
-    $expireDate = date('Y-m-d H:i:s', strtotime("-$pointsExpireAfter months"));
- 
-    // Use LP_LastUpdt instead of last_earned
-    $stmt = $pdo->prepare("SELECT CustomerID FROM loyalty_program WHERE LP_LastUpdt <= ?");
-    $stmt->execute([$expireDate]);
-    $expiredMembers = $stmt->fetchAll(PDO::FETCH_ASSOC);
- 
-    foreach ($expiredMembers as $member) {
-        $update = $pdo->prepare("UPDATE loyalty_program SET LP_PtsBalance = 0 WHERE CustomerID = ?");
-        $update->execute([$member['CustomerID']]);
+        $stmt = $this->opencon()->prepare("UPDATE loyalty_settings SET bronze=?, silver=?, gold=?, min_purchase=?, points_per_peso=?, points_expire_after=? WHERE id=1");
+        $stmt->execute([$bronze, $silver, $gold, $minPurchase, $pointsPerPeso, $pointsExpireAfter]);
     }
-}
+ 
+ 
+    public function resetExpiredPoints($pointsExpireAfter) {
+        $pdo = $this->opencon();
+        $expireDate = date('Y-m-d H:i:s', strtotime("-$pointsExpireAfter months"));
+ 
+        // Use LP_LastUpdt instead of last_earned
+        $stmt = $pdo->prepare("SELECT CustomerID FROM loyalty_program WHERE LP_LastUpdt <= ?");
+        $stmt->execute([$expireDate]);
+        $expiredMembers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+ 
+        foreach ($expiredMembers as $member) {
+            $update = $pdo->prepare("UPDATE loyalty_program SET LP_PtsBalance = 0 WHERE CustomerID = ?");
+            $update->execute([$member['CustomerID']]);
+        }
+    }
 
     public function getTotalSales() {
         try {
@@ -1583,22 +1616,129 @@ public function resetExpiredPoints($pointsExpireAfter) {
 
 // ... existing code ...
 
-public function getTotalSystemOrders() {
-    try {
-        $sql = "SELECT COUNT(*) as total_orders 
-                FROM Sales 
-                WHERE Sale_Status = 'Completed'";
-        $stmt = $this->opencon()->prepare($sql);
-        $stmt->execute();
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        return $result['total_orders'];
-    } catch (PDOException $e) {
-        error_log("Error in getTotalSystemOrders: " . $e->getMessage());
-        return 0;
+    public function getTotalSystemOrders() {
+        try {
+            $sql = "SELECT COUNT(*) as total_orders 
+                    FROM Sales 
+                    WHERE Sale_Status = 'Completed'";
+            $stmt = $this->opencon()->prepare($sql);
+            $stmt->execute();
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            return $result['total_orders'];
+        } catch (PDOException $e) {
+            error_log("Error in getTotalSystemOrders: " . $e->getMessage());
+            return 0;
+        }
     }
-}
 
-// ... existing code ...
+    // ... existing code ...
+
+    function discontinueProduct($id) {
+        try {
+            $con = $this->opencon();
+            $sql = "UPDATE products SET discontinued = 1 WHERE ProductID = ?";
+            $stmt = $con->prepare($sql);
+            $result = $stmt->execute([$id]);
+            
+            if ($result) {
+                // Log the action
+                $this->addAuditLog($_SESSION['user_id'], 'Product Discontinued', "Product ID: $id");
+            }
+            
+            return $result;
+        } catch (PDOException $e) {
+            error_log("Error discontinuing product: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    function restoreProduct($id) {
+        try {
+            $con = $this->opencon();
+            $sql = "UPDATE products SET discontinued = 0 WHERE ProductID = ?";
+            $stmt = $con->prepare($sql);
+            $result = $stmt->execute([$id]);
+            
+            if ($result) {
+                // Log the action
+                $this->addAuditLog($_SESSION['user_id'], 'Product Restored', "Product ID: $id");
+            }
+            
+            return $result;
+        } catch (PDOException $e) {
+            error_log("Error restoring product: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    function getTotalProducts($search = '', $category = '', $stock = '') {
+        $con = $this->opencon();
+        $sql = "SELECT COUNT(*) as total FROM products WHERE (discontinued = 0 OR discontinued IS NULL)";
+        $params = [];
+        
+        if ($search) {
+            $sql .= " AND (Prod_Name LIKE ? OR Prod_Desc LIKE ? OR Prod_Cat LIKE ?)";
+            $searchParam = "%$search%";
+            $params = array_merge($params, [$searchParam, $searchParam, $searchParam]);
+        }
+        
+        if ($category && $category !== 'all') {
+            $sql .= " AND Prod_Cat = ?";
+            $params[] = $category;
+        }
+        
+        if ($stock && $stock !== 'all') {
+            if ($stock === 'in_stock') {
+                $sql .= " AND Prod_Stock > 10";
+            } elseif ($stock === 'low_stock') {
+                $sql .= " AND Prod_Stock > 0 AND Prod_Stock <= 10";
+            } elseif ($stock === 'out_of_stock') {
+                $sql .= " AND Prod_Stock = 0";
+            }
+        }
+        
+        $stmt = $con->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetch(PDO::FETCH_ASSOC)['total'];
+    }
+    
+    function getPaginatedProducts($page = 1, $perPage = 10, $search = '', $category = '', $stock = '') {
+        $con = $this->opencon();
+        $offset = ($page - 1) * $perPage;
+        $sql = "SELECT * FROM products WHERE (discontinued = 0 OR discontinued IS NULL)";
+        $params = [];
+        
+        if ($search) {
+            $sql .= " AND (Prod_Name LIKE ? OR Prod_Desc LIKE ? OR Prod_Cat LIKE ?)";
+            $searchParam = "%$search%";
+            $params = array_merge($params, [$searchParam, $searchParam, $searchParam]);
+        }
+        
+        if ($category && $category !== 'all') {
+            $sql .= " AND Prod_Cat = ?";
+            $params[] = $category;
+        }
+        
+        if ($stock && $stock !== 'all') {
+            if ($stock === 'in_stock') {
+                $sql .= " AND Prod_Stock > 10";
+            } elseif ($stock === 'low_stock') {
+                $sql .= " AND Prod_Stock > 0 AND Prod_Stock <= 10";
+            } elseif ($stock === 'out_of_stock') {
+                $sql .= " AND Prod_Stock = 0";
+            }
+        }
+        
+        // Convert to integers to ensure proper SQL syntax
+        $perPage = (int)$perPage;
+        $offset = (int)$offset;
+        
+        $sql .= " LIMIT $perPage OFFSET $offset";
+        
+        $stmt = $con->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
 
 
 }
