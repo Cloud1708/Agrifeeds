@@ -20,7 +20,24 @@ $orders = $con->getUserOrders($userID);
 // Handle order details view
 $orderDetails = null;
 if (isset($_GET['view'])) {
-    $orderDetails = $con->getOrderDetails($_GET['view']);
+    // First check if the order belongs to the current user
+    $orderId = $_GET['view'];
+    $orderBelongsToUser = false;
+    
+    foreach ($orders as $order) {
+        if ($order['OrderID'] == $orderId) {
+            $orderBelongsToUser = true;
+            break;
+        }
+    }
+    
+    if ($orderBelongsToUser) {
+        $orderDetails = $con->getOrderDetails($orderId);
+    } else {
+        // If order doesn't belong to user, redirect to orders page
+        header('Location: orders.php');
+        exit();
+    }
 }
 ?>
 
@@ -132,9 +149,18 @@ if (isset($_GET['view'])) {
                                 <?php echo ucfirst($orderDetails[0]['Order_Status']); ?>
                             </span>
                         </p>
+                        <p><strong>Promotion:</strong> 
+                            <?php 
+                            if (!empty($orderDetails[0]['PromotionName'])) {
+                                echo '<span class="badge bg-success">' . htmlspecialchars($orderDetails[0]['PromotionName']) . '</span>';
+                            } else {
+                                echo '<span class="badge bg-secondary">None</span>';
+                            }
+                            ?>
+                        </p>
                     </div>
                     <div class="col-md-6">
-                        <p><strong>Payment Method:</strong> <?php echo ucfirst($orderDetails[0]['Payment_Method']); ?></p>
+                        <p><strong>Payment Method:</strong> <?php echo $orderDetails[0]['Payment_Method_Display']; ?></p>
                         <p><strong>Total Amount:</strong> ₱<?php echo number_format($orderDetails[0]['Order_Total'], 2); ?></p>
                     </div>
                 </div>
@@ -144,7 +170,9 @@ if (isset($_GET['view'])) {
                             <tr>
                                 <th>Product</th>
                                 <th>Quantity</th>
-                                <th>Price</th>
+                                <th>Original Price</th>
+                                <th>Discount</th>
+                                <th>Final Price</th>
                                 <th>Subtotal</th>
                             </tr>
                         </thead>
@@ -153,6 +181,14 @@ if (isset($_GET['view'])) {
                             <tr>
                                 <td><?php echo htmlspecialchars($item['product_name']); ?></td>
                                 <td><?php echo $item['Quantity']; ?></td>
+                                <td>₱<?php echo number_format($item['Price'] / (1 - ($item['discount_applied'] / 100)), 2); ?></td>
+                                <td>
+                                    <?php if ($item['discount_applied'] > 0): ?>
+                                        <span class="badge bg-success"><?php echo $item['discount_applied']; ?>%</span>
+                                    <?php else: ?>
+                                        <span class="badge bg-secondary">None</span>
+                                    <?php endif; ?>
+                                </td>
                                 <td>₱<?php echo number_format($item['Price'], 2); ?></td>
                                 <td>₱<?php echo number_format($item['Quantity'] * $item['Price'], 2); ?></td>
                             </tr>
@@ -160,7 +196,7 @@ if (isset($_GET['view'])) {
                         </tbody>
                         <tfoot>
                             <tr>
-                                <td colspan="3" class="text-end"><strong>Total:</strong></td>
+                                <td colspan="5" class="text-end"><strong>Total:</strong></td>
                                 <td><strong>₱<?php echo number_format($orderDetails[0]['Order_Total'], 2); ?></strong></td>
                             </tr>
                         </tfoot>
@@ -180,6 +216,7 @@ if (isset($_GET['view'])) {
                                 <th>Date</th>
                                 <th>Items</th>
                                 <th>Total</th>
+                                <th>Promotion</th>
                                 <th>Status</th>
                                 <th>Action</th>
                             </tr>
@@ -192,20 +229,29 @@ if (isset($_GET['view'])) {
                                 <td><?php echo $order['item_count']; ?> items</td>
                                 <td>₱<?php echo number_format($order['Order_Total'], 2); ?></td>
                                 <td>
-    <?php
-        if (isset($order['Order_Status'])) {
-            if ($order['Order_Status'] === 'Pending') {
-                echo '<span class="badge bg-warning text-dark">Pending</span>';
-            } elseif ($order['Order_Status'] === 'Completed') {
-                echo '<span class="badge bg-success">Completed</span>';
-            } else {
-                echo '<span class="badge bg-secondary">' . htmlspecialchars($order['Order_Status']) . '</span>';
-            }
-        } else {
-            echo '<span class="badge bg-secondary">-</span>';
-        }
-    ?>
-</td>
+                                    <?php 
+                                    if (!empty($order['PromotionName'])) {
+                                        echo '<span class="badge bg-success">' . htmlspecialchars($order['PromotionName']) . '</span>';
+                                    } else {
+                                        echo '<span class="badge bg-secondary">None</span>';
+                                    }
+                                    ?>
+                                </td>
+                                <td>
+                                    <?php
+                                    if (isset($order['Order_Status'])) {
+                                        if ($order['Order_Status'] === 'Pending') {
+                                            echo '<span class="badge bg-warning text-dark">Pending</span>';
+                                        } elseif ($order['Order_Status'] === 'Completed') {
+                                            echo '<span class="badge bg-success">Completed</span>';
+                                        } else {
+                                            echo '<span class="badge bg-secondary">' . htmlspecialchars($order['Order_Status']) . '</span>';
+                                        }
+                                    } else {
+                                        echo '<span class="badge bg-secondary">-</span>';
+                                    }
+                                    ?>
+                                </td>
                                 <td>
                                     <a href="?view=<?php echo $order['OrderID']; ?>" class="btn btn-sm btn-outline-primary">
                                         <i class="bi bi-eye"></i> View
@@ -236,7 +282,7 @@ if (isset($_GET['view'])) {
 
             rows.forEach(row => {
                 const orderId = row.cells[0].textContent.toLowerCase();
-                const orderStatus = row.cells[4].textContent.toLowerCase();
+                const orderStatus = row.cells[5].textContent.toLowerCase();
                 
                 const matchesSearch = orderId.includes(searchTerm);
                 const matchesStatus = !status || orderStatus.includes(status);
