@@ -3,12 +3,10 @@ require_once('../includes/db.php');
 $con = new database();
 session_start();
 
-// Check if user is logged in
-if (!isset($_SESSION['user_id'])) {
+if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] != 2) { // 2 for customer
     header('Location: ../index.php');
     exit();
 }
-
 // Get user information
 $userID = $_SESSION['user_id'];
 $userInfo = $con->getUserInfo($userID);

@@ -1,13 +1,24 @@
 <?php
+session_start();
+
 require_once('../includes/db.php');
 $con = new database();
+
+if ($_SESSION['user_role'] != 1 && $_SESSION['user_role'] != 3) {
+    error_log("Invalid role " . $_SESSION['user_role'] . " - redirecting to appropriate page");
+    if ($_SESSION['user_role'] == 2) {
+        header('Location: ../user/dashboard.php');
+    } else {
+        header('Location: ../index.php');
+    }
+    exit();
+}
 
 // Get dashboard statistics
 $totalCustomers = $con->getCustomerCount();
 $productsInStock = $con->getProductsInStock();
 $totalSales = $con->getTotalSales(); // You'll need to implement this method
-$totalOrders = $con->getTotalOrders(); // You'll need to implement this method
-
+$totalOrders = $con->getTotalSystemOrders(); // Gets total completed orders in the system
 // Get recent orders
 $recentOrders = $con->getRecentOrders(5); // Get 5 most recent orders
 

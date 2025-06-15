@@ -5,6 +5,11 @@ session_start();
 require_once('../includes/db.php');
 $con = new database();
 $sweetAlertConfig = "";
+
+if (!isset($_SESSION['user_id']) || !in_array($_SESSION['user_role'], [1, 3])) { // 1 for admin, 3 for super admin
+    header('Location: ../index.php');
+    exit();
+}
  
 // Get SweetAlert config from session after redirect
 if (isset($_SESSION['sweetAlertConfig'])) {

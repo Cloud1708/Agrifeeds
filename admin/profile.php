@@ -4,11 +4,16 @@ require_once('../includes/db.php');
 $con = new database();
 $conn = $con->opencon();
 
-// Check if user is logged in
-if (!isset($_SESSION['user_id'])) {
-    header('Location: ../index.php');
+if ($_SESSION['user_role'] != 1 && $_SESSION['user_role'] != 3) {
+    error_log("Invalid role " . $_SESSION['user_role'] . " - redirecting to appropriate page");
+    if ($_SESSION['user_role'] == 2) {
+        header('Location: ../user/dashboard.php');
+    } else {
+        header('Location: ../index.php');
+    }
     exit();
 }
+
 
 // Function to convert role number to name
 function getRoleName($roleNumber) {

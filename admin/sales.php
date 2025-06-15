@@ -7,6 +7,17 @@ $con = new database();
 $conn = $con->opencon();
 $sweetAlertConfig = '';
 
+if ($_SESSION['user_role'] != 1 && $_SESSION['user_role'] != 3) {
+    error_log("Invalid role " . $_SESSION['user_role'] . " - redirecting to appropriate page");
+    if ($_SESSION['user_role'] == 2) {
+        header('Location: ../user/dashboard.php');
+    } else {
+        header('Location: ../index.php');
+    }
+    exit();
+}
+
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mark_completed'], $_POST['sale_id'])) {
     $saleId = intval($_POST['sale_id']);
     $adminId = $_SESSION['user_id']; // Get the current admin's UserID

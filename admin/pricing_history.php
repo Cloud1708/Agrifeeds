@@ -1,8 +1,20 @@
 <?php
-
+session_start();
 require_once '../includes/db.php';
 $db = new database();
 $sweetAlertConfig = "";
+
+
+if ($_SESSION['user_role'] != 1 && $_SESSION['user_role'] != 3) {
+    error_log("Invalid role " . $_SESSION['user_role'] . " - redirecting to appropriate page");
+    if ($_SESSION['user_role'] == 2) {
+        header('Location: ../user/dashboard.php');
+    } else {
+        header('Location: ../index.php');
+    }
+    exit();
+}
+
 
 // Get pricing history data
 $stats = $db->getPricingHistoryStats();

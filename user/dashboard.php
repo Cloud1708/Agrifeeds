@@ -3,8 +3,8 @@ require_once('../includes/db.php');
 $con = new database();
 session_start();
 
-// Check if user is logged in
-if (!isset($_SESSION['user_id'])) {
+// Check if user is logged in and is a customer
+if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] != 2) { // 2 for customer
     header('Location: ../index.php');
     exit();
 }

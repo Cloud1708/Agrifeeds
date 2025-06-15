@@ -1,4 +1,5 @@
 <?php
+
 require_once('../includes/db.php');
 session_start();
 
@@ -6,6 +7,7 @@ session_start();
 if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] != 3) {
     header('Location: ../index.php');
     exit();
+    
 }
 
 $db = new database();
