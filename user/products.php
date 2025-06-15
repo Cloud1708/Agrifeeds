@@ -1096,6 +1096,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['payment_method'])) {
         }
         
         const formData = new FormData(this);
+        const paymentMethod = formData.get('payment_method');
         
         // Hide the checkout modal
         const checkoutModal = bootstrap.Modal.getInstance(document.getElementById('checkoutModal'));
@@ -1105,20 +1106,65 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['payment_method'])) {
         const orderSuccessModal = new bootstrap.Modal(document.getElementById('orderSuccessModal'));
         orderSuccessModal.show();
         
-        // Start the loading animation with multiple steps
+        // Start the loading animation
         const progressBar = document.querySelector('.progress-bar');
         const loadingText = document.querySelector('#orderProcessing h4');
         const loadingSubtext = document.querySelector('#orderProcessing p');
         let progress = 0;
         let currentStep = 0;
+        let orderData = null;
         
         const loadingSteps = [
             { message: "Processing Your Order...", subtext: "Please wait while we process your order..." },
-            { message: "Validating Payment Details...", subtext: "Checking payment information..." },
+            { message: "Validating Order Details...", subtext: "Checking order information..." },
             { message: "Confirming Order Items...", subtext: "Verifying product availability..." },
             { message: "Applying Discounts...", subtext: "Calculating final price..." },
             { message: "Finalizing Order...", subtext: "Almost done..." }
         ];
+
+        function showOrderDetails(order) {
+            document.getElementById('orderProcessing').style.display = 'none';
+            document.getElementById('orderDetails').style.display = 'block';
+            
+            document.getElementById('orderId').textContent = order.sale_id;
+            document.getElementById('orderDate').textContent = new Date(order.order_date).toLocaleString();
+            document.getElementById('customerName').textContent = order.customer_name;
+            document.getElementById('paymentMethod').textContent = paymentMethod === 'card' ? 'Completed' : 'Pending';
+            document.getElementById('orderStatus').textContent = paymentMethod === 'card' ? 'Completed' : 'Pending';
+            
+            // Populate items
+            const itemsTable = document.getElementById('orderItems');
+            itemsTable.innerHTML = '';
+            order.items.forEach(item => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${item.name}</td>
+                    <td class="text-center">${item.quantity}</td>
+                    <td class="text-end">₱${parseFloat(item.price).toFixed(2)}</td>
+                    <td class="text-end">₱${(item.price * item.quantity).toFixed(2)}</td>
+                `;
+                itemsTable.appendChild(row);
+            });
+            
+            // Populate totals
+            document.getElementById('orderSubtotal').textContent = '₱' + order.subtotal.toFixed(2);
+            
+            // Show customer discount if applicable
+            if (order.customer_discount_amount > 0) {
+                document.getElementById('customerDiscountRow').style.display = '';
+                document.getElementById('customerDiscount').textContent = 
+                    `-₱${order.customer_discount_amount.toFixed(2)} (${order.customer_discount_rate}%)`;
+            }
+            
+            // Show promo discount if applicable
+            if (order.promo_discount > 0) {
+                document.getElementById('promoDiscountRow').style.display = '';
+                document.getElementById('promoDiscount').textContent = 
+                    `-₱${order.promo_discount.toFixed(2)} ${order.promo_label ? `(${order.promo_label})` : ''}`;
+            }
+            
+            document.getElementById('orderTotal').textContent = '₱' + order.final_total.toFixed(2);
+        }
 
         const interval = setInterval(() => {
             progress += 2;
@@ -1133,11 +1179,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['payment_method'])) {
             
             if (progress >= 100) {
                 clearInterval(interval);
-                // Add a small delay before showing success
-                setTimeout(() => {
-                    document.getElementById('orderProcessing').style.display = 'none';
-                    document.getElementById('orderDetails').style.display = 'block';
-                }, 500);
+                if (paymentMethod === 'card') {
+                    loadingText.textContent = "Waiting for Payment...";
+                    loadingSubtext.textContent = "Please complete your payment in the new window to proceed.";
+                } else if (orderData) {
+                    // For cash payments, show order details after loading completes
+                    showOrderDetails(orderData);
+                }
             }
         }, 100);
 
@@ -1149,68 +1197,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['payment_method'])) {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                // Populate order details
-                const order = data.order_details;
-                document.getElementById('orderId').textContent = order.sale_id;
-                document.getElementById('orderDate').textContent = new Date(order.order_date).toLocaleString();
-                document.getElementById('customerName').textContent = order.customer_name;
-                document.getElementById('paymentMethod').textContent = order.payment_method.charAt(0).toUpperCase() + order.payment_method.slice(1);
-                document.getElementById('orderStatus').textContent = order.payment_method === 'card' ? 'Completed' : 'Pending';
-                
-                // Populate items
-                const itemsTable = document.getElementById('orderItems');
-                itemsTable.innerHTML = '';
-                order.items.forEach(item => {
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${item.name}</td>
-                        <td class="text-center">${item.quantity}</td>
-                        <td class="text-end">₱${parseFloat(item.price).toFixed(2)}</td>
-                        <td class="text-end">₱${(item.price * item.quantity).toFixed(2)}</td>
-                    `;
-                    itemsTable.appendChild(row);
-                });
-                
-                // Populate totals
-                document.getElementById('orderSubtotal').textContent = '₱' + order.subtotal.toFixed(2);
-                
-                // Show customer discount if applicable
-                if (order.customer_discount_amount > 0) {
-                    document.getElementById('customerDiscountRow').style.display = '';
-                    document.getElementById('customerDiscount').textContent = 
-                        `-₱${order.customer_discount_amount.toFixed(2)} (${order.customer_discount_rate}%)`;
+                if (paymentMethod === 'card') {
+                    // Store order details in session for payment page
+                    fetch('payment/store_order_session.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(data.order_details)
+                    })
+                    .then(() => {
+                        // Open payment window
+                        const paymentWindow = window.open('payment/mock_payment.php', '_blank');
+                        
+                        // Listen for payment completion
+                        window.addEventListener('message', function(event) {
+                            if (event.data === 'payment_completed') {
+                                paymentWindow.close();
+                                showOrderDetails(data.order_details);
+                            }
+                        });
+                    });
+                } else {
+                    // For cash payments, store the order data and wait for loading to complete
+                    orderData = data.order_details;
                 }
-                
-                // Show promo discount if applicable
-                if (order.promo_discount > 0) {
-                    document.getElementById('promoDiscountRow').style.display = '';
-                    document.getElementById('promoDiscount').textContent = 
-                        `-₱${order.promo_discount.toFixed(2)} ${order.promo_label ? `(${order.promo_label})` : ''}`;
-                }
-                
-                document.getElementById('orderTotal').textContent = '₱' + order.final_total.toFixed(2);
             } else {
+                clearInterval(interval);
                 Swal.fire({
                     icon: 'error',
                     title: 'Error',
                     text: data.message || 'Failed to process order. Please try again.',
                     confirmButtonText: 'Close'
+                }).then(() => {
+                    orderSuccessModal.hide();
+                    checkoutModal.show();
                 });
-                orderSuccessModal.hide();
-                // Show checkout modal again if there's an error
-                checkoutModal.show();
             }
         })
         .catch(error => {
+            clearInterval(interval);
             Swal.fire({
                 icon: 'error',
                 title: 'Error',
                 text: 'An error occurred while processing your order. Please try again.',
                 confirmButtonText: 'Close'
+            }).then(() => {
+                orderSuccessModal.hide();
+                checkoutModal.show();
             });
-            orderSuccessModal.hide();
-            // Show checkout modal again if there's an error
-            checkoutModal.show();
         });
     });
     </script>
