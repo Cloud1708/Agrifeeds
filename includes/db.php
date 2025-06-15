@@ -1581,6 +1581,26 @@ public function resetExpiredPoints($pointsExpireAfter) {
         }
     }
 
+// ... existing code ...
+
+public function getTotalSystemOrders() {
+    try {
+        $sql = "SELECT COUNT(*) as total_orders 
+                FROM Sales 
+                WHERE Sale_Status = 'Completed'";
+        $stmt = $this->opencon()->prepare($sql);
+        $stmt->execute();
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $result['total_orders'];
+    } catch (PDOException $e) {
+        error_log("Error in getTotalSystemOrders: " . $e->getMessage());
+        return 0;
+    }
+}
+
+// ... existing code ...
+
+
 }
 
 // Handle direct method calls from JavaScript
