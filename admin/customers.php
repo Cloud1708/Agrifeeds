@@ -253,9 +253,11 @@ $paginatedCustomers = array_slice($allCustomers, ($currentPage - 1) * $perPage, 
     <div class="main-content">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1>Customers</h1>
+            <?php if ($_SESSION['user_role'] == 3): ?>
             <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addCustomerModal">
                 <i class="bi bi-plus-lg"></i> Add Customer
             </button>
+            <?php endif; ?>
         </div>
  
         <!-- Customer Summary Cards -->

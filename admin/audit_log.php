@@ -55,7 +55,7 @@ foreach ($products as $product) {
             // Check if this is a price change
             if (strpos($log['Pal_Action'], 'price from') !== false) {
                 // Extract price information
-                preg_match('/price from ₱([\d,.]+) to ₱([\d,.]+)/', $log['Pal_Action'], $matches);
+                preg_match('/price from ([\d,.]+) to ([\d,.]+)/', $log['Pal_Action'], $matches);
                 if (count($matches) === 3) {
                     $oldPrice = $matches[1];
                     $newPrice = $matches[2];
@@ -72,6 +72,43 @@ foreach ($products as $product) {
                 'date' => $log['Pal_TimeStamp'],
                 'text' => '<strong>' . htmlspecialchars($log['User_Name']) . '</strong> ' . htmlspecialchars($log['Pal_Action']) . ' <strong>"' . htmlspecialchars($product['Prod_Name']) . '"</strong>',
                 'type' => 'product_update'
+            ];
+        }
+    }
+
+    // Get inventory history
+    $inventoryHistory = $con->getInventoryHistory($product['ProductID']);
+    if ($inventoryHistory) {
+        foreach ($inventoryHistory as $history) {
+            $user = $con->getUserById($history['UserID']);
+            $userName = $user ? $user['User_Name'] : 'Unknown User';
+            
+            $activities[] = [
+                'date' => $history['IH_ChangeDate'],
+                'text' => '<strong>' . htmlspecialchars($userName) . '</strong> ' . 
+                         ($history['IH_QtyChange'] > 0 ? 'added' : 'reduced') . ' stock for <strong>"' . 
+                         htmlspecialchars($product['Prod_Name']) . '"</strong> by <strong>' . 
+                         abs($history['IH_QtyChange']) . ' units</strong> (New stock: <strong>' . 
+                         $history['IH_NewStckLvl'] . ' units</strong>)',
+                'type' => 'stock_update'
+            ];
+        }
+    }
+
+    // Get pricing history
+    $pricingHistory = $con->getPricingHistory($product['ProductID']);
+    if ($pricingHistory) {
+        foreach ($pricingHistory as $history) {
+            $user = $con->getUserById($history['UserID']);
+            $userName = $user ? $user['User_Name'] : 'Unknown User';
+            
+            $activities[] = [
+                'date' => $history['PH_ChangeDate'],
+                'text' => '<strong>' . htmlspecialchars($userName) . '</strong> updated price for <strong>"' . 
+                         htmlspecialchars($product['Prod_Name']) . '"</strong> from <strong>₱' . 
+                         number_format($history['PH_OldPrice'], 2) . '</strong> to <strong>₱' . 
+                         number_format($history['PH_NewPrice'], 2) . '</strong>',
+                'type' => 'price_update'
             ];
         }
     }

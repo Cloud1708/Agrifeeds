@@ -1,0 +1,16 @@
+# Prevent directory listing
+Options -Indexes
+
+# Allow access to all PHP files
+<Files *.php>
+    Order allow,deny
+    Allow from all
+</Files>
+
+# Redirect to admin dashboard if accessed directly
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^(.*)$ dashboard.php [L,R=302]
+</IfModule> 

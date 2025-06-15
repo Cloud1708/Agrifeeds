@@ -142,10 +142,13 @@ class database{
 
             // Log the changes in Product_Access_Log
             if (!empty($changes)) {
-                $changeDetails = implode(', ', $changes);
                 $userId = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
-                $stmt = $con->prepare("INSERT INTO Product_Access_Log (ProductID, UserID, Pal_Action, Pal_TimeStamp) VALUES (?, ?, ?, NOW())");
-                $stmt->execute([$id, $userId, "Updated product: " . $changeDetails]);
+                
+                // Log each change separately for better tracking
+                foreach ($changes as $change) {
+                    $stmt = $con->prepare("INSERT INTO Product_Access_Log (ProductID, UserID, Pal_Action, Pal_TimeStamp) VALUES (?, ?, ?, NOW())");
+                    $stmt->execute([$id, $userId, "Updated product: " . $change]);
+                }
             }
 
             $con->commit();
@@ -1771,7 +1774,7 @@ class database{
                 $updateStmt->execute([$oldEffectiveTo, $current['HistoryID']]);
             }
 
-            // 3. Insert new pricing history record (without UserID)
+            // 3. Insert new pricing history record
             $changeDate = date('Y-m-d');
             // Find the price in effect on the new effectiveFrom date
             $stmt = $con->prepare("
@@ -1792,6 +1795,11 @@ class database{
                 $prodRow = $prod->fetch(PDO::FETCH_ASSOC);
                 $oldPrice = $prodRow ? $prodRow['Prod_Price'] : null;
             }
+
+            // Get the current user ID for Product_Access_Log
+            $userId = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
+
+            // Insert into pricing_history (without UserID)
             $stmt = $con->prepare("INSERT INTO pricing_history (ProductID, PH_OldPrice, PH_NewPrice, PH_ChangeDate, PH_Effective_from, PH_Effective_to) VALUES (?, ?, ?, ?, ?, ?)");
             $stmt->execute([
                 $productId,
@@ -1800,6 +1808,14 @@ class database{
                 $changeDate,
                 $effectiveFrom,
                 $effectiveTo
+            ]);
+
+            // Log the price change in Product_Access_Log (with UserID)
+            $stmt = $con->prepare("INSERT INTO Product_Access_Log (ProductID, UserID, Pal_Action, Pal_TimeStamp) VALUES (?, ?, ?, NOW())");
+            $stmt->execute([
+                $productId,
+                $userId,
+                "Updated product: price from " . number_format($oldPrice, 2) . " to " . number_format($newPrice, 2)
             ]);
 
             // 4. Update the products table with the new price ONLY if the effective_from is today or earlier
@@ -1817,12 +1833,46 @@ class database{
     }
 
     public function updateLoyaltyMember($loyaltyId, $points, $tier) {
-    $pdo = $this->opencon();
-    $stmt = $pdo->prepare("UPDATE loyalty_program SET LP_PtsBalance = ?, LP_MbspTier = ?, LP_LastUpdt = NOW() WHERE LoyaltyID = ?");
-    return $stmt->execute([$points, $tier, $loyaltyId]);
-}
+        $pdo = $this->opencon();
+        $stmt = $pdo->prepare("UPDATE loyalty_program SET LP_PtsBalance = ?, LP_MbspTier = ?, LP_LastUpdt = NOW() WHERE LoyaltyID = ?");
+        return $stmt->execute([$points, $tier, $loyaltyId]);
+    }
 
+    public function getInventoryHistory($productId) {
+        try {
+            $con = $this->opencon();
+            $stmt = $con->prepare("
+                SELECT ih.*, u.User_Name 
+                FROM inventory_history ih
+                LEFT JOIN USER_ACCOUNTS u ON ih.UserID = u.UserID
+                WHERE ih.ProductID = ?
+                ORDER BY ih.IH_ChangeDate DESC
+            ");
+            $stmt->execute([$productId]);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log("Error getting inventory history: " . $e->getMessage());
+            return false;
+        }
+    }
 
+    public function getPricingHistory($productId) {
+        try {
+            $con = $this->opencon();
+            $stmt = $con->prepare("
+                SELECT ph.*, u.User_Name 
+                FROM pricing_history ph
+                LEFT JOIN USER_ACCOUNTS u ON ph.UserID = u.UserID
+                WHERE ph.ProductID = ?
+                ORDER BY ph.PH_ChangeDate DESC
+            ");
+            $stmt->execute([$productId]);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log("Error getting pricing history: " . $e->getMessage());
+            return false;
+        }
+    }
 }
 
 // Handle direct method calls from JavaScript
