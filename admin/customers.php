@@ -223,12 +223,14 @@ if (isset($_POST['edit_customer_modal']) && isset($_POST['customerID'])) {
     $showEditModal = true;
 }
  
-$customers = $con->viewCustomers();
- 
-// Update each customer's tier before displaying
-foreach ($customers as $customer) {
-    $con->updateMemberTier($customer['CustomerID']);
-}
+$allCustomers = $con->viewCustomers();
+
+// Pagination logic
+$currentPage = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+$perPage = 10; // Fixed items per page
+$totalRecords = count($allCustomers);
+$totalPages = ceil($totalRecords / $perPage);
+$paginatedCustomers = array_slice($allCustomers, ($currentPage - 1) * $perPage, $perPage);
 ?>
  
 <!DOCTYPE html>
@@ -261,7 +263,7 @@ foreach ($customers as $customer) {
                 <div class="card dashboard-card">
                     <div class="card-body">
                         <h5 class="card-title">Total Customers</h5>
-                        <p class="card-text"><?php echo count($customers); ?></p>
+                        <p class="card-text"><?php echo count($allCustomers); ?></p>
                     </div>
                 </div>
             </div>
@@ -269,7 +271,7 @@ foreach ($customers as $customer) {
                 <div class="card dashboard-card">
                     <div class="card-body">
                         <h5 class="card-title">Loyalty Members</h5>
-                        <p class="card-text"><?php echo count(array_filter($customers, function($c) {
+                        <p class="card-text"><?php echo count(array_filter($allCustomers, function($c) {
                             return isset($c['LP_PtsBalance']) && $c['LP_PtsBalance'] > 0;
                         })); ?></p>
                     </div>
@@ -280,7 +282,7 @@ foreach ($customers as $customer) {
                     <div class="card-body">
                         <h5 class="card-title">Gold Members</h5>
                         <p class="card-text"><?php
-                            echo count(array_filter($customers, function($c) {
+                            echo count(array_filter($allCustomers, function($c) {
                                 $points = isset($c['LP_PtsBalance']) ? (int)$c['LP_PtsBalance'] : 0;
                                 return $points >= 15000;
                             }));
@@ -293,7 +295,7 @@ foreach ($customers as $customer) {
                     <div class="card-body">
                         <h5 class="card-title">Silver Members</h5>
                         <p class="card-text"><?php
-                            echo count(array_filter($customers, function($c) {
+                            echo count(array_filter($allCustomers, function($c) {
                                 $points = isset($c['LP_PtsBalance']) ? (int)$c['LP_PtsBalance'] : 0;
                                 return $points >= 10000 && $points < 15000;
                             }));
@@ -306,7 +308,7 @@ foreach ($customers as $customer) {
                     <div class="card-body">
                         <h5 class="card-title">Bronze Members</h5>
                         <p class="card-text"><?php
-                            echo count(array_filter($customers, function($c) {
+                            echo count(array_filter($allCustomers, function($c) {
                                 $points = isset($c['LP_PtsBalance']) ? (int)$c['LP_PtsBalance'] : 0;
                                 return $points >= 5000 && $points < 10000;
                             }));
@@ -353,7 +355,7 @@ foreach ($customers as $customer) {
                 </thead>
                 <tbody>
                 <?php
-                foreach ($customers as $customer) {
+                foreach ($paginatedCustomers as $customer) {
                     // Fetch the updated tier for display
                     $stmt = $con->opencon()->prepare("SELECT LP_MbspTier FROM loyalty_program WHERE CustomerID = ?");
                     $stmt->execute([$customer['CustomerID']]);
@@ -397,6 +399,66 @@ foreach ($customers as $customer) {
                 <?php } ?>
                 </tbody>
             </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-12">
+                    <div class="d-flex justify-content-center align-items-center mt-4 mb-4">
+                        <nav aria-label="Page navigation" class="mx-auto">
+                            <ul class="pagination mb-0 justify-content-center">
+                                <!-- First Page -->
+                                <li class="page-item <?php echo $currentPage <= 1 ? 'disabled' : ''; ?>">
+                                    <a class="page-link" href="?page=1" aria-label="First">
+                                        <span aria-hidden="true">&laquo;&laquo;</span>
+                                    </a>
+                                </li>
+                                <!-- Previous Page -->
+                                <li class="page-item <?php echo $currentPage <= 1 ? 'disabled' : ''; ?>">
+                                    <a class="page-link" href="?page=<?php echo $currentPage - 1; ?>" aria-label="Previous">
+                                        <span aria-hidden="true">&laquo;</span>
+                                    </a>
+                                </li>
+                                <?php
+                                $range = 2;
+                                $startPage = max(1, $currentPage - $range);
+                                $endPage = min($totalPages, $currentPage + $range);
+                                if ($startPage > 1) {
+                                    echo '<li class="page-item"><a class="page-link" href="?page=1">1</a></li>';
+                                    if ($startPage > 2) {
+                                        echo '<li class="page-item disabled"><span class="page-link">...</span></li>';
+                                    }
+                                }
+                                for($i = $startPage; $i <= $endPage; $i++) {
+                                    echo '<li class="page-item ' . ($currentPage == $i ? 'active' : '') . '">';
+                                    echo '<a class="page-link" href="?page=' . $i . '">' . $i . '</a>';
+                                    echo '</li>';
+                                }
+                                if ($endPage < $totalPages) {
+                                    if ($endPage < $totalPages - 1) {
+                                        echo '<li class="page-item disabled"><span class="page-link">...</span></li>';
+                                    }
+                                    echo '<li class="page-item"><a class="page-link" href="?page=' . $totalPages . '">' . $totalPages . '</a></li>';
+                                }
+                                ?>
+                                <!-- Next Page -->
+                                <li class="page-item <?php echo $currentPage >= $totalPages ? 'disabled' : ''; ?>">
+                                    <a class="page-link" href="?page=<?php echo $currentPage + 1; ?>" aria-label="Next">
+                                        <span aria-hidden="true">&raquo;</span>
+                                    </a>
+                                </li>
+                                <!-- Last Page -->
+                                <li class="page-item <?php echo $currentPage >= $totalPages ? 'disabled' : ''; ?>">
+                                    <a class="page-link" href="?page=<?php echo $totalPages; ?>" aria-label="Last">
+                                        <span aria-hidden="true">&raquo;&raquo;</span>
+                                    </a>
+                                </li>
+                            </ul>
+                        </nav>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
  

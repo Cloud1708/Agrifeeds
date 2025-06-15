@@ -13,8 +13,17 @@ $userID = $_SESSION['user_id'];
 $userInfo = $con->getUserInfo($userID);
 $customerInfo = $con->getCustomerInfo($userID);
 
-// Get user's orders
-$orders = $con->getUserOrders($userID);
+// Get user's orders with pagination
+$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+$itemsPerPage = isset($_GET['per_page']) ? (int)$_GET['per_page'] : 10;
+$offset = ($page - 1) * $itemsPerPage;
+
+// Get total orders count
+$totalOrders = $con->getUserTotalOrders($userID);
+$totalPages = ceil($totalOrders / $itemsPerPage);
+
+// Get paginated orders
+$orders = $con->getUserOrders($userID, $itemsPerPage, $offset);
 
 // Handle order details view
 $orderDetails = null;
@@ -261,6 +270,41 @@ if (isset($_GET['view'])) {
                         </tbody>
                     </table>
                 </div>
+                
+                <!-- Pagination Controls -->
+                <div class="d-flex justify-content-between align-items-center mt-4">
+                    <div class="d-flex align-items-center">
+                        <label for="perPage" class="me-2">Items per page:</label>
+                        <select class="form-select form-select-sm" id="perPage" style="width: auto;">
+                            <option value="10" <?php echo $itemsPerPage == 10 ? 'selected' : ''; ?>>10</option>
+                            <option value="20" <?php echo $itemsPerPage == 20 ? 'selected' : ''; ?>>20</option>
+                            <option value="30" <?php echo $itemsPerPage == 30 ? 'selected' : ''; ?>>30</option>
+                            <option value="50" <?php echo $itemsPerPage == 50 ? 'selected' : ''; ?>>50</option>
+                        </select>
+                    </div>
+                    
+                    <nav aria-label="Page navigation">
+                        <ul class="pagination mb-0">
+                            <li class="page-item <?php echo $page <= 1 ? 'disabled' : ''; ?>">
+                                <a class="page-link" href="?page=<?php echo $page - 1; ?>&per_page=<?php echo $itemsPerPage; ?>" aria-label="Previous">
+                                    <span aria-hidden="true">&laquo;</span>
+                                </a>
+                            </li>
+                            
+                            <?php for ($i = 1; $i <= $totalPages; $i++): ?>
+                            <li class="page-item <?php echo $page == $i ? 'active' : ''; ?>">
+                                <a class="page-link" href="?page=<?php echo $i; ?>&per_page=<?php echo $itemsPerPage; ?>"><?php echo $i; ?></a>
+                            </li>
+                            <?php endfor; ?>
+                            
+                            <li class="page-item <?php echo $page >= $totalPages ? 'disabled' : ''; ?>">
+                                <a class="page-link" href="?page=<?php echo $page + 1; ?>&per_page=<?php echo $itemsPerPage; ?>" aria-label="Next">
+                                    <span aria-hidden="true">&raquo;</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
             </div>
         </div>
         <?php endif; ?>
@@ -289,6 +333,10 @@ if (isset($_GET['view'])) {
                 row.style.display = matchesSearch && matchesStatus ? '' : 'none';
             });
         }
+
+        document.getElementById('perPage').addEventListener('change', function() {
+            window.location.href = '?page=1&per_page=' + this.value;
+        });
     </script>
 </body>
 </html> 

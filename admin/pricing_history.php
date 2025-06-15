@@ -22,6 +22,13 @@ $stats = $db->getPricingHistoryStats();
 // Get all pricing history records
 $history = $db->getAllPricingHistory();
 
+// Pagination logic
+$currentPage = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+$perPage = isset($_GET['per_page']) ? (int)$_GET['per_page'] : 10;
+$totalRecords = count($history);
+$totalPages = ceil($totalRecords / $perPage);
+$paginatedHistory = array_slice($history, ($currentPage - 1) * $perPage, $perPage);
+
 // Handle AJAX requests
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $response = ['success' => false, 'message' => ''];
@@ -199,7 +206,7 @@ if ($debug) {
                     </tr>
                 </thead>
                 <tbody>
-                    <?php foreach ($history as $record): ?>
+                    <?php foreach ($paginatedHistory as $record): ?>
                     <tr>
                         <td><?php echo htmlspecialchars($record['HistoryID']); ?></td>
                         <td><?php echo htmlspecialchars($record['Prod_Name']); ?></td>
@@ -235,6 +242,66 @@ if ($debug) {
                     <?php endforeach; ?>
                 </tbody>
             </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-12">
+                    <div class="d-flex justify-content-center align-items-center mt-4 mb-4">
+                        <nav aria-label="Page navigation" class="mx-auto">
+                            <ul class="pagination mb-0 justify-content-center">
+                                <!-- First Page -->
+                                <li class="page-item <?php echo $currentPage <= 1 ? 'disabled' : ''; ?>">
+                                    <a class="page-link" href="?page=1&per_page=<?php echo $perPage; ?>" aria-label="First">
+                                        <span aria-hidden="true">&laquo;&laquo;</span>
+                                    </a>
+                                </li>
+                                <!-- Previous Page -->
+                                <li class="page-item <?php echo $currentPage <= 1 ? 'disabled' : ''; ?>">
+                                    <a class="page-link" href="?page=<?php echo $currentPage - 1; ?>&per_page=<?php echo $perPage; ?>" aria-label="Previous">
+                                        <span aria-hidden="true">&laquo;</span>
+                                    </a>
+                                </li>
+                                <?php
+                                $range = 2;
+                                $startPage = max(1, $currentPage - $range);
+                                $endPage = min($totalPages, $currentPage + $range);
+                                if ($startPage > 1) {
+                                    echo '<li class="page-item"><a class="page-link" href="?page=1&per_page=' . $perPage . '">1</a></li>';
+                                    if ($startPage > 2) {
+                                        echo '<li class="page-item disabled"><span class="page-link">...</span></li>';
+                                    }
+                                }
+                                for($i = $startPage; $i <= $endPage; $i++) {
+                                    echo '<li class="page-item ' . ($currentPage == $i ? 'active' : '') . '">';
+                                    echo '<a class="page-link" href="?page=' . $i . '&per_page=' . $perPage . '">' . $i . '</a>';
+                                    echo '</li>';
+                                }
+                                if ($endPage < $totalPages) {
+                                    if ($endPage < $totalPages - 1) {
+                                        echo '<li class="page-item disabled"><span class="page-link">...</span></li>';
+                                    }
+                                    echo '<li class="page-item"><a class="page-link" href="?page=' . $totalPages . '&per_page=' . $perPage . '">' . $totalPages . '</a></li>';
+                                }
+                                ?>
+                                <!-- Next Page -->
+                                <li class="page-item <?php echo $currentPage >= $totalPages ? 'disabled' : ''; ?>">
+                                    <a class="page-link" href="?page=<?php echo $currentPage + 1; ?>&per_page=<?php echo $perPage; ?>" aria-label="Next">
+                                        <span aria-hidden="true">&raquo;</span>
+                                    </a>
+                                </li>
+                                <!-- Last Page -->
+                                <li class="page-item <?php echo $currentPage >= $totalPages ? 'disabled' : ''; ?>">
+                                    <a class="page-link" href="?page=<?php echo $totalPages; ?>&per_page=<?php echo $perPage; ?>" aria-label="Last">
+                                        <span aria-hidden="true">&raquo;&raquo;</span>
+                                    </a>
+                                </li>
+                            </ul>
+                        </nav>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 

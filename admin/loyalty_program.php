@@ -36,9 +36,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 $settings = $con->opencon()->query("SELECT bronze, silver, gold, min_purchase, points_per_peso, points_expire_after FROM loyalty_settings WHERE id = 1")->fetch(PDO::FETCH_ASSOC);
 $members = $con->viewLoyaltyProgram();
 $con->resetExpiredPoints($settings['points_expire_after']);
- 
+
+// Pagination logic
+$currentPage = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+$perPage = 10; // Fixed items per page
+$totalRecords = count($members);
+$totalPages = max(1, ceil($totalRecords / $perPage));
+$paginatedMembers = array_slice($members, ($currentPage - 1) * $perPage, $perPage);
+
 // Update each member's tier before displaying
-foreach ($members as &$member) {
+foreach ($paginatedMembers as &$member) {
     $con->updateMemberTier($member['CustomerID']);
     // Optionally, fetch the updated tier if you want to display it from DB
     $stmt = $con->opencon()->prepare("SELECT LP_MbspTier FROM loyalty_program WHERE CustomerID = ?");
@@ -147,58 +154,115 @@ unset($member);
                     </tr>
                 </thead>
                 <tbody id="membersTableBody">
-            <?php foreach ($members as $member) { ?>
-<tr>
-    <td><?php echo $member['LoyaltyID']; ?></td>
-    <td>
-        <?php echo htmlspecialchars($member['Cust_FN'] . ' ' . $member['Cust_LN']); ?>
-        <span class="text-muted small">(ID: <?php echo $member['CustomerID']; ?>)</span>
-    </td>
-    <td><?php echo number_format($member['LP_PtsBalance']); ?></td>
-    <td>
-        <?php
-            $tier = isset($member['LP_MbspTier']) ? $member['LP_MbspTier'] : 'None';
-            switch ($tier) {
-                case 'Gold':
-                    echo '<span class="badge bg-warning text-dark">Gold</span>';
-                    break;
-                case 'Silver':
-                    echo '<span class="badge bg-secondary">Silver</span>';
-                    break;
-                case 'Bronze':
-                    echo '<span class="badge bg-dark text-light">Bronze</span>';
-                    break;
-                default:
-                    echo '<span class="badge bg-light text-dark">None</span>';
-            }
-        ?>
-    </td>
-    <td><?php echo date('Y-m-d', strtotime($member['LP_LastUpdt'])); ?></td>
- 
-    <td>
-        <?php
-            $expireMonths = isset($settings['points_expire_after']) ? (int)$settings['points_expire_after'] : 12;
-            $expireDate = date('Y-m-d', strtotime($member['LP_LastUpdt'] . " +$expireMonths months"));
-            $today = date('Y-m-d');
-            $status = ($today <= $expireDate) ? 'Active' : 'Inactive';
-            $badge = ($status == 'Active') ? 'bg-success' : 'bg-danger';
-        ?>
-        <span class="badge <?php echo $badge; ?>"><?php echo $status; ?></span>
-    </td>
- 
-    <td>
-        <button class="btn btn-sm btn-info" onclick="viewMember(<?php echo $member['LoyaltyID']; ?>)">
-            <i class="bi bi-eye"></i>
-        </button>
-        <button class="btn btn-sm btn-warning" onclick="editMember(<?php echo $member['LoyaltyID']; ?>)">
-            <i class="bi bi-pencil"></i>
-        </button>
-    </td>
-   
-</tr>
-<?php } ?>
+                <?php foreach ($paginatedMembers as $member) { ?>
+                <tr>
+                    <td><?php echo $member['LoyaltyID']; ?></td>
+                    <td>
+                        <?php echo htmlspecialchars($member['Cust_FN'] . ' ' . $member['Cust_LN']); ?>
+                        <span class="text-muted small">(ID: <?php echo $member['CustomerID']; ?>)</span>
+                    </td>
+                    <td><?php echo number_format($member['LP_PtsBalance']); ?></td>
+                    <td>
+                        <?php
+                            $tier = isset($member['LP_MbspTier']) ? $member['LP_MbspTier'] : 'None';
+                            switch ($tier) {
+                                case 'Gold':
+                                    echo '<span class="badge bg-warning text-dark">Gold</span>';
+                                    break;
+                                case 'Silver':
+                                    echo '<span class="badge bg-secondary">Silver</span>';
+                                    break;
+                                case 'Bronze':
+                                    echo '<span class="badge bg-dark text-light">Bronze</span>';
+                                    break;
+                                default:
+                                    echo '<span class="badge bg-light text-dark">None</span>';
+                            }
+                        ?>
+                    </td>
+                    <td><?php echo date('Y-m-d', strtotime($member['LP_LastUpdt'])); ?></td>
+                    <td>
+                        <?php
+                            $expireMonths = isset($settings['points_expire_after']) ? (int)$settings['points_expire_after'] : 12;
+                            $expireDate = date('Y-m-d', strtotime($member['LP_LastUpdt'] . " +$expireMonths months"));
+                            $today = date('Y-m-d');
+                            $status = ($today <= $expireDate) ? 'Active' : 'Inactive';
+                            $badge = ($status == 'Active') ? 'bg-success' : 'bg-danger';
+                        ?>
+                        <span class="badge <?php echo $badge; ?>"><?php echo $status; ?></span>
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-info" onclick="viewMember(<?php echo $member['LoyaltyID']; ?>)">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                        <button class="btn btn-sm btn-warning" onclick="editMember(<?php echo $member['LoyaltyID']; ?>)">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                    </td>
+                </tr>
+                <?php } ?>
                 </tbody>
             </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-12">
+                    <div class="d-flex justify-content-center align-items-center mt-4 mb-4">
+                        <nav aria-label="Page navigation" class="mx-auto">
+                            <ul class="pagination mb-0 justify-content-center">
+                                <!-- First Page -->
+                                <li class="page-item <?php echo $currentPage <= 1 ? 'disabled' : ''; ?>">
+                                    <a class="page-link" href="?page=1" aria-label="First">
+                                        <span aria-hidden="true">&laquo;&laquo;</span>
+                                    </a>
+                                </li>
+                                <!-- Previous Page -->
+                                <li class="page-item <?php echo $currentPage <= 1 ? 'disabled' : ''; ?>">
+                                    <a class="page-link" href="?page=<?php echo $currentPage - 1; ?>" aria-label="Previous">
+                                        <span aria-hidden="true">&laquo;</span>
+                                    </a>
+                                </li>
+                                <?php
+                                $range = 2;
+                                $startPage = max(1, $currentPage - $range);
+                                $endPage = min($totalPages, $currentPage + $range);
+                                if ($startPage > 1) {
+                                    echo '<li class="page-item"><a class="page-link" href="?page=1">1</a></li>';
+                                    if ($startPage > 2) {
+                                        echo '<li class="page-item disabled"><span class="page-link">...</span></li>';
+                                    }
+                                }
+                                for($i = $startPage; $i <= $endPage; $i++) {
+                                    echo '<li class="page-item ' . ($currentPage == $i ? 'active' : '') . '">';
+                                    echo '<a class="page-link" href="?page=' . $i . '">' . $i . '</a>';
+                                    echo '</li>';
+                                }
+                                if ($endPage < $totalPages) {
+                                    if ($endPage < $totalPages - 1) {
+                                        echo '<li class="page-item disabled"><span class="page-link">...</span></li>';
+                                    }
+                                    echo '<li class="page-item"><a class="page-link" href="?page=' . $totalPages . '">' . $totalPages . '</a></li>';
+                                }
+                                ?>
+                                <!-- Next Page -->
+                                <li class="page-item <?php echo $currentPage >= $totalPages ? 'disabled' : ''; ?>">
+                                    <a class="page-link" href="?page=<?php echo $currentPage + 1; ?>" aria-label="Next">
+                                        <span aria-hidden="true">&raquo;</span>
+                                    </a>
+                                </li>
+                                <!-- Last Page -->
+                                <li class="page-item <?php echo $currentPage >= $totalPages ? 'disabled' : ''; ?>">
+                                    <a class="page-link" href="?page=<?php echo $totalPages; ?>" aria-label="Last">
+                                        <span aria-hidden="true">&raquo;&raquo;</span>
+                                    </a>
+                                </li>
+                            </ul>
+                        </nav>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
  

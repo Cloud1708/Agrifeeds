@@ -23,6 +23,13 @@ $products = $con->getAllProducts();
 
 // Only this line is needed:
 $purchaseOrders = $con->getPurchaseOrders();
+
+// Pagination logic
+$currentPage = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+$perPage = 10; // Fixed items per page
+$totalRecords = count($purchaseOrders);
+$totalPages = ceil($totalRecords / $perPage);
+$paginatedPurchaseOrders = array_slice($purchaseOrders, ($currentPage - 1) * $perPage, $perPage);
 ?>
 
 <!DOCTYPE html>
@@ -102,7 +109,7 @@ $purchaseOrders = $con->getPurchaseOrders();
                     </tr>
                 </thead>
                 <tbody>
-                    <?php foreach ($purchaseOrders as $po): ?>
+                    <?php foreach ($paginatedPurchaseOrders as $po): ?>
                     <tr>
                         <td><?php echo $po['Pur_OrderID']; ?></td>
                         <td>
@@ -163,6 +170,66 @@ $purchaseOrders = $con->getPurchaseOrders();
                     <?php endforeach; ?>
                 </tbody>
             </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-12">
+                    <div class="d-flex justify-content-center align-items-center mt-4 mb-4">
+                        <nav aria-label="Page navigation" class="mx-auto">
+                            <ul class="pagination mb-0 justify-content-center">
+                                <!-- First Page -->
+                                <li class="page-item <?php echo $currentPage <= 1 ? 'disabled' : ''; ?>">
+                                    <a class="page-link" href="?page=1" aria-label="First">
+                                        <span aria-hidden="true">&laquo;&laquo;</span>
+                                    </a>
+                                </li>
+                                <!-- Previous Page -->
+                                <li class="page-item <?php echo $currentPage <= 1 ? 'disabled' : ''; ?>">
+                                    <a class="page-link" href="?page=<?php echo $currentPage - 1; ?>" aria-label="Previous">
+                                        <span aria-hidden="true">&laquo;</span>
+                                    </a>
+                                </li>
+                                <?php
+                                $range = 2;
+                                $startPage = max(1, $currentPage - $range);
+                                $endPage = min($totalPages, $currentPage + $range);
+                                if ($startPage > 1) {
+                                    echo '<li class="page-item"><a class="page-link" href="?page=1">1</a></li>';
+                                    if ($startPage > 2) {
+                                        echo '<li class="page-item disabled"><span class="page-link">...</span></li>';
+                                    }
+                                }
+                                for($i = $startPage; $i <= $endPage; $i++) {
+                                    echo '<li class="page-item ' . ($currentPage == $i ? 'active' : '') . '">';
+                                    echo '<a class="page-link" href="?page=' . $i . '">' . $i . '</a>';
+                                    echo '</li>';
+                                }
+                                if ($endPage < $totalPages) {
+                                    if ($endPage < $totalPages - 1) {
+                                        echo '<li class="page-item disabled"><span class="page-link">...</span></li>';
+                                    }
+                                    echo '<li class="page-item"><a class="page-link" href="?page=' . $totalPages . '">' . $totalPages . '</a></li>';
+                                }
+                                ?>
+                                <!-- Next Page -->
+                                <li class="page-item <?php echo $currentPage >= $totalPages ? 'disabled' : ''; ?>">
+                                    <a class="page-link" href="?page=<?php echo $currentPage + 1; ?>" aria-label="Next">
+                                        <span aria-hidden="true">&raquo;</span>
+                                    </a>
+                                </li>
+                                <!-- Last Page -->
+                                <li class="page-item <?php echo $currentPage >= $totalPages ? 'disabled' : ''; ?>">
+                                    <a class="page-link" href="?page=<?php echo $totalPages; ?>" aria-label="Last">
+                                        <span aria-hidden="true">&raquo;&raquo;</span>
+                                    </a>
+                                </li>
+                            </ul>
+                        </nav>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 

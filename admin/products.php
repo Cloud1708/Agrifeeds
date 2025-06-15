@@ -10,6 +10,72 @@ if (!isset($_SESSION['user_id']) || !in_array($_SESSION['user_role'], [1, 3])) {
     header('Location: ../index.php');
     exit();
 }
+
+$currentPage = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+$perPage = isset($_GET['per_page']) ? (int)$_GET['per_page'] : 10;
+$totalProducts = $con->getTotalProducts();
+$totalPages = ceil($totalProducts / $perPage);
+$allProducts = $con->getPaginatedProducts($currentPage, $perPage);
+
+// Handle Discontinue Product
+if (isset($_POST['discontinue']) && isset($_POST['id'])) {
+    $id = $_POST['id'];
+    $result = $con->discontinueProduct($id);
+ 
+    if ($result) {
+        $_SESSION['sweetAlertConfig'] = "
+        <script>
+        Swal.fire({
+            icon: 'success',
+            title: 'Product Discontinued',
+            text: 'Product has been marked as discontinued!',
+            confirmButtonText: 'OK'
+        });
+        </script>";
+    } else {
+        $_SESSION['sweetAlertConfig'] = "
+        <script>
+        Swal.fire({
+            icon: 'error',
+            title: 'Operation Failed',
+            text: 'Failed to discontinue product.',
+            confirmButtonText: 'OK'
+        });
+        </script>";
+    }
+    header("Location: " . $_SERVER['PHP_SELF']);
+    exit();
+}
+
+// Handle Restore Product
+if (isset($_POST['restore']) && isset($_POST['id'])) {
+    $id = $_POST['id'];
+    $result = $con->restoreProduct($id);
+ 
+    if ($result) {
+        $_SESSION['sweetAlertConfig'] = "
+        <script>
+        Swal.fire({
+            icon: 'success',
+            title: 'Product Restored',
+            text: 'Product has been restored successfully!',
+            confirmButtonText: 'OK'
+        });
+        </script>";
+    } else {
+        $_SESSION['sweetAlertConfig'] = "
+        <script>
+        Swal.fire({
+            icon: 'error',
+            title: 'Operation Failed',
+            text: 'Failed to restore product.',
+            confirmButtonText: 'OK'
+        });
+        </script>";
+    }
+    header("Location: " . $_SERVER['PHP_SELF']);
+    exit();
+}
  
 // Get SweetAlert config from session after redirect
 if (isset($_SESSION['sweetAlertConfig'])) {
@@ -279,15 +345,21 @@ if (isset($_POST['delete']) && isset($_POST['id'])) {
     header("Location: " . $_SERVER['PHP_SELF']);
     exit();
 }
- 
-$allProducts = $con->viewProducts();
+
+$showDiscontinued = isset($_GET['show_discontinued']) && $_GET['show_discontinued'] == 1;
+$allProducts = $con->viewProducts($showDiscontinued);
 $totalProducts = count($allProducts);
  
 $lowStockItems = 0;
 $outOfStock = 0;
 $activeProducts = 0;
+$discontinuedProducts = 0;
  
 foreach ($allProducts as $prod) {
+    if ($prod['discontinued']) {
+        $discontinuedProducts++;
+        continue;
+    }
     if ($prod['Prod_Stock'] == 0) {
         $outOfStock++;
     } elseif ($prod['Prod_Stock'] > 0 && $prod['Prod_Stock'] <= 10) {
@@ -327,9 +399,14 @@ foreach ($allProducts as $prod) {
        
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1>Products</h1>
-            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addProductModal">
-                <i class="bi bi-plus-lg"></i> Add Product
-            </button>
+            <div>
+                <button class="btn btn-secondary me-2" data-bs-toggle="modal" data-bs-target="#discontinuedProductsModal">
+                    <i class="bi bi-archive"></i> View Discontinued Products
+                </button>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addProductModal">
+                    <i class="bi bi-plus-lg"></i> Add Product
+                </button>
+            </div>
         </div>
  
         <!-- Product Summary Cards -->
@@ -416,8 +493,7 @@ foreach ($allProducts as $prod) {
                 </thead>
                 <tbody>
                     <?php
-                    $data = $con->viewProducts();
-                    foreach ($data as $rows) {
+                    foreach ($allProducts as $rows) {
                         if ($rows['Prod_Stock'] == 0) {
                             $statusClass = 'bg-danger';
                             $status = 'Out of Stock';
@@ -460,15 +536,15 @@ foreach ($allProducts as $prod) {
                                     data-bs-toggle="modal"
                                     data-bs-target="#editProductModal"
                                 >
-                                  <i class="bi bi-pencil-square"></i>
+                                    <i class="bi bi-pencil-square"></i>
                                 </button>
-                                <!-- DELETE BUTTON -->
-                                <form method="POST" class="mx-1 deleteProductForm" style="display:inline;">
-                                  <input type="hidden" name="id" value="<?php echo $rows['ProductID']; ?>">
-                                  <input type="hidden" name="delete" value="1">
-                                  <button type="button" name="deleteBtn" class="btn btn-danger btn-sm deleteProductBtn">
-                                    <i class="bi bi-x-square"></i>
-                                  </button>
+                                <!-- DISCONTINUE BUTTON -->
+                                <form method="POST" class="mx-1 discontinueProductForm" style="display:inline;">
+                                    <input type="hidden" name="id" value="<?php echo $rows['ProductID']; ?>">
+                                    <input type="hidden" name="discontinue" value="1">
+                                    <button type="button" name="discontinueBtn" class="btn btn-secondary btn-sm discontinueProductBtn">
+                                        <i class="bi bi-x-circle"></i>
+                                    </button>
                                 </form>
                             </div>
                         </td>
@@ -480,7 +556,76 @@ foreach ($allProducts as $prod) {
             </table>
         </div>
     </div>
- 
+
+<!-- Pagination -->
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-center mt-4 mb-4">
+                <div class="d-flex align-items-center mb-3 mb-md-0">
+                    <label for="perPage" class="me-2">Items per page:</label>
+                    <select class="form-select form-select-sm" id="perPage" style="width: auto;">
+                        <option value="10" <?php echo $perPage == 10 ? 'selected' : ''; ?>>10</option>
+                        <option value="20" <?php echo $perPage == 20 ? 'selected' : ''; ?>>20</option>
+                        <option value="30" <?php echo $perPage == 30 ? 'selected' : ''; ?>>30</option>
+                        <option value="50" <?php echo $perPage == 50 ? 'selected' : ''; ?>>50</option>
+                    </select>
+                </div>
+                <nav aria-label="Page navigation" class="mx-auto">
+                    <ul class="pagination mb-0 justify-content-center">
+                        <!-- First Page -->
+                        <li class="page-item <?php echo $currentPage <= 1 ? 'disabled' : ''; ?>">
+                            <a class="page-link" href="?page=1&per_page=<?php echo $perPage; ?>" aria-label="First">
+                                <span aria-hidden="true">&laquo;&laquo;</span>
+                            </a>
+                        </li>
+                        <!-- Previous Page -->
+                        <li class="page-item <?php echo $currentPage <= 1 ? 'disabled' : ''; ?>">
+                            <a class="page-link" href="?page=<?php echo $currentPage - 1; ?>&per_page=<?php echo $perPage; ?>" aria-label="Previous">
+                                <span aria-hidden="true">&laquo;</span>
+                            </a>
+                        </li>
+                        <?php
+                        $range = 2;
+                        $startPage = max(1, $currentPage - $range);
+                        $endPage = min($totalPages, $currentPage + $range);
+                        if ($startPage > 1) {
+                            echo '<li class="page-item"><a class="page-link" href="?page=1&per_page=' . $perPage . '">1</a></li>';
+                            if ($startPage > 2) {
+                                echo '<li class="page-item disabled"><span class="page-link">...</span></li>';
+                            }
+                        }
+                        for($i = $startPage; $i <= $endPage; $i++) {
+                            echo '<li class="page-item ' . ($currentPage == $i ? 'active' : '') . '">';
+                            echo '<a class="page-link" href="?page=' . $i . '&per_page=' . $perPage . '">' . $i . '</a>';
+                            echo '</li>';
+                        }
+                        if ($endPage < $totalPages) {
+                            if ($endPage < $totalPages - 1) {
+                                echo '<li class="page-item disabled"><span class="page-link">...</span></li>';
+                            }
+                            echo '<li class="page-item"><a class="page-link" href="?page=' . $totalPages . '&per_page=' . $perPage . '">' . $totalPages . '</a></li>';
+                        }
+                        ?>
+                        <!-- Next Page -->
+                        <li class="page-item <?php echo $currentPage >= $totalPages ? 'disabled' : ''; ?>">
+                            <a class="page-link" href="?page=<?php echo $currentPage + 1; ?>&per_page=<?php echo $perPage; ?>" aria-label="Next">
+                                <span aria-hidden="true">&raquo;</span>
+                            </a>
+                        </li>
+                        <!-- Last Page -->
+                        <li class="page-item <?php echo $currentPage >= $totalPages ? 'disabled' : ''; ?>">
+                            <a class="page-link" href="?page=<?php echo $totalPages; ?>&per_page=<?php echo $perPage; ?>" aria-label="Last">
+                                <span aria-hidden="true">&raquo;&raquo;</span>
+                            </a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+</div>
+
     <!-- Add Product Modal -->
     <div class="modal fade" id="addProductModal" tabindex="-1" aria-labelledby="addProductModalLabel" aria-hidden="true">
         <div class="modal-dialog">
@@ -598,6 +743,72 @@ foreach ($allProducts as $prod) {
       </div>
     </div>
    
+    <!-- Discontinued Products Modal -->
+    <div class="modal fade" id="discontinuedProductsModal" tabindex="-1" aria-labelledby="discontinuedProductsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="discontinuedProductsModalLabel">Discontinued Products</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Product ID</th>
+                                    <th>Image</th>
+                                    <th>Name</th>
+                                    <th>Category</th>
+                                    <th>Description</th>
+                                    <th>Price</th>
+                                    <th>Stock</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php
+                                $discontinuedProducts = $con->getDiscontinuedProducts();
+                                foreach ($discontinuedProducts as $rows) {
+                                ?>
+                                <tr>
+                                    <td><?php echo $rows['ProductID']?></td>
+                                    <td>
+                                        <?php if (!empty($rows['Prod_Image'])): ?>
+                                            <img src="../<?php echo $rows['Prod_Image']; ?>" alt="Product Image" style="width:50px;height:50px;object-fit:cover;">
+                                        <?php else: ?>
+                                            <span class="text-muted">No Image</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td><?php echo $rows['Prod_Name']?></td>
+                                    <td><?php echo $rows['Prod_Cat']?></td>
+                                    <td><?php echo $rows['Prod_Desc']?></td>
+                                    <td>₱<?php echo number_format($rows['Prod_Price'], 2); ?></td>
+                                    <td><?php echo $rows['Prod_Stock']?></td>
+                                    <td>
+                                        <form method="POST" class="restoreProductForm" style="display:inline;">
+                                            <input type="hidden" name="id" value="<?php echo $rows['ProductID']; ?>">
+                                            <input type="hidden" name="restore" value="1">
+                                            <button type="button" name="restoreBtn" class="btn btn-success btn-sm restoreProductBtn">
+                                                <i class="bi bi-arrow-counterclockwise"></i> Restore
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                <?php
+                                }
+                                ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+   
     <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <!-- SweetAlert2 JS -->
@@ -627,10 +838,8 @@ foreach ($allProducts as $prod) {
             }
         });
     });
-    </script>
- 
-    <script>
-       // Custom search and sort for products table
+
+    // Custom search and sort for products table
     document.addEventListener('DOMContentLoaded', function() {
         const table = document.querySelector('table.table');
         const tbody = table.querySelector('tbody');
@@ -697,19 +906,20 @@ foreach ($allProducts as $prod) {
             });
         });
     });
- 
-    document.querySelectorAll('.deleteProductBtn').forEach(function(btn) {
+
+    // Handle Discontinue Product
+    document.querySelectorAll('.discontinueProductBtn').forEach(function(btn) {
         btn.addEventListener('click', function(e) {
             e.preventDefault();
             const form = btn.closest('form');
             Swal.fire({
-                title: 'Are you sure?',
-                text: "This product will be deleted!",
+                title: 'Discontinue Product?',
+                text: "This product will be marked as discontinued!",
                 icon: 'warning',
                 showCancelButton: true,
-                confirmButtonColor: '#d33',
-                cancelButtonColor: '#6c757d',
-                confirmButtonText: 'Yes, delete it!',
+                confirmButtonColor: '#6c757d',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Yes, discontinue it!',
                 reverseButtons: true
             }).then((result) => {
                 if (result.isConfirmed) {
@@ -718,8 +928,35 @@ foreach ($allProducts as $prod) {
             });
         });
     });
- 
+
+    // Handle Restore Product
+    document.querySelectorAll('.restoreProductBtn').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const form = btn.closest('form');
+            Swal.fire({
+                title: 'Restore Product?',
+                text: "This product will be restored to active status!",
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#28a745',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Yes, restore it!',
+                reverseButtons: true
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    form.submit();
+                }
+            });
+        });
+    });
+
+    // Handle items per page change
+document.getElementById('perPage').addEventListener('change', function() {
+    window.location.href = '?page=1&per_page=' + this.value;
+});
     </script>
     <?php echo $sweetAlertConfig; ?>
+    
 </body>
 </html>
