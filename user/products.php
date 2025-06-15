@@ -720,7 +720,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['payment_method'])) {
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer">
+                <div class="modal-footer" id="orderSuccessModalFooter" style="display: none;">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                     <a href="orders.php" class="btn btn-primary">View My Orders</a>
                 </div>
@@ -1142,6 +1142,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['payment_method'])) {
         function showOrderDetails(order) {
             document.getElementById('orderProcessing').style.display = 'none';
             document.getElementById('orderDetails').style.display = 'block';
+            document.getElementById('orderSuccessModalFooter').style.display = 'block';
             
             document.getElementById('orderId').textContent = order.sale_id;
             document.getElementById('orderDate').textContent = new Date(order.order_date).toLocaleString();

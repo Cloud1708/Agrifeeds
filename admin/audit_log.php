@@ -169,7 +169,7 @@ $current_page_activities = array_slice($activities, $offset, $items_per_page);
     <div class="main-content">
         <!-- Header -->
         <div class="page-header">
-            <h1>System Activity Log</h1>
+            <h1>User Activity Log</h1>
         </div>
 
         <!-- Stats Cards -->
