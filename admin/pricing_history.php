@@ -1,4 +1,6 @@
 <?php
+ date_default_timezone_set('Asia/Manila');
+
 session_start();
 require_once '../includes/db.php';
 $db = new database();
@@ -512,7 +514,7 @@ if ($debug) {
         });
 
         // Search and filter functionality
-        document.addEventListener('DOMContentLoaded', function() {
+       document.addEventListener('DOMContentLoaded', function() {
             const table = document.querySelector('table.table');
             const tbody = table.querySelector('tbody');
             const rows = Array.from(tbody.querySelectorAll('tr'));
@@ -520,6 +522,27 @@ if ($debug) {
             const productFilter = document.getElementById('productFilter');
             const statusFilter = document.getElementById('statusFilter');
 
+            // Helper to get status of a row
+            function parseDate(str) {
+                if (!str || str === 'N/A') return null;
+                // Replace space with 'T' for proper parsing
+                let s = str.trim().replace(' ', 'T');
+                // If only date, add time
+                if (s.length === 10) s += 'T00:00:00';
+                return new Date(s);
+            }
+
+            function getStatus(row) {
+                const now = new Date();
+                const effectiveFrom = parseDate(row.querySelectorAll('td')[5].textContent);
+                const effectiveTo = parseDate(row.querySelectorAll('td')[6].textContent);
+
+                if (!effectiveFrom) return '';
+                if (effectiveFrom > now) return 'upcoming';
+                if (effectiveTo && effectiveTo < now) return 'expired';
+                if (effectiveFrom <= now && (!effectiveTo || effectiveTo >= now)) return 'current';
+                return '';
+            }
             function filterRows() {
                 const search = searchInput.value.toLowerCase();
                 const product = productFilter.value;
@@ -527,15 +550,33 @@ if ($debug) {
 
                 rows.forEach(row => {
                     const cells = row.querySelectorAll('td');
-                    const prodName = cells[1].textContent.toLowerCase();
+                    const rowProductId = cells[0].textContent; // HistoryID
+                    const rowProductName = cells[1].textContent;
+                    const rowProductSelectId = (() => {
+                        // Find the product ID by matching name from the select
+                        for (let opt of productFilter.options) {
+                            if (opt.text === rowProductName) return opt.value;
+                        }
+                        return '';
+                    })();
+
                     let show = true;
 
+                    // Search filter (search all columns)
                     if (search && !row.textContent.toLowerCase().includes(search)) {
                         show = false;
                     }
-                    if (product !== 'all' && !prodName.includes(product)) {
+
+                    // Product filter (by ProductID)
+                    if (product !== 'all' && rowProductSelectId !== product) {
                         show = false;
                     }
+
+                    // Status filter
+                    if (status !== 'all' && getStatus(row) !== status) {
+                        show = false;
+                    }
+
                     row.style.display = show ? '' : 'none';
                 });
             }
