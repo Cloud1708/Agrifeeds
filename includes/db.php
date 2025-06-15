@@ -854,9 +854,12 @@ function getUserOrders($userID) {
             s.Sale_Date AS Order_Date,
             s.Sale_Status as Order_Status,
             (SELECT COUNT(*) FROM Sale_Item WHERE SaleID = s.SaleID) as item_count,
-            (SELECT SUM(SI_Quantity * SI_Price) FROM Sale_Item WHERE SaleID = s.SaleID) as Order_Total
+            (SELECT SUM(SI_Quantity * SI_Price) FROM Sale_Item WHERE SaleID = s.SaleID) as Order_Total,
+            p.Prom_Code as PromotionName
         FROM Sales s
         JOIN Customers c ON s.CustomerID = c.CustomerID
+        LEFT JOIN Order_Promotions op ON s.SaleID = op.SaleID
+        LEFT JOIN promotions p ON op.PromotionID = p.PromotionID
         WHERE c.UserID = ?
         ORDER BY s.Sale_Date DESC
     ");
@@ -871,7 +874,7 @@ function getOrderDetails($saleID) {
             s.SaleID as OrderID,
             s.Sale_Date as Order_Date,
             s.Sale_Status as Order_Status,
-            s.Sale_Per as Payment_Method,
+            COALESCE(ph.PT_PayMethod, 'cash') as Payment_Method,
             si.SI_Quantity as Quantity,
             si.SI_Price as Price,
             p.Prod_Name as product_name,
@@ -879,12 +882,20 @@ function getOrderDetails($saleID) {
             c.Cust_DiscRate,
             COALESCE(op.OrderP_DiscntApplied, 0) as discount_applied,
             (si.SI_Quantity * si.SI_Price) as Subtotal,
-            (SELECT SUM(SI_Quantity * SI_Price) FROM Sale_Item WHERE SaleID = s.SaleID) as Order_Total
+            (SELECT SUM(SI_Quantity * SI_Price) FROM Sale_Item WHERE SaleID = s.SaleID) as Order_Total,
+            prom.Prom_Code as PromotionName,
+            CASE 
+                WHEN COALESCE(ph.PT_PayMethod, 'cash') = 'cash' THEN 'Cash'
+                WHEN COALESCE(ph.PT_PayMethod, 'cash') = 'card' THEN 'Card'
+                ELSE 'Cash'
+            END as Payment_Method_Display
         FROM Sales s
         JOIN Sale_Item si ON s.SaleID = si.SaleID
         JOIN Products p ON si.ProductID = p.ProductID
         JOIN Customers c ON s.CustomerID = c.CustomerID
         LEFT JOIN Order_Promotions op ON s.SaleID = op.SaleID
+        LEFT JOIN promotions prom ON op.PromotionID = prom.PromotionID
+        LEFT JOIN Payment_History ph ON s.SaleID = ph.SaleID
         WHERE s.SaleID = ?
     ");
     $stmt->execute([$saleID]);
@@ -1429,13 +1440,14 @@ public function resetExpiredPoints($pointsExpireAfter) {
         }
     }
 
-    public function getTotalOrders() {
+    public function getTotalOrders($userID) {
         try {
             $sql = "SELECT COUNT(*) as total_orders 
-                    FROM Sales 
-                    WHERE Sale_Date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)";
+                    FROM Sales s
+                    JOIN Customers c ON s.CustomerID = c.CustomerID
+                    WHERE c.UserID = ?";
             $stmt = $this->opencon()->prepare($sql);
-            $stmt->execute();
+            $stmt->execute([$userID]);
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
             return $result['total_orders'];
         } catch (PDOException $e) {
@@ -1551,6 +1563,22 @@ public function resetExpiredPoints($pointsExpireAfter) {
         $stmt->bindValue(2, $limit, PDO::PARAM_INT);
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function getUserTotalOrders($userID) {
+        try {
+            $sql = "SELECT COUNT(*) as total_orders 
+                    FROM Sales s
+                    JOIN Customers c ON s.CustomerID = c.CustomerID
+                    WHERE c.UserID = ?";
+            $stmt = $this->opencon()->prepare($sql);
+            $stmt->execute([$userID]);
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            return $result['total_orders'];
+        } catch (PDOException $e) {
+            error_log("Error in getUserTotalOrders: " . $e->getMessage());
+            return 0;
+        }
     }
 
 }
