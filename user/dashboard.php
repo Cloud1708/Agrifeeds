@@ -15,7 +15,7 @@ $userInfo = $con->getUserInfo($userID);
 $customerInfo = $con->getCustomerInfo($userID);
 
 // Get dashboard data
-$totalOrders = $con->getTotalOrders($userID);
+$totalOrders = $con->getUserTotalOrders($userID);
 $recentOrders = $con->getUserRecentOrders($userID, 5);
 ?>
 
