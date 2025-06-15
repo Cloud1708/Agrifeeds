@@ -1,4 +1,7 @@
 <?php
+// Set timezone to Manila
+date_default_timezone_set('Asia/Manila');
+
 class database{
 
     function opencon(): PDO{
