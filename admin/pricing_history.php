@@ -212,7 +212,7 @@ if ($debug) {
                         <td>
                             <?php
                                 // Format Change Date like Created At (Y-m-d H:i:s)
-                                echo date('Y-m-d H:i:s', strtotime($record['PH_ChangeDate']));
+                                echo date('Y-m-d', strtotime($record['PH_ChangeDate']));
                             ?>
                         </td>
                         <td><?php echo htmlspecialchars($record['PH_Effective_from']); ?></td>

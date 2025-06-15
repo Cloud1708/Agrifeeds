@@ -1002,6 +1002,12 @@ document.getElementById('perPage').addEventListener('change', function() {
 
     // Add JS to open the price modal and prefill it
     document.getElementById('openPriceModalBtn').addEventListener('click', function() {
+        // Hide the Edit Product modal before showing the Edit Price modal
+        var editProductModal = bootstrap.Modal.getInstance(document.getElementById('editProductModal'));
+        if (editProductModal) {
+            editProductModal.hide();
+        }
+        // Prefill price modal fields
         document.getElementById('editPriceProductID').value = document.getElementById('editProductID').value;
         document.getElementById('newPrice').value = document.getElementById('editPriceDisplay').value;
         // Set today's date as default for effectiveFrom using Manila timezone
@@ -1009,9 +1015,11 @@ document.getElementById('perPage').addEventListener('change', function() {
         const manilaDate = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Manila' }));
         document.getElementById('effectiveFrom').value = manilaDate.toISOString().split('T')[0];
         document.getElementById('effectiveTo').value = '';
+        // Show the Edit Price modal
         var priceModal = new bootstrap.Modal(document.getElementById('editPriceModal'));
         priceModal.show();
     });
+
     </script>
     <?php echo $sweetAlertConfig; ?>
     

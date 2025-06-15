@@ -60,11 +60,6 @@ if ($_SESSION['user_role'] != 1 && $_SESSION['user_role'] != 3) {
     <div class="main-content">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1>Inventory History</h1>
-            <div>
-                <button class="btn btn-primary">
-                    <i class="bi bi-download"></i> Export
-                </button>
-            </div>
         </div>
 
         <!-- Filters Section -->

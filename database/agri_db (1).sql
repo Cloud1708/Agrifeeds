@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Jun 15, 2025 at 08:49 PM
+-- Generation Time: Jun 15, 2025 at 09:27 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -237,11 +237,18 @@ CREATE TABLE `pricing_history` (
   `ProductID` int(11) DEFAULT NULL,
   `PH_OldPrice` decimal(10,2) DEFAULT NULL,
   `PH_NewPrice` decimal(10,2) DEFAULT NULL,
-  `PH_ChangeDate` timestamp NOT NULL DEFAULT current_timestamp(),
+  `PH_ChangeDate` date NOT NULL,
   `PH_Effective_from` date NOT NULL,
   `PH_Effective_to` date DEFAULT NULL,
   `PH_Created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `pricing_history`
+--
+
+INSERT INTO `pricing_history` (`HistoryID`, `ProductID`, `PH_OldPrice`, `PH_NewPrice`, `PH_ChangeDate`, `PH_Effective_from`, `PH_Effective_to`, `PH_Created_at`) VALUES
+(1, 1, 1111.00, 1000.00, '2025-06-16', '2025-06-16', NULL, '2025-06-15 19:17:52');
 
 -- --------------------------------------------------------
 
@@ -268,7 +275,7 @@ CREATE TABLE `products` (
 --
 
 INSERT INTO `products` (`ProductID`, `Prod_Name`, `Prod_Cat`, `Prod_Desc`, `Prod_Price`, `Prod_Stock`, `Prod_Image`, `UserID`, `Prod_Created_at`, `Prod_Updated_at`, `discontinued`) VALUES
-(1, 'Integra 2000', 'feed', 'pakain sa chicken', 1111.00, 49, 'uploads/product_images/684f10f13c991.png', 1, '2025-06-15 18:29:05', '2025-06-15 18:47:44', NULL),
+(1, 'Integra 2000', 'feed', 'pakain sa chicken', 1000.00, 49, 'uploads/product_images/684f10f13c991.png', 1, '2025-06-15 18:29:05', '2025-06-15 19:17:52', NULL),
 (2, 'Top Breed adult 20kls', 'feed', 'Pakain sa dog', 1340.00, 30, 'uploads/product_images/684f121f3c72f.jpg', 2, '2025-06-15 18:34:07', '2025-06-15 18:34:07', NULL),
 (3, 'Top Breed puppy 20kls ', 'feed', 'pakain sa puppy', 1610.00, 30, 'uploads/product_images/684f126f730f7.jpg', 2, '2025-06-15 18:35:27', '2025-06-15 18:35:27', NULL),
 (4, 'pedigree adult beef 20kls', 'feed', 'pakain sa aso beef edition', 2477.00, 35, 'uploads/product_images/684f12fd183a2.jpg', 2, '2025-06-15 18:37:49', '2025-06-15 18:37:49', NULL),
@@ -671,7 +678,7 @@ ALTER TABLE `payment_history`
 -- AUTO_INCREMENT for table `pricing_history`
 --
 ALTER TABLE `pricing_history`
-  MODIFY `HistoryID` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `HistoryID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `products`

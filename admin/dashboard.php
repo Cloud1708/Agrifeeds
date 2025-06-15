@@ -127,7 +127,7 @@ $topProducts = $con->getTopProducts(); // You'll need to implement this method
                 </div>
             </div>
         </div>
-
+ 
         <!-- Quick Actions -->
         <div class="card mb-4">
     <div class="card-body">
