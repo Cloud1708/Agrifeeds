@@ -16,7 +16,9 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] != 2) { // 2 for cust
 $userID = $_SESSION['user_id'];
 $userInfo = $con->getUserInfo($userID);
 $customerInfo = $con->getCustomerInfo($userID);
-$products = $con->getAllProducts();
+$products = array_filter($con->getAllProducts(), function($product) {
+    return !isset($product['discontinued']) || $product['discontinued'] == 0;
+});
 
 $promos = [];
 if (method_exists($con, 'getAvailablePromos')) {
@@ -398,19 +400,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['payment_method'])) {
                         <p class="card-text"><?php echo htmlspecialchars($product['Prod_Desc']); ?></p>
                         <p class="card-text"><strong>₱<?php echo number_format($product['Prod_Price'], 2); ?></strong></p>
                         <span class="badge bg-secondary"><?php echo htmlspecialchars($product['Prod_Cat']); ?></span>
-                        <span class="badge <?php echo ($product['Prod_Stock'] == 0) ? 'bg-danger' : (($product['Prod_Stock'] <= 10) ? 'bg-warning text-dark' : 'bg-success'); ?>">
-                            <?php
-                                if ($product['Prod_Stock'] == 0) echo 'Out of Stock';
-                                elseif ($product['Prod_Stock'] <= 10) echo 'Low Stock';
-                                else echo 'In Stock';
-                            ?>
-                        </span>
+                        <?php if (isset($product['discontinued']) && $product['discontinued']): ?>
+                            <span class="badge bg-dark">Not Available</span>
+                        <?php else: ?>
+                            <span class="badge <?php echo ($product['Prod_Stock'] == 0) ? 'bg-danger' : (($product['Prod_Stock'] <= 10) ? 'bg-warning text-dark' : 'bg-success'); ?>">
+                                <?php
+                                    if ($product['Prod_Stock'] == 0) echo 'Out of Stock';
+                                    elseif ($product['Prod_Stock'] <= 10) echo 'Low Stock';
+                                    else echo 'In Stock';
+                                ?>
+                            </span>
+                        <?php endif; ?>
                         <span class="ms-2 text-muted small">(<?php echo $product['Prod_Stock']; ?> left)</span>
-                        <?php if ($product['Prod_Stock'] > 0): ?>
+                        <?php if ($product['Prod_Stock'] > 0 && (!isset($product['discontinued']) || !$product['discontinued'])): ?>
                         <div class="mt-3 d-flex align-items-center gap-2">
                             <button class="btn btn-success w-100" data-bs-toggle="modal" data-bs-target="#addToCartModal<?php echo $product['ProductID']; ?>">
                                 <i class="bi bi-cart-plus"></i> Add to Cart
                             </button>
+                        </div>
+                        <?php elseif (isset($product['discontinued']) && $product['discontinued']): ?>
+                        <div class="mt-3">
+                            <button class="btn btn-secondary w-100" disabled>Not Available</button>
                         </div>
                         <?php endif; ?>
                     </div>

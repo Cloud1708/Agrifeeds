@@ -699,7 +699,7 @@ class database{
    
     public function getAllProducts() {
         $con = $this->opencon();
-        $stmt = $con->prepare("SELECT * FROM products");
+        $stmt = $con->prepare("SELECT * FROM products WHERE discontinued = 0 OR discontinued IS NULL");
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
