@@ -1,0 +1,116 @@
+/* Dashboard Styles */
+.dashboard-card {
+    transition: transform 0.2s;
+    border: none;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.dashboard-card:hover {
+    transform: translateY(-5px);
+}
+
+.dashboard-card .card-title {
+    color: #6c757d;
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.dashboard-card .card-text {
+    color: #2c3e50;
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+}
+
+.dashboard-card small {
+    font-size: 0.8rem;
+}
+
+/* Chart containers */
+.chart-container {
+    position: relative;
+    height: 300px;
+    margin-bottom: 1rem;
+}
+
+/* Table styles */
+.table-responsive {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.table th {
+    position: sticky;
+    top: 0;
+    background: white;
+    z-index: 1;
+}
+
+/* Status badges */
+.status-badge {
+    padding: 0.35em 0.65em;
+    font-size: 0.75em;
+    font-weight: 600;
+    border-radius: 0.25rem;
+}
+
+.status-completed {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.status-pending {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.status-cancelled {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+/* Quick action buttons */
+.quick-action-btn {
+    padding: 0.5rem 1rem;
+    font-weight: 500;
+}
+
+.quick-action-btn i {
+    margin-right: 0.5rem;
+}
+
+/* Alert cards */
+.alert-card {
+    border-left: 4px solid;
+    margin-bottom: 1rem;
+}
+
+.alert-card.low-stock {
+    border-left-color: #dc3545;
+}
+
+.alert-card.out-of-stock {
+    border-left-color: #ffc107;
+}
+
+/* Refresh and export buttons */
+#refreshBtn, #exportBtn {
+    padding: 0.5rem 1rem;
+    font-weight: 500;
+}
+
+#refreshBtn i, #exportBtn i {
+    margin-right: 0.5rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .dashboard-card .card-text {
+        font-size: 1.5rem;
+    }
+    
+    .chart-container {
+        height: 250px;
+    }
+} 
