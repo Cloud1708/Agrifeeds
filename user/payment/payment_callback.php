@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once('../includes/db.php');
+require_once('../../includes/db.php');
 $con = new database();
 
 // Check if user is logged in
@@ -21,6 +21,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['status'])) {
     }
 }
 
-header('Content-Type: application/json');
+header('Content-    Type: application/json');
 echo json_encode(['success' => false, 'message' => 'Invalid request']);
 exit(); 
