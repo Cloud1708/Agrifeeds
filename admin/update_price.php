@@ -7,6 +7,9 @@ if (!isset($_SESSION['user_id']) || !in_array($_SESSION['user_role'], [1, 3])) {
     exit();
 }
 
+
+
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $productId = isset($_POST['productID']) ? intval($_POST['productID']) : 0;
     $newPrice = isset($_POST['newPrice']) ? floatval($_POST['newPrice']) : null;
