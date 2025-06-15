@@ -1740,6 +1740,76 @@ class database{
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    /**
+     * Update product price with pricing history logic.
+     *
+     * @param int $productId
+     * @param float $newPrice
+     * @param string $effectiveFrom (Y-m-d)
+     * @param string|null $effectiveTo (Y-m-d or null)
+     * @return bool|string Returns true on success, or error message on failure
+     */
+    public function updateProductPriceWithHistory($productId, $newPrice, $effectiveFrom, $effectiveTo = null) {
+        try {
+            $con = $this->opencon();
+            $con->beginTransaction();
+
+            // 1. Find the current active price history record
+            $stmt = $con->prepare("SELECT * FROM pricing_history WHERE ProductID = ? AND (PH_Effective_to IS NULL OR PH_Effective_to >= ?) ORDER BY PH_Effective_from DESC LIMIT 1");
+            $stmt->execute([$productId, $effectiveFrom]);
+            $current = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            // 2. If found, set its PH_Effective_to to the day before the new effective_from
+            if ($current) {
+                $oldEffectiveTo = date('Y-m-d', strtotime($effectiveFrom . ' -1 day'));
+                $updateStmt = $con->prepare("UPDATE pricing_history SET PH_Effective_to = ? WHERE HistoryID = ?");
+                $updateStmt->execute([$oldEffectiveTo, $current['HistoryID']]);
+            }
+
+            // 3. Insert new pricing history record (without UserID)
+            $changeDate = date('Y-m-d');
+            // Find the price in effect on the new effectiveFrom date
+            $stmt = $con->prepare("
+                SELECT PH_NewPrice FROM pricing_history
+                WHERE ProductID = ?
+                  AND PH_Effective_from <= ?
+                  AND (PH_Effective_to IS NULL OR PH_Effective_to >= ?)
+                ORDER BY PH_Effective_from DESC, HistoryID DESC
+                LIMIT 1
+            ");
+            $stmt->execute([$productId, $effectiveFrom, $effectiveFrom]);
+            $inEffect = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($inEffect) {
+                $oldPrice = $inEffect['PH_NewPrice'];
+            } else {
+                $prod = $con->prepare("SELECT Prod_Price FROM products WHERE ProductID = ?");
+                $prod->execute([$productId]);
+                $prodRow = $prod->fetch(PDO::FETCH_ASSOC);
+                $oldPrice = $prodRow ? $prodRow['Prod_Price'] : null;
+            }
+            $stmt = $con->prepare("INSERT INTO pricing_history (ProductID, PH_OldPrice, PH_NewPrice, PH_ChangeDate, PH_Effective_from, PH_Effective_to) VALUES (?, ?, ?, ?, ?, ?)");
+            $stmt->execute([
+                $productId,
+                $oldPrice,
+                $newPrice,
+                $changeDate,
+                $effectiveFrom,
+                $effectiveTo
+            ]);
+
+            // 4. Update the products table with the new price ONLY if the effective_from is today or earlier
+            if (strtotime($effectiveFrom) <= strtotime(date('Y-m-d'))) {
+                $updateProd = $con->prepare("UPDATE products SET Prod_Price = ?, Prod_Updated_at = NOW() WHERE ProductID = ?");
+                $updateProd->execute([$newPrice, $productId]);
+            }
+
+            $con->commit();
+            return true;
+        } catch (PDOException $e) {
+            if (isset($con)) $con->rollBack();
+            return $e->getMessage();
+        }
+    }
 
 }
 

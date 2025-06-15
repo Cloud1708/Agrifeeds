@@ -212,7 +212,9 @@ if (isset($_POST['edit_product'])) {
     $name = $_POST['productName'];
     $category = $_POST['category'];
     $description = $_POST['description'];
-    $price = $_POST['price'];
+    // Always use the current price from the database
+    $product = $con->getProductById($id);
+    $price = $product['Prod_Price'];
     $addStock = $_POST['stock'];
     
     // Handle image upload
@@ -285,7 +287,6 @@ if (isset($_POST['edit_product'])) {
     }
     
     // Fetch current stock
-    $product = $con->getProductById($id);
     $currentStock = isset($product['Prod_Stock']) ? (int)$product['Prod_Stock'] : 0;
     $newStock = $currentStock + (int)$addStock;
     
@@ -718,10 +719,11 @@ foreach ($allProducts as $prod) {
                 <textarea class="form-control" id="editDescription" name="description" rows="3"></textarea>
               </div>
               <div class="mb-3">
-                <label for="editPrice" class="form-label">Price</label>
+                <label class="form-label">Price</label>
                 <div class="input-group">
                   <span class="input-group-text">₱</span>
-                  <input type="number" class="form-control" id="editPrice" name="price" min="0" step="0.01" required>
+                  <input type="text" class="form-control" id="editPriceDisplay" name="price_display" readonly>
+                  <button type="button" class="btn btn-outline-primary" id="openPriceModalBtn"><i class="bi bi-pencil"></i> Edit</button>
                 </div>
               </div>
               <div class="mb-3">
@@ -809,6 +811,42 @@ foreach ($allProducts as $prod) {
         </div>
     </div>
    
+    <!-- New Price Edit Modal -->
+    <div class="modal fade" id="editPriceModal" tabindex="-1" aria-labelledby="editPriceModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <form id="editPriceForm" method="POST" action="update_price.php">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title" id="editPriceModalLabel">Edit Product Price</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <input type="hidden" name="productID" id="editPriceProductID">
+              <div class="mb-3">
+                <label for="newPrice" class="form-label">New Price</label>
+                <div class="input-group">
+                  <span class="input-group-text">₱</span>
+                  <input type="number" class="form-control" id="newPrice" name="newPrice" min="0" step="0.01" required>
+                </div>
+              </div>
+              <div class="mb-3">
+                <label for="effectiveFrom" class="form-label">Date Effective From</label>
+                <input type="date" class="form-control" id="effectiveFrom" name="effectiveFrom" required>
+              </div>
+              <div class="mb-3">
+                <label for="effectiveTo" class="form-label">Date Effective To <span class="text-muted">(optional)</span></label>
+                <input type="date" class="form-control" id="effectiveTo" name="effectiveTo">
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+              <button type="submit" class="btn btn-primary">Save Price</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+   
     <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <!-- SweetAlert2 JS -->
@@ -823,8 +861,8 @@ foreach ($allProducts as $prod) {
             document.getElementById('editProductName').value = this.dataset.name;
             document.getElementById('editCategory').value = this.dataset.category;
             document.getElementById('editDescription').value = this.dataset.description;
-            document.getElementById('editPrice').value = this.dataset.price;
-            document.getElementById('editStock').value = 0; // Always start with 0 for add stock
+            document.getElementById('editPriceDisplay').value = this.dataset.price;
+            document.getElementById('editStock').value = 0;
             document.getElementById('currentStockDisplay').value = this.dataset.stock;
             
             // Handle current product image
@@ -955,6 +993,16 @@ foreach ($allProducts as $prod) {
 document.getElementById('perPage').addEventListener('change', function() {
     window.location.href = '?page=1&per_page=' + this.value;
 });
+
+    // Add JS to open the price modal and prefill it
+    document.getElementById('openPriceModalBtn').addEventListener('click', function() {
+        document.getElementById('editPriceProductID').value = document.getElementById('editProductID').value;
+        document.getElementById('newPrice').value = document.getElementById('editPriceDisplay').value;
+        document.getElementById('effectiveFrom').value = '';
+        document.getElementById('effectiveTo').value = '';
+        var priceModal = new bootstrap.Modal(document.getElementById('editPriceModal'));
+        priceModal.show();
+    });
     </script>
     <?php echo $sweetAlertConfig; ?>
     

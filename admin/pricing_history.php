@@ -202,7 +202,6 @@ if ($debug) {
                         <th>Effective From</th>
                         <th>Effective To</th>
                         <th>Created At</th>
-                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -216,28 +215,6 @@ if ($debug) {
                         <td><?php echo htmlspecialchars($record['PH_Effective_from']); ?></td>
                         <td><?php echo htmlspecialchars($record['PH_Effective_to'] ?? 'N/A'); ?></td>
                         <td><?php echo htmlspecialchars($record['PH_Created_at']); ?></td>
-                        <td>
-                            <div class="btn-group" role="group">
-                                <button 
-                                    type="button" 
-                                    class="btn btn-warning btn-sm editHistoryBtn"
-                                    data-id="<?php echo $record['HistoryID']; ?>"
-                                    data-product="<?php echo $record['ProductID']; ?>"
-                                    data-oldprice="<?php echo $record['PH_OldPrice']; ?>"
-                                    data-newprice="<?php echo $record['PH_NewPrice']; ?>"
-                                    data-changedate="<?php echo $record['PH_ChangeDate']; ?>"
-                                    data-effectivefrom="<?php echo $record['PH_Effective_from']; ?>"
-                                    data-effectiveto="<?php echo $record['PH_Effective_to']; ?>"
-                                    data-bs-toggle="modal"
-                                    data-bs-target="#editHistoryModal"
-                                >
-                                    <i class="bi bi-pencil-square"></i>
-                                </button>
-                                <button type="button" class="btn btn-danger btn-sm deleteHistoryBtn" data-id="<?php echo $record['HistoryID']; ?>">
-                                    <i class="bi bi-x-square"></i>
-                                </button>
-                            </div>
-                        </td>
                     </tr>
                     <?php endforeach; ?>
                 </tbody>
