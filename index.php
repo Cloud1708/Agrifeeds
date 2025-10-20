@@ -1,8 +1,11 @@
 <?php
+require_once 'config.php';
 session_start();
 require_once 'includes/db.php';
 
+error_log("=== INDEX.PHP START ===");
 error_log("Session started. Current session data: " . print_r($_SESSION, true));
+error_log("Server info: " . print_r($_SERVER, true));
 
 if (isset($_SESSION['user_id'])) {
     error_log("User already logged in. User ID: " . $_SESSION['user_id'] . ", Role: " . $_SESSION['user_role']);
@@ -25,39 +28,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = trim($_POST['username']);
     $password = $_POST['password'];
 
-    error_log("Login attempt - Username: " . $username);
+    error_log("=== LOGIN FORM SUBMITTED ===");
+    error_log("Username: " . $username);
+    error_log("Password length: " . strlen($password));
+    error_log("POST data: " . print_r($_POST, true));
 
     if (empty($username) || empty($password)) {
         $error = "Please enter both username and password";
         error_log("Login failed - Empty username or password");
     } else {
-        $user = $db->loginUser($username, $password);
-        
-        if ($user) {
-            error_log("Login successful. Setting session variables:");
-            error_log("User ID: " . $user['UserID']);
-            error_log("Username: " . $user['User_Name']);
-            error_log("User Role: " . $user['User_Role']);
+        try {
+            $user = $db->loginUser($username, $password);
             
-            $_SESSION['user_id'] = $user['UserID'];
-            $_SESSION['username'] = $user['User_Name'];
-            $_SESSION['user_role'] = $user['User_Role'];
-            
-            error_log("Session after login: " . print_r($_SESSION, true));
-            
-            switch ($user['User_Role']) {
-                case 1:
-                case 3:
-                    header('Location: admin/dashboard.php');
-                    break;
-                case 2:
-                    header('Location: user/dashboard.php');
-                    break;
+            if ($user) {
+                error_log("=== LOGIN SUCCESSFUL IN INDEX.PHP ===");
+                error_log("User data: " . print_r($user, true));
+                
+                $_SESSION['user_id'] = $user['UserID'];
+                $_SESSION['username'] = $user['User_Name'];
+                $_SESSION['user_role'] = $user['User_Role'];
+                
+                error_log("Session variables set:");
+                error_log("user_id: " . $_SESSION['user_id']);
+                error_log("username: " . $_SESSION['username']);
+                error_log("user_role: " . $_SESSION['user_role']);
+                
+                // Redirect based on role
+                switch ($user['User_Role']) {
+                    case 1:
+                    case 3:
+                        error_log("Redirecting to admin dashboard");
+                        header('Location: admin/dashboard.php');
+                        break;
+                    case 2:
+                        error_log("Redirecting to user dashboard");
+                        header('Location: user/dashboard.php');
+                        break;
+                    default:
+                        error_log("Unknown user role: " . $user['User_Role']);
+                        $error = "Invalid user role";
+                        break;
+                }
+                exit();
+            } else {
+                $error = "Invalid username or password";
+                error_log("Login failed - Invalid credentials returned from database");
             }
-            exit();
-        } else {
-            $error = "Invalid username or password";
-            error_log("Login failed - Invalid credentials");
+        } catch (Exception $e) {
+            error_log("Exception during login: " . $e->getMessage());
+            $error = "Login failed due to system error. Please try again.";
         }
     }
 }

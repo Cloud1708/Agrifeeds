@@ -1,16 +1,34 @@
 <?php
-
-    date_default_timezone_set('Asia/Manila');
+// Database configuration
+$DB_HOST = 'mysql.hostinger.com';
+$DB_USER = 'u689218423_agrifeeds';
+$DB_PASS = '@Agrifeeds12345';
+$DB_NAME = 'u689218423_agrifeeds';
     
 class database{
 
 
 
     function opencon(): PDO{
-        return new PDO(
-            dsn: 'mysql:host=mysql.hostinger.com;dbname=u689218423_agrifeeds',
-            username: 'u689218423_agrifeeds',
-            password: '@Agrifeeds12345');
+        global $DB_HOST, $DB_USER, $DB_PASS, $DB_NAME;
+        
+        try {
+            $pdo = new PDO(
+                dsn: 'mysql:host=' . $DB_HOST . ';dbname=' . $DB_NAME,
+                username: $DB_USER,
+                password: $DB_PASS,
+                options: [
+                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                    PDO::ATTR_EMULATE_PREPARES => false,
+                    PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4"
+                ]
+            );
+            return $pdo;
+        } catch (PDOException $e) {
+            error_log("Database connection failed: " . $e->getMessage());
+            throw new Exception("Database connection failed: " . $e->getMessage());
+        }
     }
 
     function addProduct($productName, $category, $description, $price, $stock, $imagePath = null) {
@@ -365,39 +383,60 @@ class database{
     function loginUser($username, $password) {
         try {
             $con = $this->opencon();
+            
+            // Enhanced logging for debugging
+            error_log("=== LOGIN ATTEMPT START ===");
+            error_log("Username: " . $username);
+            error_log("Password length: " . strlen($password));
+            error_log("Database connection: " . ($con ? 'success' : 'failed'));
+            
             $stmt = $con->prepare("SELECT * FROM USER_ACCOUNTS WHERE User_Name = ?");
             $stmt->execute([$username]);
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
             
-            error_log("Login attempt for username: " . $username);
             error_log("User found: " . ($user ? 'yes' : 'no'));
             
             if ($user) {
-                error_log("User role: " . $user['User_Role']);
                 error_log("User ID: " . $user['UserID']);
+                error_log("User Role: " . $user['User_Role']);
+                error_log("Password hash length: " . strlen($user['User_Password']));
                 
                 // Check if password is properly hashed
-                if (password_get_info($user['User_Password'])['algo'] === null) {
-                    error_log("Password is not properly hashed for user: " . $username);
+                $passwordInfo = password_get_info($user['User_Password']);
+                error_log("Password hash info: " . print_r($passwordInfo, true));
+                
+                if ($passwordInfo['algo'] === null) {
+                    error_log("ERROR: Password is not properly hashed for user: " . $username);
+                    error_log("Raw password in DB: " . $user['User_Password']);
                     return false;
                 }
                 
                 $passwordValid = password_verify($password, $user['User_Password']);
-                error_log("Password verification: " . ($passwordValid ? 'success' : 'failed'));
+                error_log("Password verification result: " . ($passwordValid ? 'SUCCESS' : 'FAILED'));
                 
                 if ($passwordValid) {
-                    error_log("Login successful for user: " . $username);
+                    error_log("=== LOGIN SUCCESSFUL ===");
                     return $user;
                 } else {
-                    error_log("Invalid password for user: " . $username);
+                    error_log("=== LOGIN FAILED: Invalid password ===");
                 }
             } else {
-                error_log("User not found: " . $username);
+                error_log("=== LOGIN FAILED: User not found ===");
             }
             
+            error_log("=== LOGIN ATTEMPT END ===");
             return false;
+            
         } catch (PDOException $e) {
-            error_log("Login error: " . $e->getMessage());
+            error_log("=== LOGIN ERROR ===");
+            error_log("PDO Exception: " . $e->getMessage());
+            error_log("Error Code: " . $e->getCode());
+            error_log("File: " . $e->getFile());
+            error_log("Line: " . $e->getLine());
+            return false;
+        } catch (Exception $e) {
+            error_log("=== LOGIN GENERAL ERROR ===");
+            error_log("Exception: " . $e->getMessage());
             return false;
         }
     }
