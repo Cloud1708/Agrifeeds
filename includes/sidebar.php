@@ -3,6 +3,7 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+
 // Get the current page name to set active state
 $current_page = basename($_SERVER['PHP_SELF']);
 
