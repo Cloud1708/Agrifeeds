@@ -2,61 +2,83 @@
 session_start();
 require_once 'includes/db.php';
 
+// Enable error reporting for debugging
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
 $db = new database();
 $error = '';
 $success = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $username = trim($_POST['username']);
-    $firstName = trim($_POST['firstName']);
-    $lastName = trim($_POST['lastName']);
-    $countryCode = trim($_POST['countryCode']);
-    $phoneNumber = trim($_POST['phoneNumber']);
-    
-    // Remove leading zero if present
-    $phoneNumber = ltrim($phoneNumber, '0');
-    
-    $contactInfo = $countryCode . $phoneNumber; // Combine for database storage
-    $password = $_POST['password'];
-    $confirm_password = $_POST['confirm_password'];
-    $photo = null;
+    try {
+        $username = trim($_POST['username']);
+        $firstName = trim($_POST['firstName']);
+        $lastName = trim($_POST['lastName']);
+        $countryCode = trim($_POST['countryCode']);
+        $phoneNumber = trim($_POST['phoneNumber']);
+        
+        // Remove leading zero if present
+        $phoneNumber = ltrim($phoneNumber, '0');
+        
+        $contactInfo = $countryCode . $phoneNumber; // Combine for database storage
+        $password = $_POST['password'];
+        $confirm_password = $_POST['confirm_password'];
+        $photo = null;
 
-    if (empty($username) || empty($password) || empty($confirm_password) || empty($firstName) || empty($lastName) || empty($phoneNumber)) {
-        $error = "All fields are required";
-    } elseif ($password !== $confirm_password) {
-        $error = "Passwords do not match";
-    } elseif (strlen($password) < 6) {
-        $error = "Password must be at least 6 characters long";
-    } elseif ($db->checkUsernameExists($username)) {
-        $error = "Username already exists";
-    } else {
-        if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
-            $allowed = ['jpg', 'jpeg', 'png'];
-            $filename = $_FILES['photo']['name'];
-            $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+        // Enhanced validation
+        if (empty($username) || empty($password) || empty($confirm_password) || empty($firstName) || empty($lastName) || empty($phoneNumber)) {
+            $error = "All fields are required";
+        } elseif ($password !== $confirm_password) {
+            $error = "Passwords do not match";
+        } elseif (strlen($password) < 6) {
+            $error = "Password must be at least 6 characters long";
+        } elseif (!preg_match('/^[a-zA-Z0-9_]+$/', $username)) {
+            $error = "Username can only contain letters, numbers, and underscores";
+        } elseif (strlen($username) < 3) {
+            $error = "Username must be at least 3 characters long";
+        } else {
+            // Check username availability
+            if ($db->checkUsernameExists($username)) {
+                $error = "Username already exists";
+            } else {
+                // Handle photo upload
+                if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
+                    $allowed = ['jpg', 'jpeg', 'png'];
+                    $filename = $_FILES['photo']['name'];
+                    $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
 
-            if (in_array($ext, $allowed)) {
-                $new_filename = uniqid() . '.' . $ext;
-                $upload_path = 'uploads/profile_photos/' . $new_filename;
+                    if (in_array($ext, $allowed)) {
+                        $new_filename = uniqid() . '.' . $ext;
+                        $upload_path = 'uploads/profile_photos/' . $new_filename;
 
-                if (!is_dir('uploads/profile_photos')) {
-                    mkdir('uploads/profile_photos', 0777, true);
+                        if (!is_dir('uploads/profile_photos')) {
+                            mkdir('uploads/profile_photos', 0777, true);
+                        }
+
+                        if (move_uploaded_file($_FILES['photo']['tmp_name'], $upload_path)) {
+                            $photo = $upload_path;
+                        }
+                    }
                 }
 
-                if (move_uploaded_file($_FILES['photo']['tmp_name'], $upload_path)) {
-                    $photo = $upload_path;
+                // Attempt registration
+                error_log("Attempting to register user: " . $username);
+                $userID = $db->registerUser($username, $password, 2, $photo, $firstName, $lastName, $contactInfo);
+
+                if ($userID) {
+                    $success = "Registration successful! Redirecting to login...";
+                    error_log("Registration successful for user: " . $username . " with ID: " . $userID);
+                    header('refresh:2;url=index.php');
+                } else {
+                    $error = "Registration failed. Please try again.";
+                    error_log("Registration failed for user: " . $username);
                 }
             }
         }
-
-        $userID = $db->registerUser($username, $password, 2, $photo, $firstName, $lastName, $contactInfo);
-
-        if ($userID) {
-            $success = "Registration successful! Redirecting to login...";
-            header('refresh:2;url=index.php');
-        } else {
-            $error = "Registration failed. Please try again.";
-        }
+    } catch (Exception $e) {
+        $error = "An error occurred during registration: " . $e->getMessage();
+        error_log("Registration error: " . $e->getMessage());
     }
 }
 ?>

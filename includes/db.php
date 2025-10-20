@@ -7,10 +7,23 @@ class database{
 
 
     function opencon(): PDO{
-        return new PDO(
-            dsn: 'mysql:host=mysql.hostinger.com;dbname=u689218423_agrifeeds',
-            username: 'u689218423_agrifeeds',
-            password: '@Afrifeeds12345');
+        try {
+            $pdo = new PDO(
+                dsn: 'mysql:host=mysql.hostinger.com;dbname=u689218423_agrifeeds;charset=utf8mb4',
+                username: 'u689218423_agrifeeds',
+                password: '@Afrifeeds12345',
+                options: [
+                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                    PDO::ATTR_EMULATE_PREPARES => false,
+                    PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4"
+                ]
+            );
+            return $pdo;
+        } catch (PDOException $e) {
+            error_log("Database connection error: " . $e->getMessage());
+            throw new PDOException("Database connection failed: " . $e->getMessage());
+        }
     }
 
     function addProduct($productName, $category, $description, $price, $stock, $imagePath = null) {
@@ -311,29 +324,53 @@ class database{
             $con = $this->opencon();
             $con->beginTransaction();
             
+            error_log("Starting user registration for: " . $username);
+            
             // Hash the password
             $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+            error_log("Password hashed successfully");
             
             // Insert into USER_ACCOUNTS
             $stmt = $con->prepare("INSERT INTO USER_ACCOUNTS (User_Name, User_Password, User_Role, User_Photo, User_CreatedAt) VALUES (?, ?, ?, ?, NOW())");
-            $stmt->execute([$username, $hashedPassword, $role, $photo]);
+            $result = $stmt->execute([$username, $hashedPassword, $role, $photo]);
+            
+            if (!$result) {
+                throw new PDOException("Failed to insert user account");
+            }
             
             $userID = $con->lastInsertId();
+            error_log("User account created with ID: " . $userID);
 
             // Insert into Customers
             $stmt = $con->prepare("INSERT INTO customers (UserID, Cust_FN, Cust_LN, Cust_CoInfo, Cust_LoStat, Cust_DiscRate) VALUES (?, ?, ?, ?, 'None', '0.00')");
-            $stmt->execute([$userID, $firstName, $lastName, $contactInfo]);
+            $result = $stmt->execute([$userID, $firstName, $lastName, $contactInfo]);
+            
+            if (!$result) {
+                throw new PDOException("Failed to insert customer record");
+            }
             
             $customerID = $con->lastInsertId();
+            error_log("Customer record created with ID: " . $customerID);
 
             // Insert into Loyalty_Program
             $stmt = $con->prepare("INSERT INTO loyalty_program (CustomerID, LP_PtsBalance, LP_MbspTier, LP_LastUpdt) VALUES (?, 0, 'None', NOW())");
-            $stmt->execute([$customerID]);
+            $result = $stmt->execute([$customerID]);
+            
+            if (!$result) {
+                throw new PDOException("Failed to insert loyalty program record");
+            }
+            
+            error_log("Loyalty program record created for customer ID: " . $customerID);
 
             $con->commit();
+            error_log("User registration completed successfully for: " . $username);
             return $userID;
         } catch (PDOException $e) {
-            if (isset($con)) $con->rollBack();
+            if (isset($con)) {
+                $con->rollBack();
+                error_log("Registration rolled back due to error: " . $e->getMessage());
+            }
+            error_log("Registration error: " . $e->getMessage());
             return false;
         }
     }
@@ -350,12 +387,27 @@ class database{
             
             if ($user) {
                 error_log("User role: " . $user['User_Role']);
-                error_log("Password verification: " . (password_verify($password, $user['User_Password']) ? 'success' : 'failed'));
+                error_log("User ID: " . $user['UserID']);
+                
+                // Check if password is properly hashed
+                if (password_get_info($user['User_Password'])['algo'] === null) {
+                    error_log("Password is not properly hashed for user: " . $username);
+                    return false;
+                }
+                
+                $passwordValid = password_verify($password, $user['User_Password']);
+                error_log("Password verification: " . ($passwordValid ? 'success' : 'failed'));
+                
+                if ($passwordValid) {
+                    error_log("Login successful for user: " . $username);
+                    return $user;
+                } else {
+                    error_log("Invalid password for user: " . $username);
+                }
+            } else {
+                error_log("User not found: " . $username);
             }
             
-            if ($user && password_verify($password, $user['User_Password'])) {
-                return $user;
-            }
             return false;
         } catch (PDOException $e) {
             error_log("Login error: " . $e->getMessage());

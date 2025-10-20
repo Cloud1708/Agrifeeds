@@ -2,6 +2,10 @@
 session_start();
 require_once 'includes/db.php';
 
+// Enable error reporting for debugging
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
 error_log("Session started. Current session data: " . print_r($_SESSION, true));
 
 if (isset($_SESSION['user_id'])) {
@@ -22,43 +26,68 @@ $db = new database();
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $username = trim($_POST['username']);
-    $password = $_POST['password'];
+    try {
+        $username = trim($_POST['username']);
+        $password = $_POST['password'];
 
-    error_log("Login attempt - Username: " . $username);
+        error_log("Login attempt - Username: " . $username);
 
-    if (empty($username) || empty($password)) {
-        $error = "Please enter both username and password";
-        error_log("Login failed - Empty username or password");
-    } else {
-        $user = $db->loginUser($username, $password);
-        
-        if ($user) {
-            error_log("Login successful. Setting session variables:");
-            error_log("User ID: " . $user['UserID']);
-            error_log("Username: " . $user['User_Name']);
-            error_log("User Role: " . $user['User_Role']);
-            
-            $_SESSION['user_id'] = $user['UserID'];
-            $_SESSION['username'] = $user['User_Name'];
-            $_SESSION['user_role'] = $user['User_Role'];
-            
-            error_log("Session after login: " . print_r($_SESSION, true));
-            
-            switch ($user['User_Role']) {
-                case 1:
-                case 3:
-                    header('Location: admin/dashboard.php');
-                    break;
-                case 2:
-                    header('Location: user/dashboard.php');
-                    break;
-            }
-            exit();
+        if (empty($username) || empty($password)) {
+            $error = "Please enter both username and password";
+            error_log("Login failed - Empty username or password");
         } else {
-            $error = "Invalid username or password";
-            error_log("Login failed - Invalid credentials");
+            // Test database connection first
+            try {
+                $testConnection = $db->opencon();
+                error_log("Database connection successful");
+            } catch (Exception $e) {
+                error_log("Database connection failed: " . $e->getMessage());
+                $error = "Database connection failed. Please try again later.";
+            }
+            
+            if (empty($error)) {
+                $user = $db->loginUser($username, $password);
+                
+                if ($user) {
+                    error_log("Login successful. Setting session variables:");
+                    error_log("User ID: " . $user['UserID']);
+                    error_log("Username: " . $user['User_Name']);
+                    error_log("User Role: " . $user['User_Role']);
+                    
+                    // Regenerate session ID for security
+                    session_regenerate_id(true);
+                    
+                    $_SESSION['user_id'] = $user['UserID'];
+                    $_SESSION['username'] = $user['User_Name'];
+                    $_SESSION['user_role'] = $user['User_Role'];
+                    
+                    error_log("Session after login: " . print_r($_SESSION, true));
+                    
+                    // Add audit log for successful login
+                    $db->addAuditLog($user['UserID'], 'LOGIN', 'User logged in successfully');
+                    
+                    switch ($user['User_Role']) {
+                        case 1:
+                        case 3:
+                            header('Location: admin/dashboard.php');
+                            break;
+                        case 2:
+                            header('Location: user/dashboard.php');
+                            break;
+                        default:
+                            $error = "Invalid user role";
+                            break;
+                    }
+                    exit();
+                } else {
+                    $error = "Invalid username or password";
+                    error_log("Login failed - Invalid credentials for username: " . $username);
+                }
+            }
         }
+    } catch (Exception $e) {
+        $error = "An error occurred during login: " . $e->getMessage();
+        error_log("Login error: " . $e->getMessage());
     }
 }
 ?>
