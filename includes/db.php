@@ -8,10 +8,10 @@ class database{
 
     function opencon(): PDO{
         return new PDO(
-            dsn: 'mysql:host=localhost;
-            dbname=agrifeeds',
-            username: 'root',
-            password: '');
+            dsn: 'mysql:host=mysql.hostinger.com;
+            dbname=u689218423_agrifeeds',
+            username: 'u689218423_agrifeeds',
+            password: '@Agrifeeds12345');
     }
 
     function addProduct($productName, $category, $description, $price, $stock, $imagePath = null) {
