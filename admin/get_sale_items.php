@@ -28,8 +28,8 @@ try {
             p.Prod_Name as product_name,
             si.SI_Quantity as quantity,
             si.SI_Price as price
-        FROM Sale_Item si
-        JOIN Products p ON si.ProductID = p.ProductID
+    FROM sale_item si
+    JOIN products p ON si.ProductID = p.ProductID
         WHERE si.SaleID = ?
         ORDER BY p.Prod_Name ASC
     ");
@@ -49,9 +49,9 @@ try {
             op.OrderP_DiscntApplied AS discount_applied,
             p.Promo_DiscAmnt AS promo_discount_amount,
             p.Promo_DiscountType AS promo_discount_type
-        FROM Sales s
-        LEFT JOIN Customers c ON s.CustomerID = c.CustomerID
-        LEFT JOIN Order_Promotions op ON s.SaleID = op.SaleID
+    FROM sales s
+    LEFT JOIN customers c ON s.CustomerID = c.CustomerID
+    LEFT JOIN order_promotions op ON s.SaleID = op.SaleID
         LEFT JOIN promotions p ON op.PromotionID = p.PromotionID
         WHERE s.SaleID = ?
         LIMIT 1

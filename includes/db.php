@@ -928,14 +928,14 @@ class database{
                 c.Cust_DiscRate,
                 COALESCE(op.OrderP_DiscntApplied, 0) as discount_applied,
                 (si.SI_Quantity * si.SI_Price) as Subtotal,
-                (SELECT SUM(SI_Quantity * SI_Price) FROM Sale_Item WHERE SaleID = s.SaleID) as Order_Total,
+                (SELECT SUM(SI_Quantity * SI_Price) FROM sale_item WHERE SaleID = s.SaleID) as Order_Total,
                 prom.Prom_Code as PromotionName,
                 CASE 
                     WHEN COALESCE(ph.PT_PayMethod, 'cash') = 'cash' THEN 'Cash'
                     WHEN COALESCE(ph.PT_PayMethod, 'cash') = 'card' THEN 'Card'
                     ELSE 'Cash'
                 END as Payment_Method_Display
-            FROM Sales s
+            FROM sales s
             JOIN sale_item si ON s.SaleID = si.SaleID
             JOIN products p ON si.ProductID = p.ProductID
             JOIN customers c ON s.CustomerID = c.CustomerID

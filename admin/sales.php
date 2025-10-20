@@ -16,30 +16,30 @@ $totalOrders = 0;
 
 // Today's Sales
 $stmt = $conn->prepare("SELECT SUM(si.SI_Quantity * si.SI_Price) AS total 
-    FROM Sales s 
-    JOIN Sale_Item si ON s.SaleID = si.SaleID 
+    FROM sales s 
+    JOIN sale_item si ON s.SaleID = si.SaleID 
     WHERE DATE(s.Sale_Date) = CURDATE() AND s.Sale_Status = 'Completed'");
 $stmt->execute();
 $todaySales = $stmt->fetchColumn() ?: 0;
 
 // This Week's Sales
 $stmt = $conn->prepare("SELECT SUM(si.SI_Quantity * si.SI_Price) AS total 
-    FROM Sales s 
-    JOIN Sale_Item si ON s.SaleID = si.SaleID 
+    FROM sales s 
+    JOIN sale_item si ON s.SaleID = si.SaleID 
     WHERE YEARWEEK(s.Sale_Date, 1) = YEARWEEK(CURDATE(), 1) AND s.Sale_Status = 'Completed'");
 $stmt->execute();
 $weekSales = $stmt->fetchColumn() ?: 0;
 
 // This Month's Sales
 $stmt = $conn->prepare("SELECT SUM(si.SI_Quantity * si.SI_Price) AS total 
-    FROM Sales s 
-    JOIN Sale_Item si ON s.SaleID = si.SaleID 
+    FROM sales s 
+    JOIN sale_item si ON s.SaleID = si.SaleID 
     WHERE YEAR(s.Sale_Date) = YEAR(CURDATE()) AND MONTH(s.Sale_Date) = MONTH(CURDATE()) AND s.Sale_Status = 'Completed'");
 $stmt->execute();
 $monthSales = $stmt->fetchColumn() ?: 0;
 
 // Total Orders (only completed)
-$stmt = $conn->prepare("SELECT COUNT(*) FROM Sales WHERE Sale_Status = 'Completed'");
+$stmt = $conn->prepare("SELECT COUNT(*) FROM sales WHERE Sale_Status = 'Completed'");
 $stmt->execute();
 $totalOrders = $stmt->fetchColumn() ?: 0;
 
@@ -63,7 +63,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mark_completed'], $_P
         // 1. Get sale items and their quantities
         $itemsStmt = $conn->prepare("
             SELECT si.ProductID, si.SI_Quantity, p.Prod_Stock 
-            FROM Sale_Item si
+            FROM sale_item si
             JOIN products p ON si.ProductID = p.ProductID
             WHERE si.SaleID = ?
         ");
@@ -94,21 +94,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mark_completed'], $_P
         }
 
         // 3. Update Sale_Status and set Sale_Per to the admin's UserID
-        $stmt = $conn->prepare("UPDATE Sales SET Sale_Status = 'Completed', Sale_Per = ? WHERE SaleID = ?");
+    $stmt = $conn->prepare("UPDATE sales SET Sale_Status = 'Completed', Sale_Per = ? WHERE SaleID = ?");
         $stmt->execute([$adminId, $saleId]);
 
         // 4. Get the total amount of the sale
-        $totalStmt = $conn->prepare("SELECT SUM(SI_Quantity * SI_Price) as total FROM Sale_Item WHERE SaleID = ?");
+    $totalStmt = $conn->prepare("SELECT SUM(SI_Quantity * SI_Price) as total FROM sale_item WHERE SaleID = ?");
         $totalStmt->execute([$saleId]);
         $total = $totalStmt->fetchColumn();
 
-        // 5. Insert into Payment_History (cash)
-        $payStmt = $conn->prepare("INSERT INTO Payment_History (SaleID, PT_PayAmount, PT_PayDate, PT_PayMethod) VALUES (?, ?, NOW(), 'cash')");
+    // 5. Insert into payment_history (cash)
+    $payStmt = $conn->prepare("INSERT INTO payment_history (SaleID, PT_PayAmount, PT_PayDate, PT_PayMethod) VALUES (?, ?, NOW(), 'cash')");
         $payStmt->execute([$saleId, $total]);
 
         // 6. Award loyalty points if eligible
         // Get the customer ID for this sale
-        $custStmt = $conn->prepare("SELECT CustomerID FROM Sales WHERE SaleID = ?");
+    $custStmt = $conn->prepare("SELECT CustomerID FROM sales WHERE SaleID = ?");
         $custStmt->execute([$saleId]);
         $customerId = $custStmt->fetchColumn();
         if ($customerId) {
@@ -475,8 +475,8 @@ if (isset($_SESSION['sweet_alert'])) {
             <select class="form-select" id="productFilter">
                 <option value="">All Products</option>
                 <?php
-                // Dynamically populate product options from Sale_Item join Products
-                $productStmt = $conn->prepare("SELECT DISTINCT p.ProductID, p.Prod_Name FROM Sale_Item si JOIN Products p ON si.ProductID = p.ProductID ORDER BY p.Prod_Name ASC");
+                // Dynamically populate product options from sale_item join products
+                $productStmt = $conn->prepare("SELECT DISTINCT p.ProductID, p.Prod_Name FROM sale_item si JOIN products p ON si.ProductID = p.ProductID ORDER BY p.Prod_Name ASC");
                 $productStmt->execute();
                 $productNames = $productStmt->fetchAll(PDO::FETCH_ASSOC);
                 foreach ($productNames as $prod) {
@@ -500,7 +500,7 @@ if (isset($_SESSION['sweet_alert'])) {
             </thead>
             <tbody id="saleItemTableBody">
                 <?php
-                $stmt = $conn->prepare("SELECT si.SaleItemID, si.SaleID, p.Prod_Name AS ProductName, si.SI_Quantity, si.SI_Price FROM Sale_Item si JOIN Products p ON si.ProductID = p.ProductID");
+                $stmt = $conn->prepare("SELECT si.SaleItemID, si.SaleID, p.Prod_Name AS ProductName, si.SI_Quantity, si.SI_Price FROM sale_item si JOIN products p ON si.ProductID = p.ProductID");
                 $stmt->execute();
                 $saleItems = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 foreach ($saleItems as $item) {
@@ -568,7 +568,7 @@ if (isset($_SESSION['sweet_alert'])) {
                             include_once '../includes/db.php';
                             $db = new database();
                             $con = $db->opencon();
-                            $stmt = $con->prepare("SELECT PaytoryID, SaleID, PT_PayAmount, PT_PayDate, PT_PayMethod FROM Payment_History ORDER BY PT_PayDate DESC");
+                            $stmt = $con->prepare("SELECT PaytoryID, SaleID, PT_PayAmount, PT_PayDate, PT_PayMethod FROM payment_history ORDER BY PT_PayDate DESC");
                             $stmt->execute();
                             $paymentHistory = $stmt->fetchAll(PDO::FETCH_ASSOC);
                             foreach ($paymentHistory as $payment) {
