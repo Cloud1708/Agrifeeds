@@ -8,8 +8,7 @@ class database{
 
     function opencon(): PDO{
         return new PDO(
-            dsn: 'mysql.hostinger.com;
-            dbname=u689218423_agrifeeds',
+            dsn: 'mysql:host=mysql.hostinger.com;dbname=u689218423_agrifeeds',
             username: 'u689218423_agrifeeds',
             password: '@Afrifeeds12345');
     }
