@@ -7,11 +7,16 @@ class database{
 
 
     function opencon(): PDO{
-        return new PDO(
+        $pdo = new PDO(
             dsn: 'mysql:host=mysql.hostinger.com;
             dbname=u689218423_agrifeeds',
             username: 'u689218423_agrifeeds',
-            password: '@Agrifeeds12345');
+            password: '@Agrifeeds12345'
+        );
+        // Ensure SQL errors throw exceptions so issues are visible in logs
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+        return $pdo;
     }
 
     function addProduct($productName, $category, $description, $price, $stock, $imagePath = null) {
@@ -140,13 +145,13 @@ class database{
                 $stmt->execute([$id, $qtyChange, $stock]);
             }
 
-            // Log the changes in Product_Access_Log
+            // Log the changes in product_access_log
             if (!empty($changes)) {
                 $userId = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
                 
                 // Log each change separately for better tracking
                 foreach ($changes as $change) {
-                    $stmt = $con->prepare("INSERT INTO Product_Access_Log (ProductID, UserID, Pal_Action, Pal_TimeStamp) VALUES (?, ?, ?, NOW())");
+                    $stmt = $con->prepare("INSERT INTO product_access_log (ProductID, UserID, Pal_Action, Pal_TimeStamp) VALUES (?, ?, ?, NOW())");
                     $stmt->execute([$id, $userId, "Updated product: " . $change]);
                 }
             }
@@ -316,7 +321,7 @@ class database{
             $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
             
             // Insert into USER_ACCOUNTS
-            $stmt = $con->prepare("INSERT INTO USER_ACCOUNTS (User_Name, User_Password, User_Role, User_Photo, User_CreatedAt) VALUES (?, ?, ?, ?, NOW())");
+            $stmt = $con->prepare("INSERT INTO user_accounts (User_Name, User_Password, User_Role, User_Photo, User_CreatedAt) VALUES (?, ?, ?, ?, NOW())");
             $stmt->execute([$username, $hashedPassword, $role, $photo]);
             
             $userID = $con->lastInsertId();
@@ -342,7 +347,7 @@ class database{
     function loginUser($username, $password) {
         try {
             $con = $this->opencon();
-            $stmt = $con->prepare("SELECT * FROM USER_ACCOUNTS WHERE User_Name = ?");
+            $stmt = $con->prepare("SELECT * FROM user_accounts WHERE User_Name = ?");
             $stmt->execute([$username]);
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
             
@@ -367,7 +372,7 @@ class database{
     function getUserById($userID) {
         try {
             $con = $this->opencon();
-            $stmt = $con->prepare("SELECT * FROM USER_ACCOUNTS WHERE UserID = ?");
+            $stmt = $con->prepare("SELECT * FROM user_accounts WHERE UserID = ?");
             $stmt->execute([$userID]);
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
             error_log("getUserById - UserID: " . $userID . ", Result: " . print_r($user, true));
@@ -384,10 +389,10 @@ class database{
             $con->beginTransaction();
             
             if ($photo) {
-                $stmt = $con->prepare("UPDATE USER_ACCOUNTS SET User_Name = ?, User_Photo = ? WHERE UserID = ?");
+                $stmt = $con->prepare("UPDATE user_accounts SET User_Name = ?, User_Photo = ? WHERE UserID = ?");
                 $stmt->execute([$username, $photo, $userID]);
             } else {
-                $stmt = $con->prepare("UPDATE USER_ACCOUNTS SET User_Name = ? WHERE UserID = ?");
+                $stmt = $con->prepare("UPDATE user_accounts SET User_Name = ? WHERE UserID = ?");
                 $stmt->execute([$username, $userID]);
             }
             
@@ -405,7 +410,7 @@ class database{
             $con->beginTransaction();
             
             $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
-            $stmt = $con->prepare("UPDATE USER_ACCOUNTS SET User_Password = ? WHERE UserID = ?");
+            $stmt = $con->prepare("UPDATE user_accounts SET User_Password = ? WHERE UserID = ?");
             $stmt->execute([$hashedPassword, $userID]);
             
             $con->commit();
@@ -419,7 +424,7 @@ class database{
     function checkUsernameExists($username) {
         try {
             $con = $this->opencon();
-            $stmt = $con->prepare("SELECT COUNT(*) FROM USER_ACCOUNTS WHERE User_Name = ?");
+            $stmt = $con->prepare("SELECT COUNT(*) FROM user_accounts WHERE User_Name = ?");
             $stmt->execute([$username]);
             return $stmt->fetchColumn() > 0;
         } catch (PDOException $e) {
@@ -842,7 +847,7 @@ class database{
     function getUserInfo($userID) {
         $con = $this->opencon();
         $stmt = $con->prepare("
-            SELECT * FROM User_Accounts 
+            SELECT * FROM user_accounts 
             WHERE UserID = ?
         ");
         $stmt->execute([$userID]);
@@ -857,8 +862,8 @@ class database{
                 COALESCE(l.LP_PtsBalance, 0) as LP_PtsBalance,
                 COALESCE(l.LP_MbspTier, 'None') as Cust_LoStat,
                 COALESCE(c.Cust_DiscRate, '0.00') as Cust_DiscRate
-            FROM Customers c
-            LEFT JOIN Loyalty_Program l ON c.CustomerID = l.CustomerID
+            FROM customers c
+            LEFT JOIN loyalty_program l ON c.CustomerID = l.CustomerID
             WHERE c.UserID = ?
         ");
         $stmt->execute([$userID]);
@@ -872,12 +877,12 @@ class database{
                 s.SaleID AS OrderID,
                 s.Sale_Date AS Order_Date,
                 s.Sale_Status as Order_Status,
-                (SELECT COUNT(*) FROM Sale_Item WHERE SaleID = s.SaleID) as item_count,
-                (SELECT SUM(SI_Quantity * SI_Price) FROM Sale_Item WHERE SaleID = s.SaleID) as Order_Total,
+                (SELECT COUNT(*) FROM sale_item WHERE SaleID = s.SaleID) as item_count,
+                (SELECT SUM(SI_Quantity * SI_Price) FROM sale_item WHERE SaleID = s.SaleID) as Order_Total,
                 p.Prom_Code as PromotionName
-            FROM Sales s
-            JOIN Customers c ON s.CustomerID = c.CustomerID
-            LEFT JOIN Order_Promotions op ON s.SaleID = op.SaleID
+            FROM sales s
+            JOIN customers c ON s.CustomerID = c.CustomerID
+            LEFT JOIN order_promotions op ON s.SaleID = op.SaleID
             LEFT JOIN promotions p ON op.PromotionID = p.PromotionID
             WHERE c.UserID = ?
             ORDER BY s.Sale_Date DESC";
@@ -931,12 +936,12 @@ class database{
                     ELSE 'Cash'
                 END as Payment_Method_Display
             FROM Sales s
-            JOIN Sale_Item si ON s.SaleID = si.SaleID
-            JOIN Products p ON si.ProductID = p.ProductID
-            JOIN Customers c ON s.CustomerID = c.CustomerID
-            LEFT JOIN Order_Promotions op ON s.SaleID = op.SaleID
+            JOIN sale_item si ON s.SaleID = si.SaleID
+            JOIN products p ON si.ProductID = p.ProductID
+            JOIN customers c ON s.CustomerID = c.CustomerID
+            LEFT JOIN order_promotions op ON s.SaleID = op.SaleID
             LEFT JOIN promotions prom ON op.PromotionID = prom.PromotionID
-            LEFT JOIN Payment_History ph ON s.SaleID = ph.SaleID
+            LEFT JOIN payment_history ph ON s.SaleID = ph.SaleID
             WHERE s.SaleID = ?
         ");
         $stmt->execute([$saleID]);
@@ -951,7 +956,7 @@ class database{
     function getAllUsers($offset = null, $limit = null) {
         try {
             $con = $this->opencon();
-            $sql = "SELECT * FROM USER_ACCOUNTS ORDER BY UserID";
+            $sql = "SELECT * FROM user_accounts ORDER BY UserID";
             
             if ($offset !== null && $limit !== null) {
                 $sql .= " LIMIT ? OFFSET ?";
@@ -976,7 +981,7 @@ class database{
     function getTotalUsers() {
         try {
             $con = $this->opencon();
-            $stmt = $con->prepare("SELECT COUNT(*) as total FROM USER_ACCOUNTS");
+            $stmt = $con->prepare("SELECT COUNT(*) as total FROM user_accounts");
             $stmt->execute();
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
             $count = (int)$result['total'];
@@ -993,7 +998,7 @@ class database{
             $con = $this->opencon();
             $con->beginTransaction();
             
-            $stmt = $con->prepare("UPDATE USER_ACCOUNTS SET User_Role = ? WHERE UserID = ?");
+            $stmt = $con->prepare("UPDATE user_accounts SET User_Role = ? WHERE UserID = ?");
             $result = $stmt->execute([$newRole, $userID]);
             
             if ($result) {
