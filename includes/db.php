@@ -1038,7 +1038,7 @@ class database{
             
             $query = "SELECT a.*, u.User_Name 
                      FROM audit_logs a 
-                     LEFT JOIN USER_ACCOUNTS u ON a.user_id = u.UserID";
+                     LEFT JOIN user_accounts u ON a.user_id = u.UserID";
             
             if (!empty($search)) {
                 $query .= " WHERE a.action LIKE :search 
@@ -1072,7 +1072,7 @@ class database{
             $con = $this->opencon();
             
             $query = "SELECT COUNT(*) FROM audit_logs a 
-                     LEFT JOIN USER_ACCOUNTS u ON a.user_id = u.UserID";
+                     LEFT JOIN user_accounts u ON a.user_id = u.UserID";
             
             if (!empty($search)) {
                 $query .= " WHERE a.action LIKE :search 
@@ -1396,10 +1396,10 @@ class database{
                 CONCAT(c.Cust_FN, ' ', c.Cust_LN) AS CustomerName, 
                 p.Prom_Code AS PromotionName,
                 s.Sale_Status
-            FROM Sales s
-            LEFT JOIN USER_ACCOUNTS a ON s.Sale_Per = a.UserID
-            LEFT JOIN Customers c ON s.CustomerID = c.CustomerID
-            LEFT JOIN Order_Promotions op ON s.SaleID = op.SaleID
+            FROM sales s
+            LEFT JOIN user_accounts a ON s.Sale_Per = a.UserID
+            LEFT JOIN customers c ON s.CustomerID = c.CustomerID
+            LEFT JOIN order_promotions op ON s.SaleID = op.SaleID
             LEFT JOIN promotions p ON op.PromotionID = p.PromotionID
             ORDER BY s.SaleID DESC
         ");
@@ -1410,9 +1410,9 @@ class database{
     function getProductAccessLogs($productId = null) {
         try {
             $con = $this->opencon();
-            $sql = "SELECT pal.*, u.User_Name 
-                    FROM Product_Access_Log pal 
-                    LEFT JOIN USER_ACCOUNTS u ON pal.UserID = u.UserID";
+        $sql = "SELECT pal.*, u.User_Name 
+            FROM product_access_log pal 
+            LEFT JOIN user_accounts u ON pal.UserID = u.UserID";
             
             if ($productId) {
                 $sql .= " WHERE pal.ProductID = ?";
@@ -1431,7 +1431,7 @@ class database{
 
     function getUserPromoUsageCount($promotionId, $userId) {
         $conn = $this->opencon();
-        $stmt = $conn->prepare("SELECT COUNT(*) FROM Promo_Usage WHERE PromotionID = ? AND UserID = ?");
+        $stmt = $conn->prepare("SELECT COUNT(*) FROM promo_usage WHERE PromotionID = ? AND UserID = ?");
         $stmt->execute([$promotionId, $userId]);
         return $stmt->fetchColumn();
     }
@@ -1440,8 +1440,8 @@ class database{
         $conn = $this->opencon();
         $stmt = $conn->prepare("
             SELECT ph.*, p.Prod_Name 
-            FROM Pricing_History ph
-            JOIN Products p ON ph.ProductID = p.ProductID
+            FROM pricing_history ph
+            JOIN products p ON ph.ProductID = p.ProductID
             ORDER BY ph.PH_ChangeDate DESC
         ");
         $stmt->execute();
@@ -1471,9 +1471,9 @@ class database{
 
     public function getTotalSales() {
         try {
-            $sql = "SELECT COALESCE(SUM(SI.SI_Price * SI.SI_Quantity), 0) as total_sales 
-                    FROM Sales S 
-                    JOIN Sale_Item SI ON S.SaleID = SI.SaleID 
+        $sql = "SELECT COALESCE(SUM(SI.SI_Price * SI.SI_Quantity), 0) as total_sales 
+            FROM sales S 
+            JOIN sale_item SI ON S.SaleID = SI.SaleID 
                     WHERE S.Sale_Date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
                     AND S.Sale_Status = 'Completed'";
             $stmt = $this->opencon()->prepare($sql);
@@ -1488,9 +1488,9 @@ class database{
 
     public function getTotalOrders($userID) {
         try {
-            $sql = "SELECT COUNT(*) as total_orders 
-                    FROM Sales s
-                    JOIN Customers c ON s.CustomerID = c.CustomerID
+        $sql = "SELECT COUNT(*) as total_orders 
+            FROM sales s
+            JOIN customers c ON s.CustomerID = c.CustomerID
                     WHERE c.UserID = ?";
             $stmt = $this->opencon()->prepare($sql);
             $stmt->execute([$userID]);
@@ -1504,10 +1504,10 @@ class database{
 
     public function getSalesData() {
         try {
-            $sql = "SELECT DATE(S.Sale_Date) as date, 
-                    SUM(SI.SI_Price * SI.SI_Quantity) as total_sales 
-                    FROM Sales S 
-                    JOIN Sale_Item SI ON S.SaleID = SI.SaleID 
+        $sql = "SELECT DATE(S.Sale_Date) as date, 
+            SUM(SI.SI_Price * SI.SI_Quantity) as total_sales 
+            FROM sales S 
+            JOIN sale_item SI ON S.SaleID = SI.SaleID 
                     WHERE S.Sale_Date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
                     AND S.Sale_Status = 'Completed'
                     GROUP BY DATE(S.Sale_Date) 
@@ -1535,13 +1535,13 @@ class database{
 
     public function getTopProducts() {
         try {
-            $sql = "SELECT 
+        $sql = "SELECT 
                     P.Prod_Name,
                     SUM(SI.SI_Quantity) as total_quantity,
                     SUM(SI.SI_Price * SI.SI_Quantity) as total_sales
-                    FROM Products P
-                    JOIN Sale_Item SI ON P.ProductID = SI.ProductID
-                    JOIN Sales S ON SI.SaleID = S.SaleID
+            FROM products P
+            JOIN sale_item SI ON P.ProductID = SI.ProductID
+            JOIN sales S ON SI.SaleID = S.SaleID
                     WHERE S.Sale_Date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
                     AND S.Sale_Status = 'Completed'
                     GROUP BY P.ProductID, P.Prod_Name
@@ -1570,14 +1570,14 @@ class database{
 
     public function getRecentOrders($limit = 5) {
         try {
-            $sql = "SELECT S.SaleID, 
+        $sql = "SELECT S.SaleID, 
                     CONCAT(C.Cust_FN, ' ', C.Cust_LN) as CustomerName,
                     SUM(SI.SI_Price * SI.SI_Quantity) as TotalAmount,
-                    S.Sale_Method as Status
-                    FROM Sales S 
-                    JOIN Customers C ON S.CustomerID = C.CustomerID 
-                    JOIN Sale_Item SI ON S.SaleID = SI.SaleID 
-                    GROUP BY S.SaleID, C.Cust_FN, C.Cust_LN, S.Sale_Method 
+            S.Sale_Status as Status
+            FROM sales S 
+            JOIN customers C ON S.CustomerID = C.CustomerID 
+            JOIN sale_item SI ON S.SaleID = SI.SaleID 
+            GROUP BY S.SaleID, C.Cust_FN, C.Cust_LN, S.Sale_Status 
                     ORDER BY S.Sale_Date DESC 
                     LIMIT :limit";
             $stmt = $this->opencon()->prepare($sql);
@@ -1597,10 +1597,10 @@ class database{
                 s.SaleID,
                 s.Sale_Date as Order_Date,
                 s.Sale_Status as Order_Status,
-                (SELECT COUNT(*) FROM Sale_Item WHERE SaleID = s.SaleID) as item_count,
-                (SELECT SUM(SI_Quantity * SI_Price) FROM Sale_Item WHERE SaleID = s.SaleID) as Order_Total
-            FROM Sales s
-            JOIN Customers c ON s.CustomerID = c.CustomerID
+                (SELECT COUNT(*) FROM sale_item WHERE SaleID = s.SaleID) as item_count,
+                (SELECT SUM(SI_Quantity * SI_Price) FROM sale_item WHERE SaleID = s.SaleID) as Order_Total
+            FROM sales s
+            JOIN customers c ON s.CustomerID = c.CustomerID
             WHERE c.UserID = ?
             ORDER BY s.Sale_Date DESC
             LIMIT ?
@@ -1613,9 +1613,9 @@ class database{
 
     public function getUserTotalOrders($userID) {
         try {
-            $sql = "SELECT COUNT(*) as total_orders 
-                    FROM Sales s
-                    JOIN Customers c ON s.CustomerID = c.CustomerID
+        $sql = "SELECT COUNT(*) as total_orders 
+            FROM sales s
+            JOIN customers c ON s.CustomerID = c.CustomerID
                     WHERE c.UserID = ?";
             $stmt = $this->opencon()->prepare($sql);
             $stmt->execute([$userID]);
@@ -1631,8 +1631,8 @@ class database{
 
     public function getTotalSystemOrders() {
         try {
-            $sql = "SELECT COUNT(*) as total_orders 
-                    FROM Sales 
+        $sql = "SELECT COUNT(*) as total_orders 
+            FROM sales 
                     WHERE Sale_Status = 'Completed'";
             $stmt = $this->opencon()->prepare($sql);
             $stmt->execute();
@@ -1816,7 +1816,7 @@ class database{
             ]);
 
             // Log the price change in Product_Access_Log (with UserID)
-            $stmt = $con->prepare("INSERT INTO Product_Access_Log (ProductID, UserID, Pal_Action, Pal_TimeStamp) VALUES (?, ?, ?, NOW())");
+            $stmt = $con->prepare("INSERT INTO product_access_log (ProductID, UserID, Pal_Action, Pal_TimeStamp) VALUES (?, ?, ?, NOW())");
             $stmt->execute([
                 $productId,
                 $userId,
@@ -1875,7 +1875,7 @@ class database{
             $stmt = $con->prepare("
                 SELECT ih.*, u.User_Name 
                 FROM inventory_history ih
-                LEFT JOIN USER_ACCOUNTS u ON ih.UserID = u.UserID
+                LEFT JOIN user_accounts u ON ih.UserID = u.UserID
                 WHERE ih.ProductID = ?
                 ORDER BY ih.IH_ChangeDate DESC
             ");
@@ -1893,7 +1893,7 @@ class database{
             $stmt = $con->prepare("
                 SELECT ph.*, u.User_Name 
                 FROM pricing_history ph
-                LEFT JOIN USER_ACCOUNTS u ON ph.UserID = u.UserID
+                LEFT JOIN user_accounts u ON ph.UserID = u.UserID
                 WHERE ph.ProductID = ?
                 ORDER BY ph.PH_ChangeDate DESC
             ");

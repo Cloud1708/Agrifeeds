@@ -23,7 +23,7 @@ $columns = ['timestamp', 'user', 'action', 'details', 'ip_address'];
 // Build the query
 $query = "SELECT a.*, u.User_Name 
           FROM audit_logs a 
-          LEFT JOIN USER_ACCOUNTS u ON a.user_id = u.UserID";
+          LEFT JOIN user_accounts u ON a.user_id = u.UserID";
 
 // Add search condition if search value exists
 if (!empty($search)) {

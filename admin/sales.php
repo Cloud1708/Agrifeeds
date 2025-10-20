@@ -323,8 +323,8 @@ if (isset($_SESSION['sweet_alert'])) {
     <td><?php echo $sale['Sale_Date']; ?></td>
     <td>
         <?php 
-        // Get admin name from User_Accounts table
-        $adminStmt = $conn->prepare("SELECT User_Name FROM User_Accounts WHERE UserID = ?");
+    // Get admin name from user_accounts table
+    $adminStmt = $conn->prepare("SELECT User_Name FROM user_accounts WHERE UserID = ?");
         $adminStmt->execute([$sale['Sale_Per']]);
         $adminName = $adminStmt->fetchColumn();
         echo htmlspecialchars($adminName ?: 'Not Assigned');
