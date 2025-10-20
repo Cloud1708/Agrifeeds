@@ -8,19 +8,65 @@ class database{
 
     function opencon(): PDO{
         try {
-            $pdo = new PDO(
-                dsn: 'mysql:host=mysql.hostinger.com;dbname=u689218423_agrifeeds;charset=utf8mb4',
-                username: 'u689218423_agrifeeds',
-                password: '@Afrifeeds12345',
-                options: [
+            // Try different connection approaches
+            $host = 'mysql.hostinger.com';
+            $dbname = 'u689218423_agrifeeds';
+            $username = 'u689218423_agrifeeds';
+            $password = '@Afrifeeds12345';
+            
+            // First try with full DSN
+            try {
+                $dsn = "mysql:host=$host;dbname=$dbname;charset=utf8mb4;port=3306";
+                $pdo = new PDO($dsn, $username, $password, [
                     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                     PDO::ATTR_EMULATE_PREPARES => false,
-                    PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4"
-                ]
-            );
-            return $pdo;
-        } catch (PDOException $e) {
+                    PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4",
+                    PDO::ATTR_TIMEOUT => 30,
+                    PDO::MYSQL_ATTR_CONNECT_TIMEOUT => 30
+                ]);
+                
+                // Test the connection
+                $pdo->query("SELECT 1");
+                error_log("Database connection successful with full DSN");
+                return $pdo;
+                
+            } catch (PDOException $e) {
+                error_log("Full DSN connection failed: " . $e->getMessage());
+                
+                // Try without port specification
+                try {
+                    $dsn = "mysql:host=$host;dbname=$dbname;charset=utf8mb4";
+                    $pdo = new PDO($dsn, $username, $password, [
+                        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                        PDO::ATTR_EMULATE_PREPARES => false,
+                        PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4"
+                    ]);
+                    
+                    $pdo->query("SELECT 1");
+                    error_log("Database connection successful without port");
+                    return $pdo;
+                    
+                } catch (PDOException $e2) {
+                    error_log("Connection without port failed: " . $e2->getMessage());
+                    
+                    // Try with minimal options
+                    try {
+                        $dsn = "mysql:host=$host;dbname=$dbname";
+                        $pdo = new PDO($dsn, $username, $password);
+                        $pdo->query("SELECT 1");
+                        error_log("Database connection successful with minimal options");
+                        return $pdo;
+                        
+                    } catch (PDOException $e3) {
+                        error_log("All connection attempts failed. Last error: " . $e3->getMessage());
+                        throw new PDOException("Database connection failed after multiple attempts: " . $e3->getMessage());
+                    }
+                }
+            }
+            
+        } catch (Exception $e) {
             error_log("Database connection error: " . $e->getMessage());
             throw new PDOException("Database connection failed: " . $e->getMessage());
         }

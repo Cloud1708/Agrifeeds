@@ -40,6 +40,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             try {
                 $testConnection = $db->opencon();
                 error_log("Database connection successful");
+                
+                // Test a simple query to ensure database is accessible
+                $testQuery = $testConnection->prepare("SELECT 1");
+                $testQuery->execute();
+                error_log("Database query test successful");
+                
             } catch (Exception $e) {
                 error_log("Database connection failed: " . $e->getMessage());
                 $error = "Database connection failed. Please try again later.";
