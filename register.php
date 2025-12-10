@@ -6,7 +6,6 @@ $db = new database();
 $error = '';
 $success = '';
 
-
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = trim($_POST['username']);
     $firstName = trim($_POST['firstName']);
