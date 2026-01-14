@@ -9,8 +9,8 @@ class database{
     function opencon(): PDO{
         $pdo = new PDO(
             dsn: 'mysql:host=mysql.hostinger.com;
-            dbname=u754128806_agrifeeds',
-            username: 'u754128806_agrifeeds',
+            dbname=u117609656_agrifeeds',
+            username: 'u117609656_agrifeeds',
             password: '@Agrifeeds12345'
         );
         // Ensure SQL errors throw exceptions so issues are visible in logs
