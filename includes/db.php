@@ -5,7 +5,6 @@
 class database{
 
 
-
     function opencon(): PDO{
         $pdo = new PDO(
             dsn: 'mysql:host=mysql.hostinger.com;
