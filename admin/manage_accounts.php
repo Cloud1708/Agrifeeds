@@ -1,6 +1,7 @@
 <?php
 
 require_once('../includes/db.php');
+require_once('../includes/validation.php');
 session_start();
 
 // Check if user is logged in and is a super admin
@@ -14,11 +15,16 @@ $db = new database();
 $success = '';
 $error = '';
 
-// Handle user role, profile pic, and password updates
+// Handle user role, profile pic, and password updates (validate all input server-side)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_role'])) {
-    $userID = $_POST['user_id'];
-    $newRole = $_POST['new_role'];
-    $newPassword = isset($_POST['new_password']) ? trim($_POST['new_password']) : '';
+    $userID = validate_id($_POST['user_id'] ?? null);
+    $allowed_roles = ['1', '2', '3'];
+    $newRole = validate_enum($_POST['new_role'] ?? null, $allowed_roles, null);
+    $newPassword = isset($_POST['new_password']) ? trim((string) $_POST['new_password']) : '';
+
+    if ($userID === null || $newRole === null) {
+        $error = "Invalid user or role.";
+    } else {
     $photo = null;
     // Handle profile picture upload
     if (isset($_FILES['profile_pic']) && $_FILES['profile_pic']['error'] === UPLOAD_ERR_OK) {
@@ -46,14 +52,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_role'])) {
     } else {
         $error = "Failed to update user.";
     }
+    }
 }
 
-// Get filter from URL parameter
-$filter = isset($_GET['filter']) ? $_GET['filter'] : 'all';
+// Allow-list filter for display
+$allowed_filters = ['all', 'admin', 'customer', 'super_admin'];
+$filter = validate_enum($_GET['filter'] ?? 'all', $allowed_filters, 'all');
 
-// Pagination settings
+// Pagination settings (validate server-side)
 $items_per_page = 10;
-$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+$page = validate_int($_GET['page'] ?? null, 1, null) ?? 1;
 $offset = ($page - 1) * $items_per_page;
 
 // Get total users count

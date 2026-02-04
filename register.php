@@ -1,12 +1,14 @@
 <?php
 session_start();
 require_once 'includes/db.php';
+require_once 'includes/validation.php';
 
 $db = new database();
 $error = '';
 $success = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    csrf_require();
     $username = trim($_POST['username']);
     $firstName = trim($_POST['firstName']);
     $lastName = trim($_POST['lastName']);
@@ -177,6 +179,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <?php endif; ?>
 
         <form method="POST" enctype="multipart/form-data">
+            <?php echo csrf_field(); ?>
             <div class="mb-3">
                 <label class="form-label" for="firstName">First Name</label>
                 <input type="text" name="firstName" class="form-control" id="firstName" required>

@@ -5,6 +5,7 @@ ini_set('display_errors', 0);
 
 ob_start();
 require_once('../includes/db.php');
+require_once('../includes/validation.php');
 $con = new database();
 session_start();
 
@@ -26,7 +27,17 @@ if (method_exists($con, 'getAvailablePromos')) {
 }
 
 // --- CART LOGIC (SESSION BASED) ---
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'], $_POST['quantity'])) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (isset($_POST['product_id'], $_POST['quantity'])) {
+        if (!csrf_validate()) {
+            if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') {
+                header('Content-Type: application/json');
+                echo json_encode(['success' => false, 'message' => 'Invalid security token. Refresh and try again.']);
+                exit();
+            }
+            header('Location: products.php');
+            exit();
+        }
     ob_clean();
     try {
         $prod = $con->getProductById($_POST['product_id']);
@@ -71,10 +82,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['product_id'], $_POST[
             exit();
         }
     }
+    }
 }
 
 // Remove from cart
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_from_cart'])) {
+    if (!csrf_validate()) {
+        header('Location: products.php');
+        exit();
+    }
     foreach ($_SESSION['cart'] as $k => $item) {
         if ($item['id'] == $_POST['remove_from_cart']) {
             unset($_SESSION['cart'][$k]);
@@ -93,6 +109,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_from_cart'])) 
 
 // Handle checkout process (CONFIRM PURCHASE)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['payment_method'])) {
+    if (!csrf_validate()) {
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'message' => 'Invalid security token. Please refresh and try again.']);
+        exit();
+    }
     ob_clean();
 
     $promoCode = isset($_POST['promo_code']) ? $_POST['promo_code'] : '';
@@ -511,6 +532,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['payment_method'])) {
                     <td>₱<?php echo number_format($subtotal, 2); ?></td>
                     <td>
                       <form method="POST" action="products.php" class="remove-from-cart-form" style="display:inline;">
+                        <?php echo csrf_field(); ?>
                         <input type="hidden" name="remove_from_cart" value="<?php echo $item['id']; ?>">
                         <button type="submit" class="btn btn-sm btn-danger"><i class="bi bi-trash"></i></button>
                       </form>
@@ -553,6 +575,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['payment_method'])) {
       <div class="modal-dialog modal-lg">
         <div class="modal-content">
           <form id="checkoutForm" method="POST">
+            <?php echo csrf_field(); ?>
             <div class="modal-header">
               <h5 class="modal-title" id="checkoutModalLabel"><i class="bi bi-credit-card"></i> Checkout</h5>
               <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>

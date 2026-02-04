@@ -1,6 +1,9 @@
 <?php
 
     date_default_timezone_set('Asia/Manila');
+
+    require_once __DIR__ . '/security_headers.php';
+    security_headers_send();
     
 class database{
 

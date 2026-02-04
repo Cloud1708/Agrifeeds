@@ -1,3 +1,7 @@
+<?php
+require_once __DIR__ . '/../includes/security_headers.php';
+security_headers_send();
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>

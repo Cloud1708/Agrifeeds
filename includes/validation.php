@@ -1,0 +1,100 @@
+<?php
+require_once __DIR__ . '/csrf.php';
+
+/**
+ * Server-side input validation and sanitization.
+ * Never trust client input; always validate and type-check on the server.
+ * Use allow-lists (whitelist) for known-good values; reject or sanitize the rest.
+ */
+
+/**
+ * Validate and return an integer within optional bounds.
+ * @param mixed $value
+ * @param int|null $min Minimum allowed (inclusive), or null for no minimum
+ * @param int|null $max Maximum allowed (inclusive), or null for no maximum
+ * @return int|null The validated integer, or null if invalid
+ */
+function validate_int($value, $min = null, $max = null) {
+    if ($value === null || $value === '') {
+        return null;
+    }
+    $v = filter_var($value, FILTER_VALIDATE_INT);
+    if ($v === false) {
+        return null;
+    }
+    if ($min !== null && $v < $min) {
+        return null;
+    }
+    if ($max !== null && $v > $max) {
+        return null;
+    }
+    return $v;
+}
+
+/**
+ * Validate sort direction for SQL ORDER BY. Allow-list only ASC/DESC.
+ * @param string $value
+ * @return string 'ASC' or 'DESC', or 'ASC' as safe default if invalid
+ */
+function validate_order_dir($value) {
+    $v = strtoupper(trim((string) $value));
+    return ($v === 'ASC' || $v === 'DESC') ? $v : 'ASC';
+}
+
+/**
+ * Validate value is one of allowed (allow-list).
+ * @param mixed $value
+ * @param array $allowed List of allowed scalar values
+ * @param mixed $default Value to return if not in allow-list
+ * @return mixed
+ */
+function validate_enum($value, array $allowed, $default = null) {
+    if ($value === null || $value === '') {
+        return $default;
+    }
+    return in_array($value, $allowed, true) ? $value : $default;
+}
+
+/**
+ * Sanitize string for display/DB: trim, limit length, strip tags.
+ * For user-facing text (names, descriptions) - allow letters, numbers, spaces, common punctuation.
+ * @param string $value
+ * @param int $maxLength Maximum length (default 500)
+ * @return string
+ */
+function sanitize_string($value, $maxLength = 500) {
+    if ($value === null || !is_scalar($value)) {
+        return '';
+    }
+    $s = trim((string) $value);
+    $s = strip_tags($s);
+    if (mb_strlen($s) > $maxLength) {
+        $s = mb_substr($s, 0, $maxLength);
+    }
+    return $s;
+}
+
+/**
+ * Stricter sanitization: allow only alphanumeric, spaces, and a small set of safe characters.
+ * Use for fields that must not contain SQL/script fragments.
+ * @param string $value
+ * @param int $maxLength
+ * @param string $extraAllowed Regex-safe extra characters (e.g. '.,\-@')
+ * @return string
+ */
+function sanitize_string_allowlist($value, $maxLength = 500, $extraAllowed = '') {
+    $s = sanitize_string($value, $maxLength);
+    // Remove any character not in allow-list: letters, digits, space, and $extraAllowed
+    $pattern = '/[^\p{L}\p{N}\s' . preg_quote($extraAllowed, '/') . ']/u';
+    $s = preg_replace($pattern, '', $s);
+    return $s;
+}
+
+/**
+ * Validate and return a positive integer ID (e.g. primary key).
+ * @param mixed $value
+ * @return int|null
+ */
+function validate_id($value) {
+    return validate_int($value, 1, null);
+}

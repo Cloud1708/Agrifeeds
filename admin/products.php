@@ -5,12 +5,17 @@ date_default_timezone_set('Asia/Manila');
 session_start();
  
 require_once('../includes/db.php');
+require_once('../includes/validation.php');
 $con = new database();
 $sweetAlertConfig = "";
 
 if (!isset($_SESSION['user_id']) || !in_array($_SESSION['user_role'], [1, 3])) { // 1 for admin, 3 for super admin
     header('Location: ../index.php');
     exit();
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    csrf_require();
 }
 
 $currentPage = isset($_GET['page']) ? (int)$_GET['page'] : 1;
@@ -547,6 +552,7 @@ foreach ($allProducts as $prod) {
                                 </button>
                                 <!-- DISCONTINUE BUTTON -->
                                 <form method="POST" class="mx-1 discontinueProductForm" style="display:inline;">
+                                    <?php echo csrf_field(); ?>
                                     <input type="hidden" name="id" value="<?php echo $rows['ProductID']; ?>">
                                     <input type="hidden" name="discontinue" value="1">
                                     <button type="button" name="discontinueBtn" class="btn btn-secondary btn-sm discontinueProductBtn">
@@ -643,6 +649,7 @@ foreach ($allProducts as $prod) {
                 </div>
                 <div class="modal-body">
                     <form id="addProductForm" method="POST" enctype="multipart/form-data">
+                        <?php echo csrf_field(); ?>
                         <input type="hidden" name="add_product" value="1">
                         <div class="mb-3">
                             <label for="productName" class="form-label">Product Name</label>
@@ -795,6 +802,7 @@ foreach ($allProducts as $prod) {
                                     <td><?php echo $rows['Prod_Stock']?></td>
                                     <td>
                                         <form method="POST" class="restoreProductForm" style="display:inline;">
+                                            <?php echo csrf_field(); ?>
                                             <input type="hidden" name="id" value="<?php echo $rows['ProductID']; ?>">
                                             <input type="hidden" name="restore" value="1">
                                             <button type="button" name="restoreBtn" class="btn btn-success btn-sm restoreProductBtn">
@@ -821,6 +829,7 @@ foreach ($allProducts as $prod) {
     <div class="modal fade" id="editPriceModal" tabindex="-1" aria-labelledby="editPriceModalLabel" aria-hidden="true">
       <div class="modal-dialog">
         <form id="editPriceForm" method="POST" action="update_price.php">
+          <?php echo csrf_field(); ?>
           <div class="modal-content">
             <div class="modal-header">
               <h5 class="modal-title" id="editPriceModalLabel">Edit Product Price</h5>

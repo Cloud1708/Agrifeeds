@@ -2,6 +2,7 @@
 session_start();
 
 require_once('../includes/db.php');
+require_once('../includes/validation.php');
 $con = new database();
 $sweetAlertConfig = "";
 
@@ -21,12 +22,18 @@ if (isset($_SESSION['sweetAlertConfig'])) {
     unset($_SESSION['sweetAlertConfig']);
 }
 
-// Handle Add Supplier
+// Handle Add Supplier (validate all input server-side; do not trust client)
 if (isset($_POST['add'])) {
-    $Sup_Name = $_POST['Sup_Name'];
-    $Sup_CoInfo = $_POST['Sup_CoInfo'];
-    $Sup_PayTerm = $_POST['Sup_PayTerm'];
-    $Sup_DeSched = $_POST['Sup_DeSched'];
+    $Sup_Name = sanitize_string_allowlist($_POST['Sup_Name'] ?? '', 255, ".-,'");
+    $Sup_CoInfo = sanitize_string_allowlist($_POST['Sup_CoInfo'] ?? '', 500, ".-,@/():;+");
+    $Sup_PayTerm = sanitize_string_allowlist($_POST['Sup_PayTerm'] ?? '', 100, ".-,");
+    $Sup_DeSched = sanitize_string_allowlist($_POST['Sup_DeSched'] ?? '', 255, ".-,");
+
+    if ($Sup_Name === '') {
+        $_SESSION['sweetAlertConfig'] = "<script>Swal.fire({icon:'error',title:'Validation Error',text:'Supplier name is required.'});</script>";
+        header("Location: " . $_SERVER['PHP_SELF']);
+        exit();
+    }
 
     $supplierID = $con->addSupplier($Sup_Name, $Sup_CoInfo, $Sup_PayTerm, $Sup_DeSched);
 
@@ -53,15 +60,21 @@ if (isset($_POST['add'])) {
     exit();
 }
 
-// Handle Edit Supplier
+// Handle Edit Supplier (type-check ID; sanitize text inputs)
 if (isset($_POST['edit_supplier'])) {
-    $SupplierID = $_POST['SupplierID'];
-    $Sup_Name = $_POST['Sup_Name'];
-    $Sup_CoInfo = $_POST['Sup_CoInfo'];
-    $Sup_PayTerm = $_POST['Sup_PayTerm'];
-    $Sup_DeSched = $_POST['Sup_DeSched'];
+    $SupplierID = validate_id($_POST['SupplierID'] ?? null);
+    $Sup_Name = sanitize_string_allowlist($_POST['Sup_Name'] ?? '', 255, ".-,'");
+    $Sup_CoInfo = sanitize_string_allowlist($_POST['Sup_CoInfo'] ?? '', 500, ".-,@/():;+");
+    $Sup_PayTerm = sanitize_string_allowlist($_POST['Sup_PayTerm'] ?? '', 100, ".-,");
+    $Sup_DeSched = sanitize_string_allowlist($_POST['Sup_DeSched'] ?? '', 255, ".-,");
 
-    $updated = $con->updateSupplier( $Sup_Name, $Sup_CoInfo, $Sup_PayTerm, $Sup_DeSched, $SupplierID);
+    if ($SupplierID === null || $Sup_Name === '') {
+        $_SESSION['sweetAlertConfig'] = "<script>Swal.fire({icon:'error',title:'Validation Error',text:'Invalid supplier or name.'});</script>";
+        header("Location: " . $_SERVER['PHP_SELF']);
+        exit();
+    }
+
+    $updated = $con->updateSupplier($Sup_Name, $Sup_CoInfo, $Sup_PayTerm, $Sup_DeSched, $SupplierID);
 
     if ($updated) {
         $_SESSION['sweetAlertConfig'] = "
@@ -87,7 +100,12 @@ if (isset($_POST['edit_supplier'])) {
 }
 
 if (isset($_POST['delete_supplier'])) {
-    $SupplierID = $_POST['SupplierID'];
+    $SupplierID = validate_id($_POST['SupplierID'] ?? null);
+    if ($SupplierID === null) {
+        $_SESSION['sweetAlertConfig'] = "<script>Swal.fire({icon:'error',title:'Validation Error',text:'Invalid supplier ID.'});</script>";
+        header("Location: " . $_SERVER['PHP_SELF']);
+        exit();
+    }
     $deleted = $con->deleteSupplier($SupplierID);
 
     if ($deleted) {
@@ -115,8 +133,8 @@ if (isset($_POST['delete_supplier'])) {
 
 $suppliers = $con->viewSuppliers();
 
-// Pagination logic
-$currentPage = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+// Pagination logic (validate page number server-side)
+$currentPage = validate_int($_GET['page'] ?? null, 1, null) ?? 1;
 $perPage = 10; // Fixed items per page
 $totalRecords = count($suppliers);
 $totalPages = ceil($totalRecords / $perPage);

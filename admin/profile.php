@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once('../includes/db.php');
+require_once('../includes/validation.php');
 $con = new database();
 $conn = $con->opencon();
 
@@ -34,6 +35,11 @@ $userInfo = $con->getUserInfo($userID);
 
 // Handle profile updates
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!csrf_validate()) {
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'message' => 'Invalid security token. Please refresh and try again.']);
+        exit();
+    }
     ob_clean(); // Clear any output buffers
     header('Content-Type: application/json');
     
@@ -202,7 +208,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <div class="card-body">
                             <h5 class="card-title">Change Password</h5>
                             <hr>
-                            <form id="changePasswordForm">
+                            <form id="changePasswordForm" method="POST">
+                                <?php echo csrf_field(); ?>
                                 <div class="mb-3">
                                     <label for="current_password" class="form-label">Current Password</label>
                                     <input type="password" class="form-control" id="current_password" name="current_password" required>
@@ -230,7 +237,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="modal fade" id="updateProfileModal" tabindex="-1" aria-labelledby="updateProfileModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
-                <form id="updateProfileForm" enctype="multipart/form-data">
+                <form id="updateProfileForm" enctype="multipart/form-data" method="POST">
+                    <?php echo csrf_field(); ?>
                     <div class="modal-header">
                         <h5 class="modal-title" id="updateProfileModalLabel">Update Profile</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>

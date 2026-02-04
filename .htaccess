@@ -1,24 +1,18 @@
-# Security headers (requires mod_headers; inherits from parent if not set)
+# Security headers (requires mod_headers)
 <IfModule mod_headers.c>
+    # Content-Security-Policy: restrict script/style/font/image sources to reduce XSS and injection risk
+    # Allows: same-origin, cdn.jsdelivr.net (Bootstrap, Icons, SweetAlert2), jQuery, Google Fonts
     Header set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://code.jquery.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'; object-src 'none'"
+
+    # Prevent MIME-type sniffing
     Header set X-Content-Type-Options "nosniff"
+
+    # Reduce clickjacking risk
     Header set X-Frame-Options "SAMEORIGIN"
+
+    # Control referrer information
     Header set Referrer-Policy "strict-origin-when-cross-origin"
 </IfModule>
 
-# Prevent directory listing
+# Prevent directory listing (inherited by subdirs unless overridden)
 Options -Indexes
-
-# Allow access to all PHP files
-<Files *.php>
-    Order allow,deny
-    Allow from all
-</Files>
-
-# Redirect to admin dashboard if accessed directly
-<IfModule mod_rewrite.c>
-    RewriteEngine On
-    RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteRule ^(.*)$ dashboard.php [L,R=302]
-</IfModule> 

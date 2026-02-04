@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once('../includes/db.php');
+require_once('../includes/validation.php');
 
 if (!isset($_SESSION['user_id']) || !in_array($_SESSION['user_role'], [1, 3])) {
     header('Location: products.php');
@@ -8,6 +9,7 @@ if (!isset($_SESSION['user_id']) || !in_array($_SESSION['user_role'], [1, 3])) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    csrf_require();
     $productId = isset($_POST['productID']) ? intval($_POST['productID']) : 0;
     $newPrice = isset($_POST['newPrice']) ? floatval($_POST['newPrice']) : null;
     $effectiveFrom = isset($_POST['effectiveFrom']) ? $_POST['effectiveFrom'] : null;

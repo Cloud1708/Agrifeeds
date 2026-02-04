@@ -1,5 +1,6 @@
 <?php
 require_once('../includes/db.php');
+require_once('../includes/validation.php');
 $con = new database();
 session_start();
 
@@ -18,6 +19,7 @@ $error = '';
 
 // Handle profile updates
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    csrf_require();
     if (isset($_POST['update_profile'])) {
         $username = trim($_POST['username']);
         $name = trim($_POST['name']);
@@ -167,6 +169,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <div class="card-body">
                         <h5 class="card-title">Profile Information</h5>
                         <form method="POST" enctype="multipart/form-data">
+                            <?php echo csrf_field(); ?>
                             <div class="mb-3">
                                 <label for="username" class="form-label">Username</label>
                                 <input type="text" class="form-control" id="username" name="username" 
@@ -201,6 +204,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <div class="card-body">
                         <h5 class="card-title">Change Password</h5>
                         <form method="POST">
+                            <?php echo csrf_field(); ?>
                             <div class="mb-3">
                                 <label for="current_password" class="form-label">Current Password</label>
                                 <input type="password" class="form-control" id="current_password" 

@@ -1,8 +1,9 @@
 <?php
- 
+
 session_start();
- 
+
 require_once('../includes/db.php');
+require_once('../includes/validation.php');
 $con = new database();
 $sweetAlertConfig = "";
 
@@ -17,10 +18,17 @@ if ($_SESSION['user_role'] != 1 && $_SESSION['user_role'] != 3) {
     exit();
 }
 
+// Allow-list for GET actions (never trust client)
+$allowed_actions = ['get_customer', 'check_username', 'get_sales_history', 'get_discount_history'];
 
-// Handle AJAX request for customer data
-if (isset($_GET['action']) && $_GET['action'] === 'get_customer' && isset($_GET['id'])) {
-    $customerId = $_GET['id'];
+// Handle AJAX request for customer data (validate ID server-side)
+if (isset($_GET['action']) && in_array($_GET['action'], $allowed_actions, true) && $_GET['action'] === 'get_customer' && isset($_GET['id'])) {
+    $customerId = validate_id($_GET['id']);
+    if ($customerId === null) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Invalid customer ID']);
+        exit();
+    }
     $customer = $con->getCustomerById($customerId);
  
     if (!$customer) {
@@ -34,9 +42,9 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_customer' && isset($_GET[
     exit();
 }
 
-// Handle username check request
-if (isset($_GET['action']) && $_GET['action'] === 'check_username' && isset($_GET['username'])) {
-    $username = $_GET['username'];
+// Handle username check request (sanitize username; DB uses prepared statement)
+if (isset($_GET['action']) && in_array($_GET['action'], $allowed_actions, true) && $_GET['action'] === 'check_username' && isset($_GET['username'])) {
+    $username = sanitize_string_allowlist($_GET['username'], 50, '._');
     $exists = $con->checkUsernameExists($username);
     
     header('Content-Type: application/json');
@@ -44,9 +52,14 @@ if (isset($_GET['action']) && $_GET['action'] === 'check_username' && isset($_GE
     exit();
 }
  
-// Handle sales history request
-if (isset($_GET['action']) && $_GET['action'] === 'get_sales_history' && isset($_GET['id'])) {
-    $customerId = $_GET['id'];
+// Handle sales history request (validate ID)
+if (isset($_GET['action']) && in_array($_GET['action'], $allowed_actions, true) && $_GET['action'] === 'get_sales_history' && isset($_GET['id'])) {
+    $customerId = validate_id($_GET['id']);
+    if ($customerId === null) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Invalid customer ID']);
+        exit();
+    }
  
     $stmt = $con->opencon()->prepare("
         SELECT s.SaleID, s.Sale_Date, s.Sale_Total, s.Sale_Status,
@@ -66,9 +79,14 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_sales_history' && isset($
     exit();
 }
  
-// Handle discount history request
-if (isset($_GET['action']) && $_GET['action'] === 'get_discount_history' && isset($_GET['id'])) {
-    $customerId = $_GET['id'];
+// Handle discount history request (validate ID)
+if (isset($_GET['action']) && in_array($_GET['action'], $allowed_actions, true) && $_GET['action'] === 'get_discount_history' && isset($_GET['id'])) {
+    $customerId = validate_id($_GET['id']);
+    if ($customerId === null) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Invalid customer ID']);
+        exit();
+    }
  
     $stmt = $con->opencon()->prepare("
         SELECT
@@ -97,15 +115,21 @@ if (isset($_SESSION['sweetAlertConfig'])) {
     unset($_SESSION['sweetAlertConfig']);
 }
  
-// Handle Add Customer
+// Handle Add Customer (sanitize and validate all input server-side)
 if (isset($_POST['add'])) {
-    $username = $_POST['username'];
-    $password = $_POST['password'];
-    $confirmPassword = $_POST['confirmPassword'];
-    $firstName = $_POST['Cust_FN'];
-    $lastName = $_POST['Cust_LN'];
-    $contactInfo = $_POST['Cust_CoInfo'];
-    $enrollLoyalty = isset($_POST['enroll_loyalty']) ? true : false;
+    $username = sanitize_string_allowlist($_POST['username'] ?? '', 50, '._');
+    $password = $_POST['password'] ?? '';
+    $confirmPassword = $_POST['confirmPassword'] ?? '';
+    $firstName = sanitize_string_allowlist($_POST['Cust_FN'] ?? '', 100, ".-,'");
+    $lastName = sanitize_string_allowlist($_POST['Cust_LN'] ?? '', 100, ".-,'");
+    $contactInfo = sanitize_string_allowlist($_POST['Cust_CoInfo'] ?? '', 500, ".-,@/():;+ ");
+    $enrollLoyalty = isset($_POST['enroll_loyalty']);
+
+    if ($username === '' || strlen($password) < 6) {
+        $_SESSION['sweetAlertConfig'] = "<script>Swal.fire({icon:'error',title:'Validation Error',text:'Username required and password at least 6 characters.'});</script>";
+        header("Location: " . $_SERVER['PHP_SELF']);
+        exit();
+    }
 
     // Validate passwords match
     if ($password !== $confirmPassword) {
@@ -175,15 +199,24 @@ if (isset($_POST['add'])) {
     exit();
 }
  
-// Handle Edit Customer
+// Handle Edit Customer (validate ID and sanitize text; type-check discount rate)
 if (isset($_POST['edit_customer'])) {
-    $id = $_POST['customerID'];
-    $firstName = $_POST['Cust_FN'];
-    $lastName = $_POST['Cust_LN'];
-    $contactInfo = $_POST['Cust_CoInfo'];
-    $discountRate = $_POST['discountRate'];
-    $enrollLoyalty = isset($_POST['enroll_loyalty']) ? true : false;
- 
+    $id = validate_id($_POST['customerID'] ?? null);
+    $firstName = sanitize_string_allowlist($_POST['Cust_FN'] ?? '', 100, ".-,'");
+    $lastName = sanitize_string_allowlist($_POST['Cust_LN'] ?? '', 100, ".-,'");
+    $contactInfo = sanitize_string_allowlist($_POST['Cust_CoInfo'] ?? '', 500, ".-,@/():;+ ");
+    $discountRate = filter_var($_POST['discountRate'] ?? 0, FILTER_VALIDATE_FLOAT, ['options' => ['min_range' => 0, 'max_range' => 100]]);
+    $enrollLoyalty = isset($_POST['enroll_loyalty']);
+
+    if ($id === null) {
+        $_SESSION['sweetAlertConfig'] = "<script>Swal.fire({icon:'error',title:'Validation Error',text:'Invalid customer ID.'});</script>";
+        header("Location: " . $_SERVER['PHP_SELF']);
+        exit();
+    }
+    if ($discountRate === false) {
+        $discountRate = 0;
+    }
+
     $result = $con->updateCustomer($id, $firstName, $lastName, $contactInfo, $discountRate, $enrollLoyalty);
  
     if ($result) {
@@ -215,18 +248,21 @@ if (isset($_POST['edit_customer'])) {
     exit();
 }
  
-// Handle Edit Modal Open (like products.php)
+// Handle Edit Modal Open (validate customer ID)
 $editCustomerData = null;
 $showEditModal = false;
 if (isset($_POST['edit_customer_modal']) && isset($_POST['customerID'])) {
-    $editCustomerData = $con->getCustomerById($_POST['customerID']);
-    $showEditModal = true;
+    $editId = validate_id($_POST['customerID']);
+    if ($editId !== null) {
+        $editCustomerData = $con->getCustomerById($editId);
+        $showEditModal = true;
+    }
 }
- 
+
 $allCustomers = $con->viewCustomers();
 
-// Pagination logic
-$currentPage = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+// Pagination logic (validate page server-side)
+$currentPage = validate_int($_GET['page'] ?? null, 1, null) ?? 1;
 $perPage = 10; // Fixed items per page
 $totalRecords = count($allCustomers);
 $totalPages = ceil($totalRecords / $perPage);

@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once '../includes/db.php';
+require_once '../includes/validation.php';
 
 // Check if user is logged in and is a super admin
 if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] != 3) {
@@ -9,32 +10,40 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] != 3) {
 
 $db = new database();
 
-// Get the request parameters
-$draw = $_POST['draw'];
-$start = $_POST['start'];
-$length = $_POST['length'];
-$search = $_POST['search']['value'];
-$order_column = $_POST['order'][0]['column'];
-$order_dir = $_POST['order'][0]['dir'];
+// Get and validate request parameters (never trust client input)
+$draw = validate_int($_POST['draw'] ?? null, 0, null) ?? 0;
+$start = validate_int($_POST['start'] ?? null, 0, null) ?? 0;
+$length = validate_int($_POST['length'] ?? null, 1, 100) ?? 10;
+$search = isset($_POST['search']['value']) ? sanitize_string($_POST['search']['value'], 200) : '';
+$order_column_raw = isset($_POST['order'][0]['column']) ? $_POST['order'][0]['column'] : 0;
+$order_dir_raw = isset($_POST['order'][0]['dir']) ? $_POST['order'][0]['dir'] : 'ASC';
 
-// Define column names
+// Allow-list for sort column index (maps to valid column names only)
 $columns = ['timestamp', 'user', 'action', 'details', 'ip_address'];
+$order_column_index = validate_int($order_column_raw, 0, count($columns) - 1);
+if ($order_column_index === null) {
+    $order_column_index = 0;
+}
+$order_dir = validate_order_dir($order_dir_raw);
 
-// Build the query
+// Use only allow-listed column name - never concatenate user input into SQL
+$order_column_name = $columns[$order_column_index];
+
+// Build the query (no string concatenation of user input into SQL)
 $query = "SELECT a.*, u.User_Name 
           FROM audit_logs a 
           LEFT JOIN user_accounts u ON a.user_id = u.UserID";
 
-// Add search condition if search value exists
-if (!empty($search)) {
+// Add search condition if search value exists (search is bound as parameter below)
+if ($search !== '') {
     $query .= " WHERE a.action LIKE :search 
                 OR a.details LIKE :search 
                 OR u.User_Name LIKE :search 
                 OR a.ip_address LIKE :search";
 }
 
-// Add order by clause
-$query .= " ORDER BY " . $columns[$order_column] . " " . $order_dir;
+// ORDER BY uses only allow-listed column name and validated direction
+$query .= " ORDER BY " . $order_column_name . " " . $order_dir;
 
 // Add limit clause
 $query .= " LIMIT :start, :length";

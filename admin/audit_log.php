@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once '../includes/db.php';
+require_once '../includes/validation.php';
 $con = new database();
 
 // Check if user is logged in and is a super admin
@@ -9,12 +10,13 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] != 3) {
     exit();
 }
 
-// Get filter from URL parameter
-$filter = isset($_GET['filter']) ? $_GET['filter'] : 'all';
+// Allow-list filter (never use client value directly)
+$allowed_filters = ['all', 'product_add', 'product_update', 'price_update', 'stock_update'];
+$filter = validate_enum($_GET['filter'] ?? 'all', $allowed_filters, 'all');
 
-// Pagination settings
+// Pagination settings (validate page server-side)
 $items_per_page = 10;
-$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+$page = validate_int($_GET['page'] ?? null, 1, null) ?? 1;
 $offset = ($page - 1) * $items_per_page;
 
 // Get all activities
