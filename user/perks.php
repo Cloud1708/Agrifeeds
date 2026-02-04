@@ -1,7 +1,7 @@
 <?php
 require_once('../includes/db.php');
+require_once __DIR__ . '/../includes/session.php';
 $con = new database();
-session_start();
 
 if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] != 2) { // 2 for customer
     header('Location: ../index.php');

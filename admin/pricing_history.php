@@ -1,8 +1,9 @@
 <?php
  date_default_timezone_set('Asia/Manila');
 
-session_start();
-require_once '../includes/db.php';
+require_once __DIR__ . '/../includes/session.php';
+require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../includes/validation.php';
 $db = new database();
 $sweetAlertConfig = "";
 
@@ -31,6 +32,7 @@ $paginatedHistory = array_slice($history, ($currentPage - 1) * $perPage, $perPag
 
 // Handle AJAX requests
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    csrf_require();
     $response = ['success' => false, 'message' => ''];
     
     if (isset($_POST['action'])) {
@@ -93,6 +95,7 @@ if ($debug) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="<?php echo htmlspecialchars(csrf_token(), ENT_QUOTES, 'UTF-8'); ?>">
     <title>Pricing History</title>
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -412,6 +415,7 @@ if ($debug) {
         document.getElementById('addHistoryForm').addEventListener('submit', function(e) {
             e.preventDefault();
             const formData = new FormData();
+            formData.append('_csrf_token', document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
             formData.append('action', 'add');
             formData.append('productId', document.getElementById('addProductID').value);
             formData.append('oldPrice', document.getElementById('addOldPrice').value);
@@ -443,6 +447,7 @@ if ($debug) {
         document.getElementById('editHistoryForm').addEventListener('submit', function(e) {
             e.preventDefault();
             const formData = new FormData();
+            formData.append('_csrf_token', document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
             formData.append('action', 'edit');
             formData.append('historyId', document.getElementById('editHistoryID').value);
             formData.append('productId', document.getElementById('editProductID').value);
@@ -487,6 +492,7 @@ if ($debug) {
                 }).then((result) => {
                     if (result.isConfirmed) {
                         const formData = new FormData();
+                        formData.append('_csrf_token', document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
                         formData.append('action', 'delete');
                         formData.append('historyId', historyId);
 

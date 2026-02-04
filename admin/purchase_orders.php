@@ -1,7 +1,6 @@
 <?php
-session_start();
-
-require_once('../includes/db.php');
+require_once __DIR__ . '/../includes/session.php';
+require_once __DIR__ . '/../includes/db.php';
 $con = new database();
 
 if ($_SESSION['user_role'] != 1 && $_SESSION['user_role'] != 3) {

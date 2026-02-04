@@ -1,5 +1,5 @@
 <?php
-session_start();
+require_once 'includes/session.php';
 require_once 'includes/db.php';
 require_once 'includes/validation.php';
 
@@ -171,11 +171,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <h3><i class="bi bi-person-plus-fill me-2"></i>Register New Account</h3>
 
         <?php if ($error): ?>
-            <div class="alert alert-danger"><?php echo $error; ?></div>
+            <div class="alert alert-danger"><?php echo h($error); ?></div>
         <?php endif; ?>
 
         <?php if ($success): ?>
-            <div class="alert alert-success"><?php echo $success; ?></div>
+            <div class="alert alert-success"><?php echo h($success); ?></div>
         <?php endif; ?>
 
         <form method="POST" enctype="multipart/form-data">

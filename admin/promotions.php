@@ -3,8 +3,9 @@
 // Set timezone to ensure correct date comparisons
 date_default_timezone_set('Asia/Manila');
  
-session_start();
-require_once('../includes/db.php');
+require_once __DIR__ . '/../includes/session.php';
+require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../includes/validation.php';
 $con = new database();
 $sweetAlertConfig = "";
 
@@ -26,6 +27,7 @@ if (isset($_SESSION['sweetAlertConfig'])) {
  
 // Handle Add Promotion
 if (isset($_POST['AddPromotion'])) {
+    csrf_require();
     $code = $_POST['Prom_Code'];
     $desc = $_POST['Promo_Description'];
     $amount = $_POST['Promo_DiscAmnt'];
@@ -61,6 +63,7 @@ if (isset($_POST['AddPromotion'])) {
 }
  
 if (isset($_POST['EditPromotion'])) {
+    csrf_require();
     $promotionId = $_POST['PromotionID'];
     $code = $_POST['Prom_Code'];
     $desc = $_POST['Promo_Description'];
@@ -349,6 +352,7 @@ $paginatedPromotions = array_slice($allPromotions, ($currentPage - 1) * $perPage
         <div class="modal-dialog">
             <div class="modal-content">
                 <form id="addPromotionForm" method="POST">
+                    <?php echo csrf_field(); ?>
                     <div class="modal-header">
                         <h5 class="modal-title" id="addPromotionModalLabel">New Promotion</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -403,6 +407,7 @@ $paginatedPromotions = array_slice($allPromotions, ($currentPage - 1) * $perPage
     <div class="modal fade" id="editPromotionModal" tabindex="-1" aria-labelledby="editPromotionModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <form method="POST" class="modal-content">
+                <?php echo csrf_field(); ?>
                 <div class="modal-header">
                     <h5 class="modal-title" id="editPromotionModalLabel">Edit Promotion</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>

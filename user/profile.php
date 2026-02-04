@@ -1,8 +1,8 @@
 <?php
 require_once('../includes/db.php');
 require_once('../includes/validation.php');
+require_once __DIR__ . '/../includes/session.php';
 $con = new database();
-session_start();
 
 if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] != 2) { // 2 for customer
     header('Location: ../index.php');
@@ -150,14 +150,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         <?php if ($success): ?>
             <div class="alert alert-success alert-dismissible fade show" role="alert">
-                <?php echo $success; ?>
+                <?php echo h($success); ?>
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
         <?php endif; ?>
 
         <?php if ($error): ?>
             <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                <?php echo $error; ?>
+                <?php echo h($error); ?>
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
         <?php endif; ?>

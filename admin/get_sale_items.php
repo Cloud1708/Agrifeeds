@@ -1,6 +1,6 @@
 <?php
-session_start();
-require_once('../includes/db.php');
+require_once __DIR__ . '/../includes/session.php';
+require_once __DIR__ . '/../includes/db.php';
 
 // Check if user is authorized
 if (!isset($_SESSION['user_role']) || ($_SESSION['user_role'] != 1 && $_SESSION['user_role'] != 3)) {

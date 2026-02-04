@@ -17,7 +17,7 @@ if (!function_exists('csrf_init')) {
  */
 function csrf_init() {
     if (session_status() === PHP_SESSION_NONE) {
-        session_start();
+        require_once __DIR__ . '/session.php';
     }
     if (empty($_SESSION['_csrf_token']) || !is_string($_SESSION['_csrf_token'])) {
         csrf_rotate();
@@ -30,7 +30,7 @@ function csrf_init() {
  */
 function csrf_rotate() {
     if (session_status() === PHP_SESSION_NONE) {
-        session_start();
+        require_once __DIR__ . '/session.php';
     }
     $_SESSION['_csrf_token'] = bin2hex(random_bytes(32));
     return $_SESSION['_csrf_token'];
@@ -66,7 +66,7 @@ function csrf_field() {
  */
 function csrf_validate(array $options = []) {
     if (session_status() === PHP_SESSION_NONE) {
-        session_start();
+        require_once __DIR__ . '/session.php';
     }
 
     $check_referer = !empty($options['check_referer']);

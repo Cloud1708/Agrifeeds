@@ -1,7 +1,7 @@
 <?php
 require_once('../includes/db.php');
+require_once __DIR__ . '/../includes/session.php';
 $con = new database();
-session_start();
 
 if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] != 2) { // 2 for customer
     header('Location: ../index.php');
@@ -170,7 +170,7 @@ if (isset($_GET['view'])) {
                         </p>
                     </div>
                     <div class="col-md-6">
-                        <p><strong>Payment Method:</strong> <?php echo $orderDetails[0]['Payment_Method_Display']; ?></p>
+                        <p><strong>Payment Method:</strong> <?php echo htmlspecialchars($orderDetails[0]['Payment_Method_Display'] ?? '', ENT_QUOTES, 'UTF-8'); ?></p>
                         <p><strong>Total Amount:</strong> ₱<?php echo number_format($orderDetails[0]['Order_Total'], 2); ?></p>
                     </div>
                 </div>

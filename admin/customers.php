@@ -1,8 +1,7 @@
 <?php
 
-session_start();
-
-require_once('../includes/db.php');
+require_once __DIR__ . '/../includes/session.php';
+require_once __DIR__ . '/../includes/db.php';
 require_once('../includes/validation.php');
 $con = new database();
 $sweetAlertConfig = "";
@@ -117,6 +116,7 @@ if (isset($_SESSION['sweetAlertConfig'])) {
  
 // Handle Add Customer (sanitize and validate all input server-side)
 if (isset($_POST['add'])) {
+    csrf_require();
     $username = sanitize_string_allowlist($_POST['username'] ?? '', 50, '._');
     $password = $_POST['password'] ?? '';
     $confirmPassword = $_POST['confirmPassword'] ?? '';
@@ -201,6 +201,7 @@ if (isset($_POST['add'])) {
  
 // Handle Edit Customer (validate ID and sanitize text; type-check discount rate)
 if (isset($_POST['edit_customer'])) {
+    csrf_require();
     $id = validate_id($_POST['customerID'] ?? null);
     $firstName = sanitize_string_allowlist($_POST['Cust_FN'] ?? '', 100, ".-,'");
     $lastName = sanitize_string_allowlist($_POST['Cust_LN'] ?? '', 100, ".-,'");
@@ -400,9 +401,9 @@ $paginatedCustomers = array_slice($allCustomers, ($currentPage - 1) * $perPage, 
                     $tier = $stmt->fetchColumn();
                 ?>
                 <tr>
-                    <td><?php echo $customer['CustomerID']?></td>
-                    <td><?php echo $customer['Cust_FN'] . ' ' . $customer['Cust_LN']?></td>
-                    <td><?php echo $customer['Cust_CoInfo']?></td>
+                    <td><?php echo h($customer['CustomerID']); ?></td>
+                    <td><?php echo h($customer['Cust_FN'] . ' ' . $customer['Cust_LN']); ?></td>
+                    <td><?php echo h($customer['Cust_CoInfo']); ?></td>
                     <td>
                         <?php
                         switch ($tier) {
@@ -498,6 +499,7 @@ $paginatedCustomers = array_slice($allCustomers, ($currentPage - 1) * $perPage, 
                 </div>
                 <div class="modal-body">
                     <form id="addCustomerForm" method="POST">
+                        <?php echo csrf_field(); ?>
                         <!-- User Account Section -->
                         <h6 class="mb-3">User Account Information</h6>
                         <div class="mb-3">
@@ -550,6 +552,7 @@ $paginatedCustomers = array_slice($allCustomers, ($currentPage - 1) * $perPage, 
         <div class="modal-dialog">
             <div class="modal-content">
                 <form id="editCustomerForm" method="POST">
+                    <?php echo csrf_field(); ?>
                     <input type="hidden" name="edit_customer" value="1">
                     <div class="modal-header">
                         <h5 class="modal-title" id="editCustomerModalLabel">Edit Customer</h5>

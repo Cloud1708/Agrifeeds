@@ -2,9 +2,8 @@
 // Set timezone to Manila
 date_default_timezone_set('Asia/Manila');
 
-session_start();
- 
-require_once('../includes/db.php');
+require_once __DIR__ . '/../includes/session.php';
+require_once __DIR__ . '/../includes/db.php';
 require_once('../includes/validation.php');
 $con = new database();
 $sweetAlertConfig = "";
@@ -553,7 +552,7 @@ foreach ($allProducts as $prod) {
                                 <!-- DISCONTINUE BUTTON -->
                                 <form method="POST" class="mx-1 discontinueProductForm" style="display:inline;">
                                     <?php echo csrf_field(); ?>
-                                    <input type="hidden" name="id" value="<?php echo $rows['ProductID']; ?>">
+                                    <input type="hidden" name="id" value="<?php echo h($rows['ProductID']); ?>">
                                     <input type="hidden" name="discontinue" value="1">
                                     <button type="button" name="discontinueBtn" class="btn btn-secondary btn-sm discontinueProductBtn">
                                         <i class="bi bi-x-circle"></i>
@@ -787,23 +786,23 @@ foreach ($allProducts as $prod) {
                                 foreach ($discontinuedProducts as $rows) {
                                 ?>
                                 <tr>
-                                    <td><?php echo $rows['ProductID']?></td>
+                                    <td><?php echo h($rows['ProductID']); ?></td>
                                     <td>
                                         <?php if (!empty($rows['Prod_Image'])): ?>
-                                            <img src="../<?php echo $rows['Prod_Image']; ?>" alt="Product Image" style="width:50px;height:50px;object-fit:cover;">
+                                            <img src="../<?php echo h($rows['Prod_Image']); ?>" alt="Product Image" style="width:50px;height:50px;object-fit:cover;">
                                         <?php else: ?>
                                             <span class="text-muted">No Image</span>
                                         <?php endif; ?>
                                     </td>
-                                    <td><?php echo $rows['Prod_Name']?></td>
-                                    <td><?php echo $rows['Prod_Cat']?></td>
-                                    <td><?php echo $rows['Prod_Desc']?></td>
-                                    <td>₱<?php echo number_format($rows['Prod_Price'], 2); ?></td>
-                                    <td><?php echo $rows['Prod_Stock']?></td>
+                                    <td><?php echo h($rows['Prod_Name']); ?></td>
+                                    <td><?php echo h($rows['Prod_Cat']); ?></td>
+                                    <td><?php echo h($rows['Prod_Desc']); ?></td>
+                                    <td>₱<?php echo number_format((float)$rows['Prod_Price'], 2); ?></td>
+                                    <td><?php echo h($rows['Prod_Stock']); ?></td>
                                     <td>
                                         <form method="POST" class="restoreProductForm" style="display:inline;">
                                             <?php echo csrf_field(); ?>
-                                            <input type="hidden" name="id" value="<?php echo $rows['ProductID']; ?>">
+                                            <input type="hidden" name="id" value="<?php echo h($rows['ProductID']); ?>">
                                             <input type="hidden" name="restore" value="1">
                                             <button type="button" name="restoreBtn" class="btn btn-success btn-sm restoreProductBtn">
                                                 <i class="bi bi-arrow-counterclockwise"></i> Restore

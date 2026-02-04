@@ -1,10 +1,11 @@
 <?php
-session_start();
- 
-require_once('../includes/db.php');
+require_once __DIR__ . '/../includes/session.php';
+require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../includes/validation.php';
 $con = new database();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'edit_member') {
+    csrf_require();
     $loyaltyId = intval($_POST['loyalty_id']);
     $points = intval($_POST['points']);
     $tier = $_POST['tier'];
@@ -34,6 +35,7 @@ if ($_SESSION['user_role'] != 1 && $_SESSION['user_role'] != 3) {
 
  
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'save_settings') {
+    csrf_require();
     $bronze = intval($_POST['bronze']);
     $silver = intval($_POST['silver']);
     $gold = intval($_POST['gold']);
@@ -78,6 +80,7 @@ unset($member);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="<?php echo htmlspecialchars(csrf_token(), ENT_QUOTES, 'UTF-8'); ?>">
     <title>AgriFeeds - Loyalty Program</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
@@ -285,7 +288,8 @@ unset($member);
     <!-- Edit Member Modal -->
 <div class="modal fade" id="editMemberModal" tabindex="-1" aria-labelledby="editMemberModalLabel" aria-hidden="true">
   <div class="modal-dialog">
-    <form id="editMemberForm" class="modal-content">
+    <form id="editMemberForm" class="modal-content" method="POST">
+      <?php echo csrf_field(); ?>
       <div class="modal-header">
         <h5 class="modal-title" id="editMemberModalLabel">Edit Member</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -494,11 +498,12 @@ document.getElementById('programSettingsForm').addEventListener('submit', functi
             const minPurchase = document.getElementById('minPointsEarn').value;
             const pointsPerPeso = document.getElementById('pointsPerPeso').value;
             const pointsExpireAfter = document.getElementById('points_expire_after').value;
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
             fetch('loyalty_program.php', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                body: `action=save_settings&bronze=${bronze}&silver=${silver}&gold=${gold}&min_purchase=${minPurchase}&points_per_peso=${pointsPerPeso}&points_expire_after=${pointsExpireAfter}`
+                body: `action=save_settings&bronze=${encodeURIComponent(bronze)}&silver=${encodeURIComponent(silver)}&gold=${encodeURIComponent(gold)}&min_purchase=${encodeURIComponent(minPurchase)}&points_per_peso=${encodeURIComponent(pointsPerPeso)}&points_expire_after=${encodeURIComponent(pointsExpireAfter)}&_csrf_token=${encodeURIComponent(csrfToken)}`
             })
             .then(res => res.json())
             .then(data => {

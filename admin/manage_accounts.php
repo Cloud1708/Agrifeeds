@@ -1,8 +1,8 @@
 <?php
 
-require_once('../includes/db.php');
-require_once('../includes/validation.php');
-session_start();
+require_once __DIR__ . '/../includes/session.php';
+require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../includes/validation.php';
 
 // Check if user is logged in and is a super admin
 if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] != 3) {
@@ -17,6 +17,7 @@ $error = '';
 
 // Handle user role, profile pic, and password updates (validate all input server-side)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_role'])) {
+    csrf_require();
     $userID = validate_id($_POST['user_id'] ?? null);
     $allowed_roles = ['1', '2', '3'];
     $newRole = validate_enum($_POST['new_role'] ?? null, $allowed_roles, null);
@@ -233,6 +234,7 @@ if ($filter !== 'all') {
                                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                 </div>
                                 <form method="POST" action="" enctype="multipart/form-data">
+                                    <?php echo csrf_field(); ?>
                                     <div class="modal-body">
                                         <input type="hidden" name="user_id" value="<?php echo $user['UserID']; ?>">
                                         <div class="mb-3">

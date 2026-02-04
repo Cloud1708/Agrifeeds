@@ -1,6 +1,6 @@
 <?php
-session_start();
-require_once '../includes/db.php';
+require_once __DIR__ . '/../includes/session.php';
+require_once __DIR__ . '/../includes/db.php';
 require_once '../includes/validation.php';
 $con = new database();
 
@@ -220,13 +220,13 @@ $current_page_activities = array_slice($activities, $offset, $items_per_page);
         <!-- Activity Feed -->
         <div class="activity-feed">
             <?php foreach ($current_page_activities as $activity): ?>
-                <div class="feed-item" data-type="<?php echo $activity['type']; ?>">
+                <div class="feed-item" data-type="<?php echo h($activity['type']); ?>">
                     <div class="date">
                         <i class="bi bi-clock"></i>
-                        <?php echo date('M d, Y H:i', strtotime($activity['date'])); ?>
+                        <?php echo h(date('M d, Y H:i', strtotime($activity['date']))); ?>
                     </div>
                     <div class="text">
-                        <?php echo $activity['text']; ?>
+                        <?php echo h($activity['text']); ?>
                     </div>
                 </div>
             <?php endforeach; ?>
@@ -238,7 +238,7 @@ $current_page_activities = array_slice($activities, $offset, $items_per_page);
             <ul class="pagination">
                 <?php if ($page > 1): ?>
                     <li class="page-item">
-                        <a class="page-link" href="?page=<?php echo $page - 1; ?>&filter=<?php echo $filter; ?>">
+                        <a class="page-link" href="?page=<?php echo (int)$page - 1; ?>&filter=<?php echo h($filter); ?>">
                             <i class="bi bi-chevron-left"></i>
                         </a>
                     </li>
@@ -249,7 +249,7 @@ $current_page_activities = array_slice($activities, $offset, $items_per_page);
                 $end_page = min($total_pages, $page + 2);
 
                 if ($start_page > 1) {
-                    echo '<li class="page-item"><a class="page-link" href="?page=1&filter=' . $filter . '">1</a></li>';
+                    echo '<li class="page-item"><a class="page-link" href="?page=1&filter=' . h($filter) . '">1</a></li>';
                     if ($start_page > 2) {
                         echo '<li class="page-item disabled"><span class="page-link">...</span></li>';
                     }
@@ -257,7 +257,7 @@ $current_page_activities = array_slice($activities, $offset, $items_per_page);
 
                 for ($i = $start_page; $i <= $end_page; $i++) {
                     echo '<li class="page-item ' . ($i == $page ? 'active' : '') . '">';
-                    echo '<a class="page-link" href="?page=' . $i . '&filter=' . $filter . '">' . $i . '</a>';
+                    echo '<a class="page-link" href="?page=' . $i . '&filter=' . h($filter) . '">' . h($i) . '</a>';
                     echo '</li>';
                 }
 
@@ -265,13 +265,13 @@ $current_page_activities = array_slice($activities, $offset, $items_per_page);
                     if ($end_page < $total_pages - 1) {
                         echo '<li class="page-item disabled"><span class="page-link">...</span></li>';
                     }
-                    echo '<li class="page-item"><a class="page-link" href="?page=' . $total_pages . '&filter=' . $filter . '">' . $total_pages . '</a></li>';
+                    echo '<li class="page-item"><a class="page-link" href="?page=' . $total_pages . '&filter=' . h($filter) . '">' . h($total_pages) . '</a></li>';
                 }
                 ?>
 
                 <?php if ($page < $total_pages): ?>
                     <li class="page-item">
-                        <a class="page-link" href="?page=<?php echo $page + 1; ?>&filter=<?php echo $filter; ?>">
+                        <a class="page-link" href="?page=<?php echo (int)$page + 1; ?>&filter=<?php echo h($filter); ?>">
                             <i class="bi bi-chevron-right"></i>
                         </a>
                     </li>

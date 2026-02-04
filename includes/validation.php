@@ -8,6 +8,20 @@ require_once __DIR__ . '/csrf.php';
  */
 
 /**
+ * Escape string for safe HTML output (XSS prevention).
+ * Use for any dynamic data echoed into HTML body or attributes.
+ * @param string|null $value
+ * @param int $flags ENT_QUOTES to escape single and double quotes
+ * @return string
+ */
+function h($value, $flags = ENT_QUOTES) {
+    if ($value === null || !is_scalar($value)) {
+        return '';
+    }
+    return htmlspecialchars((string) $value, $flags, 'UTF-8');
+}
+
+/**
  * Validate and return an integer within optional bounds.
  * @param mixed $value
  * @param int|null $min Minimum allowed (inclusive), or null for no minimum

@@ -1,8 +1,7 @@
 <?php
-session_start();
-
-require_once('../includes/db.php');
-require_once('../includes/validation.php');
+require_once __DIR__ . '/../includes/session.php';
+require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../includes/validation.php';
 $con = new database();
 $sweetAlertConfig = "";
 
@@ -24,6 +23,7 @@ if (isset($_SESSION['sweetAlertConfig'])) {
 
 // Handle Add Supplier (validate all input server-side; do not trust client)
 if (isset($_POST['add'])) {
+    csrf_require();
     $Sup_Name = sanitize_string_allowlist($_POST['Sup_Name'] ?? '', 255, ".-,'");
     $Sup_CoInfo = sanitize_string_allowlist($_POST['Sup_CoInfo'] ?? '', 500, ".-,@/():;+");
     $Sup_PayTerm = sanitize_string_allowlist($_POST['Sup_PayTerm'] ?? '', 100, ".-,");
@@ -62,6 +62,7 @@ if (isset($_POST['add'])) {
 
 // Handle Edit Supplier (type-check ID; sanitize text inputs)
 if (isset($_POST['edit_supplier'])) {
+    csrf_require();
     $SupplierID = validate_id($_POST['SupplierID'] ?? null);
     $Sup_Name = sanitize_string_allowlist($_POST['Sup_Name'] ?? '', 255, ".-,'");
     $Sup_CoInfo = sanitize_string_allowlist($_POST['Sup_CoInfo'] ?? '', 500, ".-,@/():;+");
@@ -100,6 +101,7 @@ if (isset($_POST['edit_supplier'])) {
 }
 
 if (isset($_POST['delete_supplier'])) {
+    csrf_require();
     $SupplierID = validate_id($_POST['SupplierID'] ?? null);
     if ($SupplierID === null) {
         $_SESSION['sweetAlertConfig'] = "<script>Swal.fire({icon:'error',title:'Validation Error',text:'Invalid supplier ID.'});</script>";
@@ -237,6 +239,7 @@ $paginatedSuppliers = array_slice($suppliers, ($currentPage - 1) * $perPage, $pe
                     <i class="bi bi-pencil"></i>
                 </button>
                 <form method="POST" class="d-inline deleteSupplierForm">
+                    <?php echo csrf_field(); ?>
                     <input type="hidden" name="SupplierID" value="<?php echo $supplier['SupplierID']; ?>">
                     <button type="button" class="btn btn-sm btn-danger deleteSupplierBtn" title="Delete">
                         <i class="bi bi-trash"></i>
@@ -320,6 +323,7 @@ $paginatedSuppliers = array_slice($suppliers, ($currentPage - 1) * $perPage, $pe
             <div class="modal-dialog">
                 <div class="modal-content">
                     <form id="addSupplierForm" method="POST">
+                        <?php echo csrf_field(); ?>
                         <div class="modal-header">
                             <h5 class="modal-title" id="addSupplierModalLabel">Add New Supplier</h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -367,6 +371,7 @@ $paginatedSuppliers = array_slice($suppliers, ($currentPage - 1) * $perPage, $pe
             <div class="modal-dialog">
                 <div class="modal-content">
                     <form id="editSupplierForm" method="POST">
+                        <?php echo csrf_field(); ?>
                         <input type="hidden" name="SupplierID"  id="edit_Sup_ID" value="1">
                         <div class="modal-header">
                             <h5 class="modal-title" id="editSupplierModalLabel">Edit Supplier</h5>

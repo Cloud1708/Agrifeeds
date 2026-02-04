@@ -4,10 +4,10 @@ error_reporting(0);
 ini_set('display_errors', 0);
 
 ob_start();
-require_once('../includes/db.php');
-require_once('../includes/validation.php');
+require_once __DIR__ . '/../includes/session.php';
+require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../includes/validation.php';
 $con = new database();
-session_start();
 
 if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] != 2) { // 2 for customer
     header('Location: ../index.php');
@@ -454,6 +454,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['payment_method'])) {
               <div class="modal-dialog">
                 <div class="modal-content">
                   <form method="POST" action="">
+                    <?php echo csrf_field(); ?>
                     <div class="modal-header">
                       <h5 class="modal-title" id="addToCartModalLabel<?php echo $product['ProductID']; ?>">Add to Cart</h5>
                       <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>

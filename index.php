@@ -1,5 +1,5 @@
 <?php
-session_start();
+require_once 'includes/session.php';
 require_once 'includes/db.php';
 require_once 'includes/validation.php';
 
@@ -156,7 +156,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <h3><i class="bi bi-box-arrow-in-right"></i> Login to Your Account</h3>
 
         <?php if ($error): ?>
-            <div class="alert alert-danger text-center"><?php echo $error; ?></div>
+            <div class="alert alert-danger text-center"><?php echo h($error); ?></div>
         <?php endif; ?>
 
         <form method="POST">

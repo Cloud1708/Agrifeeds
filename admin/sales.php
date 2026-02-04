@@ -1,9 +1,9 @@
 <?php
 
 
-session_start();
-
-require_once('../includes/db.php');
+require_once __DIR__ . '/../includes/session.php';
+require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../includes/validation.php';
 $con = new database();
 $conn = $con->opencon();
 $sweetAlertConfig = '';
@@ -54,6 +54,7 @@ if ($_SESSION['user_role'] != 1 && $_SESSION['user_role'] != 3) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mark_completed'], $_POST['sale_id'])) {
+    csrf_require();
     $saleId = intval($_POST['sale_id']);
     $adminId = $_SESSION['user_id']; // Get the current admin's UserID
 
@@ -339,6 +340,7 @@ if (isset($_SESSION['sweet_alert'])) {
         <div class="btn-group" role="group">
     <?php if (isset($sale['Sale_Status']) && $sale['Sale_Status'] === 'Pending'): ?>
         <form method="POST" action="sales.php" style="display:inline;" id="completeForm_<?php echo $sale['SaleID']; ?>">
+            <?php echo csrf_field(); ?>
             <input type="hidden" name="sale_id" value="<?php echo $sale['SaleID']; ?>">
             <input type="hidden" name="mark_completed" value="1">
             <button type="button" onclick="confirmComplete(<?php echo $sale['SaleID']; ?>)" class="btn btn-success btn-sm" title="Mark as Completed">

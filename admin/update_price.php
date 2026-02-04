@@ -1,6 +1,6 @@
 <?php
-session_start();
-require_once('../includes/db.php');
+require_once __DIR__ . '/../includes/session.php';
+require_once __DIR__ . '/../includes/db.php';
 require_once('../includes/validation.php');
 
 if (!isset($_SESSION['user_id']) || !in_array($_SESSION['user_role'], [1, 3])) {
