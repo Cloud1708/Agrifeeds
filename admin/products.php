@@ -517,33 +517,33 @@ foreach ($allProducts as $prod) {
                         }
                     ?>
                     <tr>
-                        <td><?php echo $rows['ProductID']?></td>
+                        <td><?php echo h($rows['ProductID']); ?></td>
                         <td>
                             <?php if (!empty($rows['Prod_Image'])): ?>
-                                <img src="../<?php echo $rows['Prod_Image']; ?>" alt="Product Image" style="width:50px;height:50px;object-fit:cover;">
+                                <img src="../<?php echo h($rows['Prod_Image']); ?>" alt="Product Image" style="width:50px;height:50px;object-fit:cover;">
                             <?php else: ?>
                                 <span class="text-muted">No Image</span>
                             <?php endif; ?>
                         </td>
-                        <td><?php echo $rows['Prod_Name']?></td>
-                        <td><?php echo $rows['Prod_Cat']?></td>
-                        <td><?php echo $rows['Prod_Desc']?></td>
-                        <td>₱<?php echo number_format($rows['Prod_Price'], 2); ?></td>
-                        <td><?php echo $rows['Prod_Stock']?></td>
-                        <td><span class="badge <?php echo $statusClass; ?>"><?php echo $status; ?></span></td>
+                        <td><?php echo h($rows['Prod_Name']); ?></td>
+                        <td><?php echo h($rows['Prod_Cat']); ?></td>
+                        <td><?php echo h($rows['Prod_Desc']); ?></td>
+                        <td>₱<?php echo h(number_format($rows['Prod_Price'], 2)); ?></td>
+                        <td><?php echo h($rows['Prod_Stock']); ?></td>
+                        <td><span class="badge <?php echo h($statusClass); ?>"><?php echo h($status); ?></span></td>
                         <td>
                             <div class="btn-group" role="group">
                                 <!-- EDIT BUTTON -->
                                 <button
                                     type="button"
                                     class="btn btn-warning btn-sm editProductBtn"
-                                    data-id="<?php echo $rows['ProductID']; ?>"
-                                    data-name="<?php echo htmlspecialchars($rows['Prod_Name']); ?>"
-                                    data-category="<?php echo htmlspecialchars($rows['Prod_Cat']); ?>"
-                                    data-description="<?php echo htmlspecialchars($rows['Prod_Desc']); ?>"
-                                    data-price="<?php echo $rows['Prod_Price']; ?>"
-                                    data-stock="<?php echo $rows['Prod_Stock']; ?>"
-                                    data-image="<?php echo htmlspecialchars($rows['Prod_Image']); ?>"
+                                    data-id="<?php echo h($rows['ProductID']); ?>"
+                                    data-name="<?php echo h($rows['Prod_Name']); ?>"
+                                    data-category="<?php echo h($rows['Prod_Cat']); ?>"
+                                    data-description="<?php echo h($rows['Prod_Desc']); ?>"
+                                    data-price="<?php echo h($rows['Prod_Price']); ?>"
+                                    data-stock="<?php echo h($rows['Prod_Stock']); ?>"
+                                    data-image="<?php echo h($rows['Prod_Image']); ?>"
                                     data-bs-toggle="modal"
                                     data-bs-target="#editProductModal"
                                 >
