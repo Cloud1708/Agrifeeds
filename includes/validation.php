@@ -138,6 +138,77 @@ function validate_float($value, $min = 0.0, $max = null) {
 }
 
 /**
+ * Check if a value contains path traversal or dangerous path characters.
+ * Use before using input in file paths, includes, or when accepting filenames.
+ * @param mixed $value Raw input (string or scalar)
+ * @return bool True if value appears to contain path traversal
+ */
+function contains_path_traversal($value) {
+    if ($value === null || !is_scalar($value)) {
+        return false;
+    }
+    $s = (string) $value;
+    // Directory separators and parent traversal
+    if (strpos($s, '..') !== false || strpos($s, '/') !== false || strpos($s, '\\') !== false) {
+        return true;
+    }
+    // Null byte (can bypass extension checks on some systems)
+    if (strpos($s, "\0") !== false) {
+        return true;
+    }
+    // URL-encoded variants (single decode; app should validate before double-decode)
+    $decoded = rawurldecode($s);
+    if (strpos($decoded, '..') !== false || strpos($decoded, '/') !== false || strpos($decoded, '\\') !== false || strpos($decoded, "\0") !== false) {
+        return true;
+    }
+    return false;
+}
+
+/**
+ * Validate ID from POST/GET: must be a positive integer and must not contain path traversal.
+ * Use for productID, customerID, etc. Rejects values like "/update_price.php" or "..\\file".
+ * @param mixed $value
+ * @return int|null Valid ID or null
+ */
+function validate_id_safe($value) {
+    if (contains_path_traversal($value)) {
+        return null;
+    }
+    return validate_id($value);
+}
+
+/**
+ * Validate float from POST/GET: must be numeric and must not contain path traversal.
+ * @param mixed $value
+ * @param float|null $min
+ * @param float|null $max
+ * @return float|null
+ */
+function validate_float_safe($value, $min = 0.0, $max = null) {
+    if (contains_path_traversal($value)) {
+        return null;
+    }
+    return validate_float($value, $min, $max);
+}
+
+/**
+ * Sanitize string for display/DB with no path separators (prevents path traversal).
+ * Use for contact info, names, etc. Excludes / and \ from allowed characters.
+ * @param string $value
+ * @param int $maxLength
+ * @param string $extraAllowed Regex-safe extra characters (must not include / or \)
+ * @return string
+ */
+function sanitize_string_no_path_chars($value, $maxLength = 500, $extraAllowed = '.-,@():;+') {
+    $s = sanitize_string($value, $maxLength);
+    // Explicitly remove path separators and parent traversal
+    $s = str_replace(['..', '/', '\\', "\0"], '', $s);
+    $pattern = '/[^\p{L}\p{N}\s' . preg_quote($extraAllowed, '/') . ']/u';
+    $s = preg_replace($pattern, '', $s);
+    return $s;
+}
+
+/**
  * Validate date string in Y-m-d format (no XSS, valid date only).
  * @param string|null $value
  * @return string|null The date string if valid, null otherwise

@@ -25,7 +25,7 @@ if (isset($_SESSION['sweetAlertConfig'])) {
 if (isset($_POST['add'])) {
     csrf_require();
     $Sup_Name = sanitize_string_allowlist($_POST['Sup_Name'] ?? '', 255, ".-,'");
-    $Sup_CoInfo = sanitize_string_allowlist($_POST['Sup_CoInfo'] ?? '', 500, ".-,@/():;+");
+    $Sup_CoInfo = sanitize_string_no_path_chars($_POST['Sup_CoInfo'] ?? '', 500, ".-,@():;+");
     $Sup_PayTerm = sanitize_string_allowlist($_POST['Sup_PayTerm'] ?? '', 100, ".-,");
     $Sup_DeSched = sanitize_string_allowlist($_POST['Sup_DeSched'] ?? '', 255, ".-,");
 
@@ -65,7 +65,7 @@ if (isset($_POST['edit_supplier'])) {
     csrf_require();
     $SupplierID = validate_id($_POST['SupplierID'] ?? null);
     $Sup_Name = sanitize_string_allowlist($_POST['Sup_Name'] ?? '', 255, ".-,'");
-    $Sup_CoInfo = sanitize_string_allowlist($_POST['Sup_CoInfo'] ?? '', 500, ".-,@/():;+");
+    $Sup_CoInfo = sanitize_string_no_path_chars($_POST['Sup_CoInfo'] ?? '', 500, ".-,@():;+");
     $Sup_PayTerm = sanitize_string_allowlist($_POST['Sup_PayTerm'] ?? '', 100, ".-,");
     $Sup_DeSched = sanitize_string_allowlist($_POST['Sup_DeSched'] ?? '', 255, ".-,");
 

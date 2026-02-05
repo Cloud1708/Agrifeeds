@@ -10,8 +10,8 @@ if (!isset($_SESSION['user_id']) || !in_array($_SESSION['user_role'], [1, 3])) {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_require();
-    $productId = validate_id($_POST['productID'] ?? null);
-    $newPrice = validate_float($_POST['newPrice'] ?? null);
+    $productId = validate_id_safe($_POST['productID'] ?? null);
+    $newPrice = validate_float_safe($_POST['newPrice'] ?? null);
     $effectiveFrom = validate_date_ymd($_POST['effectiveFrom'] ?? null);
     $effectiveTo = isset($_POST['effectiveTo']) && $_POST['effectiveTo'] !== ''
         ? validate_date_ymd($_POST['effectiveTo'])

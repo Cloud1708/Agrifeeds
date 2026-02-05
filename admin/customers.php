@@ -122,7 +122,7 @@ if (isset($_POST['add'])) {
     $confirmPassword = $_POST['confirmPassword'] ?? '';
     $firstName = sanitize_string_allowlist($_POST['Cust_FN'] ?? '', 100, ".-,'");
     $lastName = sanitize_string_allowlist($_POST['Cust_LN'] ?? '', 100, ".-,'");
-    $contactInfo = sanitize_string_allowlist($_POST['Cust_CoInfo'] ?? '', 500, ".-,@/():;+ ");
+    $contactInfo = sanitize_string_no_path_chars($_POST['Cust_CoInfo'] ?? '', 500, ".-,@():;+ ");
     $enrollLoyalty = isset($_POST['enroll_loyalty']);
 
     if ($username === '' || strlen($password) < 6) {
@@ -205,7 +205,7 @@ if (isset($_POST['edit_customer'])) {
     $id = validate_id($_POST['customerID'] ?? null);
     $firstName = sanitize_string_allowlist($_POST['Cust_FN'] ?? '', 100, ".-,'");
     $lastName = sanitize_string_allowlist($_POST['Cust_LN'] ?? '', 100, ".-,'");
-    $contactInfo = sanitize_string_allowlist($_POST['Cust_CoInfo'] ?? '', 500, ".-,@/():;+ ");
+    $contactInfo = sanitize_string_no_path_chars($_POST['Cust_CoInfo'] ?? '', 500, ".-,@():;+ ");
     $discountRate = filter_var($_POST['discountRate'] ?? 0, FILTER_VALIDATE_FLOAT, ['options' => ['min_range' => 0, 'max_range' => 100]]);
     $enrollLoyalty = isset($_POST['enroll_loyalty']);
 
