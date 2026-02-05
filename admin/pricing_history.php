@@ -23,9 +23,18 @@ $stats = $db->getPricingHistoryStats();
 // Get all pricing history records
 $history = $db->getAllPricingHistory();
 
-// Pagination logic
-$currentPage = isset($_GET['page']) ? (int)$_GET['page'] : 1;
-$perPage = isset($_GET['per_page']) ? (int)$_GET['per_page'] : 10;
+// Pagination logic - validate as integers only to prevent SQL injection / manipulation
+$currentPage = filter_input(INPUT_GET, 'page', FILTER_VALIDATE_INT);
+if ($currentPage === false || $currentPage === null || $currentPage < 1) {
+    $currentPage = 1;
+}
+$perPage = filter_input(INPUT_GET, 'per_page', FILTER_VALIDATE_INT);
+if ($perPage === false || $perPage === null || $perPage < 1) {
+    $perPage = 10;
+}
+if ($perPage > 100) {
+    $perPage = 100;
+}
 $totalRecords = count($history);
 $totalPages = ceil($totalRecords / $perPage);
 $paginatedHistory = array_slice($history, ($currentPage - 1) * $perPage, $perPage);
@@ -177,7 +186,7 @@ if ($debug) {
                     <?php
                     $products = $db->viewProducts();
                     foreach ($products as $product) {
-                        echo "<option value='{$product['ProductID']}'>{$product['Prod_Name']}</option>";
+                        echo '<option value="' . h($product['ProductID']) . '">' . h($product['Prod_Name']) . '</option>';
                     }
                     ?>
                 </select>
@@ -309,8 +318,8 @@ if ($debug) {
                             <label for="addProductID" class="form-label">Product</label>
                             <select class="form-select" id="addProductID" required>
                                 <?php foreach ($products as $product): ?>
-                                <option value="<?php echo $product['ProductID']; ?>">
-                                    <?php echo htmlspecialchars($product['Prod_Name']); ?>
+                                <option value="<?php echo h($product['ProductID']); ?>">
+                                    <?php echo h($product['Prod_Name']); ?>
                                 </option>
                                 <?php endforeach; ?>
                             </select>
