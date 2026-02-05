@@ -25,7 +25,11 @@ $allProducts = $con->getPaginatedProducts($currentPage, $perPage);
 
 // Handle Discontinue Product
 if (isset($_POST['discontinue']) && isset($_POST['id'])) {
-    $id = $_POST['id'];
+    $id = validate_id($_POST['id']);
+    if ($id === null) {
+        header("Location: " . $_SERVER['PHP_SELF']);
+        exit();
+    }
     $result = $con->discontinueProduct($id);
  
     if ($result) {
@@ -55,7 +59,11 @@ if (isset($_POST['discontinue']) && isset($_POST['id'])) {
 
 // Handle Restore Product
 if (isset($_POST['restore']) && isset($_POST['id'])) {
-    $id = $_POST['id'];
+    $id = validate_id($_POST['id']);
+    if ($id === null) {
+        header("Location: " . $_SERVER['PHP_SELF']);
+        exit();
+    }
     $result = $con->restoreProduct($id);
  
     if ($result) {
@@ -90,12 +98,24 @@ if (isset($_SESSION['sweetAlertConfig'])) {
 }
  
 if (isset($_POST['add_product'])) {
-    $productName = $_POST['productName'];
-    $category = $_POST['category'];
-    $description = $_POST['description'];
-    $price = $_POST['price'];
-    $stock = $_POST['stock'];
-    
+    $productName = sanitize_string($_POST['productName'] ?? '', 255);
+    $category = validate_enum($_POST['category'] ?? null, ['feed', 'supplements', 'equipment', 'accessories'], null);
+    $description = sanitize_string($_POST['description'] ?? '', 2000);
+    $price = validate_float($_POST['price'] ?? null);
+    $stock = validate_int($_POST['stock'] ?? null, 0, null);
+
+    if ($productName === '' || $category === null || $price === null || $stock === null) {
+        $_SESSION['sweetAlertConfig'] = "<script>
+            Swal.fire({
+                icon: 'error',
+                title: 'Invalid Input',
+                text: 'Please provide valid product name, category, price, and stock.'
+            });
+        </script>";
+        header("Location: " . $_SERVER['PHP_SELF']);
+        exit();
+    }
+
     // Handle image upload
     $imagePath = null;
     if (isset($_FILES['product_image']) && $_FILES['product_image']['error'] === UPLOAD_ERR_OK) {
@@ -173,18 +193,19 @@ if (isset($_POST['add_product'])) {
         } else {
             $uploadError = error_get_last();
             error_log("Failed to upload image: " . ($uploadError ? $uploadError['message'] : 'Unknown error'));
+            $uploadErrMsg = $uploadError ? $uploadError['message'] : 'Unknown error';
             $_SESSION['sweetAlertConfig'] = "<script>
                 Swal.fire({
                     icon: 'error',
                     title: 'Error',
-                    text: 'Failed to upload image: " . addslashes($uploadError ? $uploadError['message'] : 'Unknown error') . "'
+                    text: " . json_encode('Failed to upload image: ' . $uploadErrMsg, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) . "
                 });
             </script>";
             header("Location: " . $_SERVER['PHP_SELF']);
             exit();
         }
     }
-    
+
     // Debug the image path before database insertion
     error_log("Image path before database insertion: " . ($imagePath ?? 'null'));
     
@@ -200,28 +221,45 @@ if (isset($_POST['add_product'])) {
         </script>";
     } else {
         $_SESSION['sweetAlertConfig'] = "<script>
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: '" . addslashes($result['message']) . "'
-            });
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: " . json_encode(isset($result['message']) ? $result['message'] : 'Failed to add product.', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) . "
+        });
         </script>";
     }
-    
+
     header("Location: " . $_SERVER['PHP_SELF']);
     exit();
 }
- 
+
 // Handle Edit Product
 if (isset($_POST['edit_product'])) {
-    $id = $_POST['productID'];
-    $name = $_POST['productName'];
-    $category = $_POST['category'];
-    $description = $_POST['description'];
+    $id = validate_id($_POST['productID'] ?? null);
+    $name = sanitize_string($_POST['productName'] ?? '', 255);
+    $category = validate_enum($_POST['category'] ?? null, ['feed', 'supplements', 'equipment', 'accessories'], null);
+    $description = sanitize_string($_POST['description'] ?? '', 2000);
+    $addStock = validate_int($_POST['stock'] ?? null, 0, null);
+
+    if ($id === null || $name === '' || $category === null || $addStock === null) {
+        $_SESSION['sweetAlertConfig'] = "<script>
+            Swal.fire({
+                icon: 'error',
+                title: 'Invalid Input',
+                text: 'Please provide valid product name, category, and stock.'
+            });
+        </script>";
+        header("Location: " . $_SERVER['PHP_SELF']);
+        exit();
+    }
+
     // Always use the current price from the database
     $product = $con->getProductById($id);
+    if (!$product) {
+        header("Location: " . $_SERVER['PHP_SELF']);
+        exit();
+    }
     $price = $product['Prod_Price'];
-    $addStock = $_POST['stock'];
     
     // Handle image upload
     $imagePath = null;
@@ -280,18 +318,19 @@ if (isset($_POST['edit_product'])) {
             $imagePath = 'uploads/product_images/' . $fileName;
         } else {
             $uploadError = error_get_last();
+            $uploadErrMsg = $uploadError ? $uploadError['message'] : 'Unknown error';
             $_SESSION['sweetAlertConfig'] = "<script>
                 Swal.fire({
                     icon: 'error',
                     title: 'Error',
-                    text: 'Failed to upload image: " . addslashes($uploadError ? $uploadError['message'] : 'Unknown error') . "'
+                    text: " . json_encode('Failed to upload image: ' . $uploadErrMsg, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) . "
                 });
             </script>";
             header("Location: " . $_SERVER['PHP_SELF']);
             exit();
         }
     }
-    
+
     // Fetch current stock
     $currentStock = isset($product['Prod_Stock']) ? (int)$product['Prod_Stock'] : 0;
     $newStock = $currentStock + (int)$addStock;
@@ -325,7 +364,11 @@ if (isset($_POST['edit_product'])) {
 }
  
 if (isset($_POST['delete']) && isset($_POST['id'])) {
-    $id = $_POST['id'];
+    $id = validate_id($_POST['id']);
+    if ($id === null) {
+        header("Location: " . $_SERVER['PHP_SELF']);
+        exit();
+    }
     $result = $con->deleteProduct($id);
  
     if ($result) {

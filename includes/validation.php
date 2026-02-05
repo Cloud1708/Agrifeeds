@@ -112,3 +112,47 @@ function sanitize_string_allowlist($value, $maxLength = 500, $extraAllowed = '')
 function validate_id($value) {
     return validate_int($value, 1, null);
 }
+
+/**
+ * Validate and return a non-negative float (e.g. price).
+ * @param mixed $value
+ * @param float|null $min Minimum (inclusive), or null for 0
+ * @param float|null $max Maximum (inclusive), or null for no maximum
+ * @return float|null
+ */
+function validate_float($value, $min = 0.0, $max = null) {
+    if ($value === null || $value === '') {
+        return null;
+    }
+    $v = filter_var($value, FILTER_VALIDATE_FLOAT);
+    if ($v === false) {
+        return null;
+    }
+    if ($min !== null && $v < $min) {
+        return null;
+    }
+    if ($max !== null && $v > $max) {
+        return null;
+    }
+    return $v;
+}
+
+/**
+ * Validate date string in Y-m-d format (no XSS, valid date only).
+ * @param string|null $value
+ * @return string|null The date string if valid, null otherwise
+ */
+function validate_date_ymd($value) {
+    if ($value === null || !is_scalar($value)) {
+        return null;
+    }
+    $s = trim((string) $value);
+    if ($s === '') {
+        return null;
+    }
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $s)) {
+        return null;
+    }
+    $dt = DateTime::createFromFormat('Y-m-d', $s);
+    return ($dt && $dt->format('Y-m-d') === $s) ? $s : null;
+}

@@ -10,18 +10,20 @@ if (!isset($_SESSION['user_id']) || !in_array($_SESSION['user_role'], [1, 3])) {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_require();
-    $productId = isset($_POST['productID']) ? intval($_POST['productID']) : 0;
-    $newPrice = isset($_POST['newPrice']) ? floatval($_POST['newPrice']) : null;
-    $effectiveFrom = isset($_POST['effectiveFrom']) ? $_POST['effectiveFrom'] : null;
-    $effectiveTo = isset($_POST['effectiveTo']) && $_POST['effectiveTo'] !== '' ? $_POST['effectiveTo'] : null;
+    $productId = validate_id($_POST['productID'] ?? null);
+    $newPrice = validate_float($_POST['newPrice'] ?? null);
+    $effectiveFrom = validate_date_ymd($_POST['effectiveFrom'] ?? null);
+    $effectiveTo = isset($_POST['effectiveTo']) && $_POST['effectiveTo'] !== ''
+        ? validate_date_ymd($_POST['effectiveTo'])
+        : null;
 
-    if ($productId && $newPrice !== null && $effectiveFrom) {
+    if ($productId && $newPrice !== null && $effectiveFrom !== null) {
         $con = new database();
         $result = $con->updateProductPriceWithHistory($productId, $newPrice, $effectiveFrom, $effectiveTo);
         if ($result === true) {
             $_SESSION['sweetAlertConfig'] = "<script>Swal.fire({icon: 'success', title: 'Price Updated', text: 'Product price and history updated successfully!', confirmButtonText: 'OK'});</script>";
         } else {
-            $_SESSION['sweetAlertConfig'] = "<script>Swal.fire({icon: 'error', title: 'Update Failed', text: '" . addslashes($result) . "', confirmButtonText: 'OK'});</script>";
+            $_SESSION['sweetAlertConfig'] = "<script>Swal.fire({icon: 'error', title: 'Update Failed', text: " . json_encode($result, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) . ", confirmButtonText: 'OK'});</script>";
         }
     } else {
         $_SESSION['sweetAlertConfig'] = "<script>Swal.fire({icon: 'error', title: 'Invalid Input', text: 'Please fill in all required fields.', confirmButtonText: 'OK'});</script>";
