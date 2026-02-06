@@ -741,6 +741,7 @@ foreach ($allProducts as $prod) {
       <div class="modal-dialog">
         <div class="modal-content">
           <form id="editProductForm" method="POST" enctype="multipart/form-data">
+            <?php echo csrf_field(); ?>
             <input type="hidden" name="edit_product" value="1">
             <div class="modal-header">
               <h5 class="modal-title" id="editProductModalLabel">Edit Product</h5>
