@@ -98,7 +98,14 @@ if (isset($_SESSION['sweetAlertConfig'])) {
 }
  
 if (isset($_POST['add_product'])) {
-    $productName = sanitize_string($_POST['productName'] ?? '', 255);
+    // Product name should be plain text only; explicitly block any path-traversal attempts
+    $rawProductName = $_POST['productName'] ?? '';
+    if (contains_path_traversal($rawProductName)) {
+        $productName = '';
+    } else {
+        // Allow only letters, numbers, spaces, and a small safe set of punctuation
+        $productName = sanitize_string_allowlist($rawProductName, 255, ".-,'");
+    }
     $category = validate_enum($_POST['category'] ?? null, ['feed', 'supplements', 'equipment', 'accessories'], null);
     $description = sanitize_string($_POST['description'] ?? '', 2000);
     $price = validate_float($_POST['price'] ?? null);
@@ -236,7 +243,13 @@ if (isset($_POST['add_product'])) {
 // Handle Edit Product
 if (isset($_POST['edit_product'])) {
     $id = validate_id($_POST['productID'] ?? null);
-    $name = sanitize_string($_POST['productName'] ?? '', 255);
+    // Reuse the same strict rules for product names when editing
+    $rawProductName = $_POST['productName'] ?? '';
+    if (contains_path_traversal($rawProductName)) {
+        $name = '';
+    } else {
+        $name = sanitize_string_allowlist($rawProductName, 255, ".-,'");
+    }
     $category = validate_enum($_POST['category'] ?? null, ['feed', 'supplements', 'equipment', 'accessories'], null);
     $description = sanitize_string($_POST['description'] ?? '', 2000);
     $addStock = validate_int($_POST['stock'] ?? null, 0, null);
