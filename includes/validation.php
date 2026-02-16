@@ -150,37 +150,47 @@ function contains_path_traversal($value) {
     }
     $s = (string) $value;
 
-    // Literal directory separators and parent traversal
-    if (strpos($s, '..') !== false || strpos($s, '/') !== false || strpos($s, '\\') !== false) {
-        return true;
-    }
-    // Null byte (can bypass extension checks on some systems)
+    // Fast checks for null bytes.
     if (strpos($s, "\0") !== false || strpos($s, "\x00") !== false) {
         return true;
     }
-    // URL-encoded path traversal: %2e%2e%2f, %2e%2e/, ..%2f, %2e%2e%5c, etc.
-    if (preg_match('/%2e%2e|%2e%2e%2f|%2e%2e%5c|\.\.%2f|\.\.%5c|%2f|%5c/i', $s)) {
+
+    // Canonicalize by repeatedly URL-decoding a small number of times.
+    // This catches single + double encoding without risking an infinite loop.
+    $canonical = $s;
+    for ($i = 0; $i < 2; $i++) {
+        $decoded = rawurldecode($canonical);
+        if ($decoded === $canonical) {
+            break;
+        }
+        $canonical = $decoded;
+    }
+
+    // Normalize directory separators for matching.
+    $canonical = str_replace("\\\\", "/", $canonical);
+
+    // Core traversal patterns. We intentionally do NOT treat any ".." as traversal
+    // unless it is used as a path segment (e.g., "../" or "..\\").
+    if (preg_match('#(^|/)\.\.(/|$)#', $canonical)) {
         return true;
     }
-    // Double URL encoding: %252e%252e, %255c
-    if (preg_match('/%25(2e|2f|5c)/i', $s)) {
+
+    // Any path separator is suspicious for inputs that should be plain fields
+    // (names, prices, IDs). It is safer to reject at validation time.
+    if (strpos($canonical, '/') !== false) {
         return true;
     }
-    // Unicode/overlong encodings for slash: %c0%af, %e0%80%af, %u2216, %u2215
+
+    // Encoded slash/backslash indicators (in case canonicalization didn't fully decode).
+    if (preg_match('/%2f|%5c|%252f|%255c/i', $s)) {
+        return true;
+    }
+
+    // Unicode/overlong encodings for slash.
     if (preg_match('/%(?:c0%af|e0%80%af|u2216|u2215)/i', $s)) {
         return true;
     }
-    // Single decode and re-check (catch single-encoded attacks)
-    $decoded = rawurldecode($s);
-    if ($decoded !== $s) {
-        if (strpos($decoded, '..') !== false || strpos($decoded, '/') !== false || strpos($decoded, '\\') !== false || strpos($decoded, "\0") !== false) {
-            return true;
-        }
-        // After decode, check for encoded sequences again (nested encoding)
-        if (preg_match('/%2e%2e|%2e%2e%2f|%2e%2e%5c|%2f|%5c/i', $decoded)) {
-            return true;
-        }
-    }
+
     return false;
 }
 

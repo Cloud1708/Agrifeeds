@@ -98,6 +98,7 @@ if (isset($_SESSION['sweetAlertConfig'])) {
 }
  
 if (isset($_POST['add_product'])) {
+    csrf_require();
     // Product name should be plain text only; explicitly block any path-traversal attempts
     $rawProductName = $_POST['productName'] ?? '';
     if (contains_path_traversal($rawProductName)) {
@@ -255,6 +256,7 @@ if (isset($_POST['add_product'])) {
 
 // Handle Edit Product
 if (isset($_POST['edit_product'])) {
+    csrf_require();
     $id = validate_id($_POST['productID'] ?? null);
     // Reuse the same strict rules for product names when editing
     $rawProductName = $_POST['productName'] ?? '';
