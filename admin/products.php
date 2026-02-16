@@ -161,8 +161,21 @@ if (isset($_POST['add_product'])) {
             header("Location: " . $_SERVER['PHP_SELF']);
             exit();
         }
-        
-        $fileExtension = strtolower(pathinfo($_FILES['product_image']['name'], PATHINFO_EXTENSION));
+
+        // Path traversal protection: reject malicious filenames
+        if (!is_upload_filename_safe($_FILES['product_image']['name'])) {
+            $_SESSION['sweetAlertConfig'] = "<script>
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Invalid File',
+                    text: 'Invalid or unsafe file name.'
+                });
+            </script>";
+            header("Location: " . $_SERVER['PHP_SELF']);
+            exit();
+        }
+
+        $fileExtension = strtolower(pathinfo(basename($_FILES['product_image']['name']), PATHINFO_EXTENSION));
         $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif'];
         
         if (!in_array($fileExtension, $allowedExtensions)) {
@@ -307,8 +320,21 @@ if (isset($_POST['edit_product'])) {
             header("Location: " . $_SERVER['PHP_SELF']);
             exit();
         }
-        
-        $fileExtension = strtolower(pathinfo($_FILES['product_image']['name'], PATHINFO_EXTENSION));
+
+        // Path traversal protection: reject malicious filenames
+        if (!is_upload_filename_safe($_FILES['product_image']['name'])) {
+            $_SESSION['sweetAlertConfig'] = "<script>
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Invalid File',
+                    text: 'Invalid or unsafe file name.'
+                });
+            </script>";
+            header("Location: " . $_SERVER['PHP_SELF']);
+            exit();
+        }
+
+        $fileExtension = strtolower(pathinfo(basename($_FILES['product_image']['name']), PATHINFO_EXTENSION));
         $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif'];
         
         if (!in_array($fileExtension, $allowedExtensions)) {

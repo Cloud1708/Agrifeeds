@@ -10,6 +10,15 @@ if (!isset($_SESSION['user_id']) || !in_array($_SESSION['user_role'], [1, 3])) {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_require();
+    // Reject path traversal in any POST parameter before processing
+    $rawParams = ['productID', 'newPrice', 'effectiveFrom', 'effectiveTo'];
+    foreach ($rawParams as $key) {
+        if (isset($_POST[$key]) && contains_path_traversal($_POST[$key])) {
+            $_SESSION['sweetAlertConfig'] = "<script>Swal.fire({icon: 'error', title: 'Invalid Input', text: 'Invalid request.', confirmButtonText: 'OK'});</script>";
+            header('Location: products.php');
+            exit();
+        }
+    }
     $productId = validate_id_safe($_POST['productID'] ?? null);
     $newPrice = validate_float_safe($_POST['newPrice'] ?? null);
     $effectiveFrom = validate_date_ymd($_POST['effectiveFrom'] ?? null);

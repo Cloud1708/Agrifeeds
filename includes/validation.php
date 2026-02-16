@@ -140,6 +140,7 @@ function validate_float($value, $min = 0.0, $max = null) {
 /**
  * Check if a value contains path traversal or dangerous path characters.
  * Use before using input in file paths, includes, or when accepting filenames.
+ * Covers: ../, ..\, encoded variants, Unicode, double-encoding, null byte.
  * @param mixed $value Raw input (string or scalar)
  * @return bool True if value appears to contain path traversal
  */
@@ -148,20 +149,61 @@ function contains_path_traversal($value) {
         return false;
     }
     $s = (string) $value;
-    // Directory separators and parent traversal
+
+    // Literal directory separators and parent traversal
     if (strpos($s, '..') !== false || strpos($s, '/') !== false || strpos($s, '\\') !== false) {
         return true;
     }
     // Null byte (can bypass extension checks on some systems)
-    if (strpos($s, "\0") !== false) {
+    if (strpos($s, "\0") !== false || strpos($s, "\x00") !== false) {
         return true;
     }
-    // URL-encoded variants (single decode; app should validate before double-decode)
-    $decoded = rawurldecode($s);
-    if (strpos($decoded, '..') !== false || strpos($decoded, '/') !== false || strpos($decoded, '\\') !== false || strpos($decoded, "\0") !== false) {
+    // URL-encoded path traversal: %2e%2e%2f, %2e%2e/, ..%2f, %2e%2e%5c, etc.
+    if (preg_match('/%2e%2e|%2e%2e%2f|%2e%2e%5c|\.\.%2f|\.\.%5c|%2f|%5c/i', $s)) {
         return true;
+    }
+    // Double URL encoding: %252e%252e, %255c
+    if (preg_match('/%25(2e|2f|5c)/i', $s)) {
+        return true;
+    }
+    // Unicode/overlong encodings for slash: %c0%af, %e0%80%af, %u2216, %u2215
+    if (preg_match('/%(?:c0%af|e0%80%af|u2216|u2215)/i', $s)) {
+        return true;
+    }
+    // Single decode and re-check (catch single-encoded attacks)
+    $decoded = rawurldecode($s);
+    if ($decoded !== $s) {
+        if (strpos($decoded, '..') !== false || strpos($decoded, '/') !== false || strpos($decoded, '\\') !== false || strpos($decoded, "\0") !== false) {
+            return true;
+        }
+        // After decode, check for encoded sequences again (nested encoding)
+        if (preg_match('/%2e%2e|%2e%2e%2f|%2e%2e%5c|%2f|%5c/i', $decoded)) {
+            return true;
+        }
     }
     return false;
+}
+
+/**
+ * Validate uploaded file name for path traversal (filename only, no path components).
+ * Use before using $_FILES['x']['name'] in any path construction.
+ * @param string|null $filename Original filename from $_FILES['x']['name']
+ * @return bool True if filename is safe (no path traversal)
+ */
+function is_upload_filename_safe($filename) {
+    if ($filename === null || $filename === '') {
+        return false;
+    }
+    // Reject path traversal in filename (e.g. "../../etc/passwd")
+    if (contains_path_traversal($filename)) {
+        return false;
+    }
+    // Filename must not contain path separators - use basename to get last component only
+    $base = basename($filename);
+    if ($base !== $filename) {
+        return false; // Had path components
+    }
+    return true;
 }
 
 /**
