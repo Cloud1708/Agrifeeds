@@ -17,13 +17,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ? validate_date_ymd($_POST['effectiveTo'])
         : null;
 
-    // Defense-in-depth: if any raw value looks like a path, reject early.
-    foreach (['productID', 'newPrice', 'effectiveFrom', 'effectiveTo'] as $key) {
-        if (isset($_POST[$key]) && contains_path_traversal($_POST[$key])) {
-            $_SESSION['sweetAlertConfig'] = "<script>Swal.fire({icon: 'error', title: 'Invalid Input', text: 'Invalid request.', confirmButtonText: 'OK'});</script>";
-            header('Location: products.php');
-            exit();
-        }
+    // If validation failed, stop here (safe validators already reject path-like payloads).
+    if ($productId === null || $newPrice === null || $effectiveFrom === null || ($effectiveTo !== null && $effectiveTo === '')) {
+        $_SESSION['sweetAlertConfig'] = "<script>Swal.fire({icon: 'error', title: 'Invalid Input', text: 'Please fill in all required fields with valid values.', confirmButtonText: 'OK'});</script>";
+        header('Location: products.php');
+        exit();
     }
 
     if ($productId && $newPrice !== null && $effectiveFrom !== null) {
@@ -34,8 +32,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $_SESSION['sweetAlertConfig'] = "<script>Swal.fire({icon: 'error', title: 'Update Failed', text: " . json_encode($result, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) . ", confirmButtonText: 'OK'});</script>";
         }
-    } else {
-        $_SESSION['sweetAlertConfig'] = "<script>Swal.fire({icon: 'error', title: 'Invalid Input', text: 'Please fill in all required fields.', confirmButtonText: 'OK'});</script>";
     }
     header('Location: products.php');
     exit();

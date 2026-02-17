@@ -28,13 +28,62 @@ if (isset($_SESSION['sweetAlertConfig'])) {
 // Handle Add Promotion
 if (isset($_POST['AddPromotion'])) {
     csrf_require();
-    $code = $_POST['Prom_Code'];
-    $desc = $_POST['Promo_Description'];
-    $amount = $_POST['Promo_DiscAmnt'];
-    $type = $_POST['Promo_DiscountType'];
-    $start = $_POST['Promo_StartDate'];
-    $end = $_POST['Promo_EndDate'];
-    $limit = $_POST['UsageLimit'];
+    // Validate using allow-lists; reject any path-like input early (scanner payloads like "promotions.php")
+    $rawCode = $_POST['Prom_Code'] ?? '';
+    if (contains_path_traversal($rawCode)) {
+        $code = '';
+    } else {
+        // Typical promo codes: letters/numbers + - _ ; keep tight
+        $code = strtoupper(sanitize_string_allowlist($rawCode, 32, "-_"));
+    }
+    $desc = sanitize_string($_POST['Promo_Description'] ?? '', 500);
+    $type = validate_enum($_POST['Promo_DiscountType'] ?? null, ['Percentage', 'Fixed'], null);
+
+    // Amount: numeric only (Percentage 0-100, Fixed 0-1,000,000)
+    $amount = validate_float_safe($_POST['Promo_DiscAmnt'] ?? null, 0.0, 1000000.0);
+
+    $start = validate_date_ymd($_POST['Promo_StartDate'] ?? null);
+    $end = validate_date_ymd($_POST['Promo_EndDate'] ?? null);
+    $limit = validate_int($_POST['UsageLimit'] ?? null, 0, 1000000);
+
+    if ($code === '' || $type === null || $amount === null || $start === null || $end === null || $limit === null) {
+        $_SESSION['sweetAlertConfig'] = "<script>
+            Swal.fire({
+                icon: 'error',
+                title: 'Validation Error',
+                text: 'Please provide valid promotion details.',
+                confirmButtonText: 'OK'
+            });
+        </script>";
+        header("Location: " . $_SERVER['PHP_SELF']);
+        exit();
+    }
+
+    // Business rule checks
+    if ($type === 'Percentage' && ($amount < 0 || $amount > 100)) {
+        $_SESSION['sweetAlertConfig'] = "<script>
+            Swal.fire({
+                icon: 'error',
+                title: 'Validation Error',
+                text: 'Percentage discounts must be between 0 and 100.',
+                confirmButtonText: 'OK'
+            });
+        </script>";
+        header("Location: " . $_SERVER['PHP_SELF']);
+        exit();
+    }
+    if (strtotime($end) < strtotime($start)) {
+        $_SESSION['sweetAlertConfig'] = "<script>
+            Swal.fire({
+                icon: 'error',
+                title: 'Validation Error',
+                text: 'End date must be on or after the start date.',
+                confirmButtonText: 'OK'
+            });
+        </script>";
+        header("Location: " . $_SERVER['PHP_SELF']);
+        exit();
+    }
     // Always set to active when adding
     $isActive = 1;
  
@@ -64,14 +113,57 @@ if (isset($_POST['AddPromotion'])) {
  
 if (isset($_POST['EditPromotion'])) {
     csrf_require();
-    $promotionId = $_POST['PromotionID'];
-    $code = $_POST['Prom_Code'];
-    $desc = $_POST['Promo_Description'];
-    $amount = $_POST['Promo_DiscAmnt'];
-    $type = $_POST['Promo_DiscountType'];
-    $start = $_POST['Promo_StartDate'];
-    $end = $_POST['Promo_EndDate'];
-    $limit = $_POST['UsageLimit'];
+    $promotionId = validate_id_safe($_POST['PromotionID'] ?? null);
+    $rawCode = $_POST['Prom_Code'] ?? '';
+    if (contains_path_traversal($rawCode)) {
+        $code = '';
+    } else {
+        $code = strtoupper(sanitize_string_allowlist($rawCode, 32, "-_"));
+    }
+    $desc = sanitize_string($_POST['Promo_Description'] ?? '', 500);
+    $amount = validate_float_safe($_POST['Promo_DiscAmnt'] ?? null, 0.0, 1000000.0);
+    $type = validate_enum($_POST['Promo_DiscountType'] ?? null, ['Percentage', 'Fixed'], null);
+    $start = validate_date_ymd($_POST['Promo_StartDate'] ?? null);
+    $end = validate_date_ymd($_POST['Promo_EndDate'] ?? null);
+    $limit = validate_int($_POST['UsageLimit'] ?? null, 0, 1000000);
+
+    if ($promotionId === null || $code === '' || $type === null || $amount === null || $start === null || $end === null || $limit === null) {
+        $_SESSION['sweetAlertConfig'] = "<script>
+            Swal.fire({
+                icon: 'error',
+                title: 'Validation Error',
+                text: 'Please provide valid promotion details.',
+                confirmButtonText: 'OK'
+            });
+        </script>";
+        header("Location: " . $_SERVER['PHP_SELF']);
+        exit();
+    }
+
+    if ($type === 'Percentage' && ($amount < 0 || $amount > 100)) {
+        $_SESSION['sweetAlertConfig'] = "<script>
+            Swal.fire({
+                icon: 'error',
+                title: 'Validation Error',
+                text: 'Percentage discounts must be between 0 and 100.',
+                confirmButtonText: 'OK'
+            });
+        </script>";
+        header("Location: " . $_SERVER['PHP_SELF']);
+        exit();
+    }
+    if (strtotime($end) < strtotime($start)) {
+        $_SESSION['sweetAlertConfig'] = "<script>
+            Swal.fire({
+                icon: 'error',
+                title: 'Validation Error',
+                text: 'End date must be on or after the start date.',
+                confirmButtonText: 'OK'
+            });
+        </script>";
+        header("Location: " . $_SERVER['PHP_SELF']);
+        exit();
+    }
  
     $result = $con->updatePromotionDetails($code, $desc, $amount, $type, $start, $end, $limit, $promotionId);
  

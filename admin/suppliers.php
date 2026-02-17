@@ -24,6 +24,14 @@ if (isset($_SESSION['sweetAlertConfig'])) {
 // Handle Add Supplier (validate all input server-side; do not trust client)
 if (isset($_POST['add'])) {
     csrf_require();
+    // Defense-in-depth: if any raw value looks like a path, reject early.
+    foreach (['Sup_Name', 'Sup_CoInfo', 'Sup_PayTerm', 'Sup_DeSched'] as $key) {
+        if (isset($_POST[$key]) && contains_path_traversal($_POST[$key])) {
+            $_SESSION['sweetAlertConfig'] = "<script>Swal.fire({icon:'error',title:'Validation Error',text:'Invalid input detected.',confirmButtonText:'OK'});</script>";
+            header("Location: " . $_SERVER['PHP_SELF']);
+            exit();
+        }
+    }
     // Supplier name must be plain text only; explicitly reject path-like input
     $rawSupName = $_POST['Sup_Name'] ?? '';
     if (contains_path_traversal($rawSupName)) {
@@ -32,11 +40,13 @@ if (isset($_POST['add'])) {
         $Sup_Name = sanitize_string_allowlist($rawSupName, 255, ".-,'");
     }
     $Sup_CoInfo = sanitize_string_no_path_chars($_POST['Sup_CoInfo'] ?? '', 500, ".-,@():;+");
-    $Sup_PayTerm = sanitize_string_allowlist($_POST['Sup_PayTerm'] ?? '', 100, ".-,");
-    $Sup_DeSched = sanitize_string_allowlist($_POST['Sup_DeSched'] ?? '', 255, ".-,");
+    // Payment terms should be a known value (prevent arbitrary strings like "suppliers.php")
+    $Sup_PayTerm = validate_enum($_POST['Sup_PayTerm'] ?? null, ['Immediate', 'Net 15', 'Net 30', 'Net 60'], null);
+    // Delivery schedule should be a known value
+    $Sup_DeSched = validate_enum($_POST['Sup_DeSched'] ?? null, ['Monthly', 'Weekly'], null);
 
-    if ($Sup_Name === '') {
-        $_SESSION['sweetAlertConfig'] = "<script>Swal.fire({icon:'error',title:'Validation Error',text:'Supplier name is required.'});</script>";
+    if ($Sup_Name === '' || $Sup_PayTerm === null || $Sup_DeSched === null) {
+        $_SESSION['sweetAlertConfig'] = "<script>Swal.fire({icon:'error',title:'Validation Error',text:'Please provide valid supplier details.',confirmButtonText:'OK'});</script>";
         header("Location: " . $_SERVER['PHP_SELF']);
         exit();
     }
@@ -69,6 +79,13 @@ if (isset($_POST['add'])) {
 // Handle Edit Supplier (type-check ID; sanitize text inputs)
 if (isset($_POST['edit_supplier'])) {
     csrf_require();
+    foreach (['SupplierID', 'Sup_Name', 'Sup_CoInfo', 'Sup_PayTerm', 'Sup_DeSched'] as $key) {
+        if (isset($_POST[$key]) && contains_path_traversal($_POST[$key])) {
+            $_SESSION['sweetAlertConfig'] = "<script>Swal.fire({icon:'error',title:'Validation Error',text:'Invalid input detected.',confirmButtonText:'OK'});</script>";
+            header("Location: " . $_SERVER['PHP_SELF']);
+            exit();
+        }
+    }
     $SupplierID = validate_id($_POST['SupplierID'] ?? null);
     // Apply the same strict rules for supplier name when editing
     $rawSupName = $_POST['Sup_Name'] ?? '';
@@ -78,11 +95,11 @@ if (isset($_POST['edit_supplier'])) {
         $Sup_Name = sanitize_string_allowlist($rawSupName, 255, ".-,'");
     }
     $Sup_CoInfo = sanitize_string_no_path_chars($_POST['Sup_CoInfo'] ?? '', 500, ".-,@():;+");
-    $Sup_PayTerm = sanitize_string_allowlist($_POST['Sup_PayTerm'] ?? '', 100, ".-,");
-    $Sup_DeSched = sanitize_string_allowlist($_POST['Sup_DeSched'] ?? '', 255, ".-,");
+    $Sup_PayTerm = validate_enum($_POST['Sup_PayTerm'] ?? null, ['Immediate', 'Net 15', 'Net 30', 'Net 60'], null);
+    $Sup_DeSched = validate_enum($_POST['Sup_DeSched'] ?? null, ['Monthly', 'Weekly'], null);
 
-    if ($SupplierID === null || $Sup_Name === '') {
-        $_SESSION['sweetAlertConfig'] = "<script>Swal.fire({icon:'error',title:'Validation Error',text:'Invalid supplier or name.'});</script>";
+    if ($SupplierID === null || $Sup_Name === '' || $Sup_PayTerm === null || $Sup_DeSched === null) {
+        $_SESSION['sweetAlertConfig'] = "<script>Swal.fire({icon:'error',title:'Validation Error',text:'Invalid supplier details.',confirmButtonText:'OK'});</script>";
         header("Location: " . $_SERVER['PHP_SELF']);
         exit();
     }
