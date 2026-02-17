@@ -127,6 +127,20 @@ if (isset($_POST['add_product'])) {
     // Handle image upload
     $imagePath = null;
     if (isset($_FILES['product_image']) && $_FILES['product_image']['error'] === UPLOAD_ERR_OK) {
+        // Strict server-side validation: size + extension allow-list + MIME sniffing
+        $imgCheck = validate_uploaded_image($_FILES['product_image'], ['max_bytes' => 3 * 1024 * 1024]);
+        if (empty($imgCheck['ok'])) {
+            $_SESSION['sweetAlertConfig'] = "<script>
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Invalid File',
+                    text: " . json_encode($imgCheck['message'] ?? 'Invalid image upload.', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) . "
+                });
+            </script>";
+            header("Location: " . $_SERVER['PHP_SELF']);
+            exit();
+        }
+
         // Define the upload directory
         $uploadDir = '../uploads/product_images/';
         error_log("Attempting to upload to directory: " . $uploadDir);
@@ -163,35 +177,8 @@ if (isset($_POST['add_product'])) {
             exit();
         }
 
-        // Path traversal protection: reject malicious filenames
-        if (!is_upload_filename_safe($_FILES['product_image']['name'])) {
-            $_SESSION['sweetAlertConfig'] = "<script>
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Invalid File',
-                    text: 'Invalid or unsafe file name.'
-                });
-            </script>";
-            header("Location: " . $_SERVER['PHP_SELF']);
-            exit();
-        }
-
-        $fileExtension = strtolower(pathinfo(basename($_FILES['product_image']['name']), PATHINFO_EXTENSION));
-        $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif'];
-        
-        if (!in_array($fileExtension, $allowedExtensions)) {
-            $_SESSION['sweetAlertConfig'] = "<script>
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'Invalid file type. Only JPG, JPEG, PNG, and GIF files are allowed.'
-                });
-            </script>";
-            header("Location: " . $_SERVER['PHP_SELF']);
-            exit();
-        }
-        
-        $fileName = uniqid() . '.' . $fileExtension;
+        // Always generate a server-controlled safe filename
+        $fileName = generate_safe_image_filename($imgCheck['ext'] ?? 'jpg');
         $targetPath = $uploadDir . $fileName;
         
         // Debug upload information
@@ -292,6 +279,20 @@ if (isset($_POST['edit_product'])) {
     // Handle image upload
     $imagePath = null;
     if (isset($_FILES['product_image']) && $_FILES['product_image']['error'] === UPLOAD_ERR_OK) {
+        // Strict server-side validation: size + extension allow-list + MIME sniffing
+        $imgCheck = validate_uploaded_image($_FILES['product_image'], ['max_bytes' => 3 * 1024 * 1024]);
+        if (empty($imgCheck['ok'])) {
+            $_SESSION['sweetAlertConfig'] = "<script>
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Invalid File',
+                    text: " . json_encode($imgCheck['message'] ?? 'Invalid image upload.', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) . "
+                });
+            </script>";
+            header("Location: " . $_SERVER['PHP_SELF']);
+            exit();
+        }
+
         // Define the upload directory
         $uploadDir = '../uploads/product_images/';
         
@@ -323,35 +324,8 @@ if (isset($_POST['edit_product'])) {
             exit();
         }
 
-        // Path traversal protection: reject malicious filenames
-        if (!is_upload_filename_safe($_FILES['product_image']['name'])) {
-            $_SESSION['sweetAlertConfig'] = "<script>
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Invalid File',
-                    text: 'Invalid or unsafe file name.'
-                });
-            </script>";
-            header("Location: " . $_SERVER['PHP_SELF']);
-            exit();
-        }
-
-        $fileExtension = strtolower(pathinfo(basename($_FILES['product_image']['name']), PATHINFO_EXTENSION));
-        $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif'];
-        
-        if (!in_array($fileExtension, $allowedExtensions)) {
-            $_SESSION['sweetAlertConfig'] = "<script>
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'Invalid file type. Only JPG, JPEG, PNG, and GIF files are allowed.'
-                });
-            </script>";
-            header("Location: " . $_SERVER['PHP_SELF']);
-            exit();
-        }
-        
-        $fileName = uniqid() . '.' . $fileExtension;
+        // Always generate a server-controlled safe filename
+        $fileName = generate_safe_image_filename($imgCheck['ext'] ?? 'jpg');
         $targetPath = $uploadDir . $fileName;
         
         if (move_uploaded_file($_FILES['product_image']['tmp_name'], $targetPath)) {

@@ -261,6 +261,90 @@ function sanitize_string_no_path_chars($value, $maxLength = 500, $extraAllowed =
 }
 
 /**
+ * Validate an uploaded image using server-side content inspection.
+ *
+ * Why: Relying on client-provided filename/extension is not sufficient.
+ * This function ensures the upload is a real image and within constraints.
+ *
+ * @param array $file The $_FILES['field'] array.
+ * @param array $options Optional:
+ *   - max_bytes (int) Maximum allowed size in bytes (default 3MB)
+ *   - allowed_ext (string[]) Allowed extensions (default jpg/jpeg/png/gif)
+ *   - allowed_mime (string[]) Allowed MIME types (default image/jpeg,image/png,image/gif)
+ * @return array{ok:bool,message?:string,ext?:string,mime?:string}
+ */
+function validate_uploaded_image(array $file, array $options = []) {
+    $maxBytes = isset($options['max_bytes']) ? (int) $options['max_bytes'] : (3 * 1024 * 1024);
+    $allowedExt = isset($options['allowed_ext']) ? (array) $options['allowed_ext'] : ['jpg', 'jpeg', 'png', 'gif'];
+    $allowedMime = isset($options['allowed_mime']) ? (array) $options['allowed_mime'] : ['image/jpeg', 'image/png', 'image/gif'];
+
+    if (!isset($file['error']) || $file['error'] !== UPLOAD_ERR_OK) {
+        return ['ok' => false, 'message' => 'Upload failed.'];
+    }
+    if (empty($file['tmp_name']) || !is_string($file['tmp_name']) || !is_uploaded_file($file['tmp_name'])) {
+        return ['ok' => false, 'message' => 'Invalid upload.'];
+    }
+    if (!isset($file['size']) || (int) $file['size'] <= 0) {
+        return ['ok' => false, 'message' => 'Empty upload.'];
+    }
+    if ((int) $file['size'] > $maxBytes) {
+        return ['ok' => false, 'message' => 'File too large.'];
+    }
+
+    // Validate extension from original name (still allow-list), but do not trust it alone.
+    $origName = isset($file['name']) && is_string($file['name']) ? $file['name'] : '';
+    if ($origName === '' || !is_upload_filename_safe($origName)) {
+        return ['ok' => false, 'message' => 'Invalid file name.'];
+    }
+    $ext = strtolower(pathinfo($origName, PATHINFO_EXTENSION));
+    if ($ext === '' || !in_array($ext, $allowedExt, true)) {
+        return ['ok' => false, 'message' => 'Invalid file type.'];
+    }
+
+    // MIME sniffing using server-side file inspection.
+    $mime = null;
+    if (function_exists('finfo_open')) {
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        if ($finfo) {
+            $mime = finfo_file($finfo, $file['tmp_name']);
+            finfo_close($finfo);
+        }
+    }
+    if (!is_string($mime) || $mime === '') {
+        // Fallback to getimagesize which also validates image structure.
+        $info = @getimagesize($file['tmp_name']);
+        if ($info && isset($info['mime'])) {
+            $mime = $info['mime'];
+        }
+    }
+    if (!is_string($mime) || $mime === '' || !in_array($mime, $allowedMime, true)) {
+        return ['ok' => false, 'message' => 'File content is not a valid image.'];
+    }
+
+    // Final structural check.
+    if (@getimagesize($file['tmp_name']) === false) {
+        return ['ok' => false, 'message' => 'Corrupt or invalid image.'];
+    }
+
+    return ['ok' => true, 'ext' => $ext, 'mime' => $mime];
+}
+
+/**
+ * Generate a safe random filename for an uploaded image.
+ * User-provided names are never used.
+ * @param string $ext Lowercase extension without dot.
+ * @return string
+ */
+function generate_safe_image_filename($ext) {
+    $ext = strtolower((string) $ext);
+    if (!preg_match('/^(jpe?g|png|gif)$/', $ext)) {
+        $ext = 'jpg';
+    }
+    $rand = bin2hex(random_bytes(16));
+    return $rand . '.' . $ext;
+}
+
+/**
  * Validate date string in Y-m-d format (no XSS, valid date only).
  * @param string|null $value
  * @return string|null The date string if valid, null otherwise
